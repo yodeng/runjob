@@ -1,0 +1,5 @@
+echo hello from job jobA
+[2019-08-20 23:10:15] Your job 480977 ("jobA_25079") has been submitted
+[2019-08-20 23:10:18] RUNNING...
+hello from job jobA
+[2019-08-20 23:10:18] SUCCESS
