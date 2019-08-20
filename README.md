@@ -20,6 +20,7 @@ Installation
 ============
 
    git clone https://github.com/yodeng/runjob.git
+
    pip install ./runjob
 
 Usage
