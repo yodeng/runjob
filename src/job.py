@@ -1,9 +1,10 @@
 #!/usr/bin/env python2
-#coding:utf-8
+# coding:utf-8
 
 import os
 import sys
 from commands import getstatusoutput
+
 
 class Jobfile(object):
     def __init__(self, jobfile):
@@ -56,6 +57,7 @@ class Jobfile(object):
                     elif line[2] == "before":
                         orders.setdefault(line[3], []).append(line[1])
         return orders
+
 
 class Job(object):
     def __init__(self, rules):
@@ -117,5 +119,3 @@ class RuleError(Exception):
     def __str__(self):
         return self.errorinfo
     __repr__ = __str__
-
-

@@ -1,5 +1,5 @@
 #!/usr/bin/env python2
-#coding:utf-8
+# coding:utf-8
 
 import os
 import time
@@ -12,6 +12,7 @@ from datetime import datetime
 from job import Jobfile
 
 RUNSTAT = " && echo [\`date +'%F %T'\`] SUCCESS || echo [\`date +'%F %T'\`] ERROR"
+
 
 class qsub(object):
     def __init__(self, jobfile, max_jobs=None):
@@ -86,14 +87,15 @@ class qsub(object):
             time.sleep(sec)  # check per 1 seconds
             if not self.jobqueue.full():
                 continue
-            qs = os.popen('qstat -xml | grep _%s | wc -l' % self.pid).read().strip()
+            qs = os.popen('qstat -xml | grep _%s | wc -l' %
+                          self.pid).read().strip()
             qs = int(qs)
             if qs < num:
                 [self.jobqueue.get() for _ in range(num-qs)]
             else:
                 continue
 
-    def run(self, sec=1):
+    def run(self, sec=2):
         firstqsub = self.firstjob()
         if self.max_jobs < 100:
             p = Thread(target=self.qsubCheck, args=(self.max_jobs,))
@@ -104,7 +106,7 @@ class qsub(object):
             self.submit(job)
             prepare_sub.update(self.orders_rev[job.name])
         while True:
-            time.sleep(2)
+            time.sleep(sec)
             if len(self.waitjob) == 0:
                 break
             for k in prepare_sub.copy():
@@ -177,4 +179,3 @@ class qsub(object):
 
     def throw(self, msg):
         raise RuntimeError(msg)
-

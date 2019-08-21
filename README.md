@@ -19,16 +19,16 @@ python 2.7
 Installation
 ============
 
-   git clone https://github.com/yodeng/runjob.git
+	git clone https://github.com/yodeng/runjob.git
 
-   pip install ./runjob
+	pip install ./runjob
 
 Usage
 =====
 
 You can run a quick test like this:
 
-  $ runjob doc/example.job
+	$ runjob doc/example.job
 
 
 License
@@ -45,5 +45,5 @@ yodeng@tju.edu.cn.
 Todo
 =======
 
-More functions will be improved inn the future.
+More functions will be improved in the future.
 

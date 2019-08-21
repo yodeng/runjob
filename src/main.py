@@ -14,6 +14,7 @@ from datetime import datetime
 from qsub import qsub
 from version import __version__
 
+
 class ParseSingal(Thread):
     def __init__(self):
         super(ParseSingal, self).__init__()
@@ -27,6 +28,7 @@ class ParseSingal(Thread):
         call('qdel "*_%d"' % os.getpid(), shell=True, stderr=PIPE, stdout=PIPE)
         sys.exit(signum)
 
+
 def parseArgs():
     parser = argparse.ArgumentParser(
         description="For manger submit your jobs in a job file.")
@@ -34,7 +36,8 @@ def parseArgs():
                         help="the max job number runing at the same time, default: 1000", default=1000, metavar="<int>")
     parser.add_argument("jobfile", type=str,
                         help="the input jobfile", metavar="<jobfile>")
-    parser.add_argument('-v', '--version', action='version', version=__version__)
+    parser.add_argument('-v', '--version',
+                        action='version', version=__version__)
     return parser.parse_args()
 
 
@@ -56,4 +59,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
