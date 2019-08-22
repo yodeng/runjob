@@ -14,9 +14,9 @@ class Jobfile(object):
             print "No qsub command..."
             sys.exit(1)
 
+        self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
-        self._path = os.path.abspath(jobfile)
         self._pathdir = os.path.dirname(self._path)
         self.logdir = os.path.join(self._pathdir,"log")
 
@@ -54,9 +54,9 @@ class Jobfile(object):
                 if line.startswith("order"):
                     line = line.split()
                     if line[2] == "after":
-                        orders.setdefault(line[1], []).append(line[3])
+                        orders.setdefault(line[1], set()).add(line[3])
                     elif line[2] == "before":
-                        orders.setdefault(line[3], []).append(line[1])
+                        orders.setdefault(line[3], set()).add(line[1])
         return orders
 
 

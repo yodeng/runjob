@@ -25,7 +25,7 @@ class qsub(object):
         self.orders_rev = {}
         for k, v in self.orders.items():
             for i in v:
-                self.orders_rev.setdefault(i, []).append(k)
+                self.orders_rev.setdefault(i, set()).add(k)
         self.jobs = jf.jobs()
         self.jobdict = {jf.name: jf for jf in self.jobs}
         self.qsubjobs = {}

@@ -37,7 +37,7 @@ def parseArgs():
     parser.add_argument("jobfile", type=str,
                         help="the input jobfile", metavar="<jobfile>")
     parser.add_argument('-v', '--version',
-                        action='version', version=__version__)
+                        action='version', version="%(prog)s v" +__version__)
     return parser.parse_args()
 
 
@@ -52,7 +52,7 @@ def main():
               (datetime.today().isoformat(), os.path.abspath(qjobs.jfile)))
     else:
         print "[%s] All tesks in file (%s) finished, But there are ERROR tesks." % (
-            datetime.today().isoformat(qjobs.jfile),)
+            datetime.today().isoformat(),os.path.abspath(qjobs.jfile))
         print "Success jobs: %d" % qjobs.success
         print "Error jobs: %d" % qjobs.error
 
