@@ -13,11 +13,12 @@ class Jobfile(object):
         if not has_qstat:
             print "No qsub command..."
             sys.exit(1)
-        self._path = os.path.join(jobfile)
+
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
-
-        self.logdir = os.getcwd()
+        self._path = os.path.abspath(jobfile)
+        self._pathdir = os.path.dirname(self._path)
+        self.logdir = os.path.join(self._pathdir,"log")
 
     def jobs(self):
         jobs = []
@@ -28,7 +29,7 @@ class Jobfile(object):
                     continue
                 line = line.strip()
                 if line.startswith("log_dir"):
-                    self.logdir = line.split()[-1]
+                    self.logdir = os.path.join(self._pathdir,line.split()[-1])
                     continue
                 if line == "job_begin":
                     if len(job):
