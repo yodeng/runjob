@@ -3,6 +3,7 @@
 
 import os
 import time
+import random
 
 from subprocess import call, PIPE
 from threading import Thread
@@ -61,7 +62,10 @@ class qsub(object):
         logfile = os.path.join(self.logdir, jobname + ".log")
         if os.path.isfile(logfile):
             status = "submit"
-            sta = os.popen('tail -n 1 %s' % logfile).read().split()[-1]
+            try:
+                sta = os.popen('tail -n 1 %s' % logfile).read().split()[-1]
+            except IndexError:
+                return "run"
             if sta == "SUCCESS":
                 status = "success"
             elif sta == "Error":
@@ -75,7 +79,10 @@ class qsub(object):
 
     def firstjob(self):
         fj = []
-        secondjobs = self.orders.keys()
+        secondjobs = []
+        for sj in self.orders:
+            if self.jobstatus(sj) != "success":
+                secondjobs.append(sj)
         for jn in self.jobs:
             if jn.name not in secondjobs:
                 fj.append(jn)
@@ -102,16 +109,23 @@ class qsub(object):
             p.setDaemon(True)
             p.start()
         prepare_sub = set()
+        print "Start Submit Jobs..."
         for job in firstqsub:
             self.submit(job)
-            prepare_sub.update(self.orders_rev[job.name])
+            if job.name in self.orders_rev:
+                prepare_sub.update(
+                    [i for i in self.orders_rev[job.name] if self.jobstatus(i) != "success"])
         while True:
             time.sleep(sec)
             if len(self.waitjob) == 0:
                 break
-            for k in prepare_sub.copy():
+            tmp = list(prepare_sub)
+            random.shuffle(tmp)
+            for k in tmp:
+                time.sleep(0.1)
                 subK = True
                 for jn in self.orders[k]:
+                    time.sleep(0.1)
                     js = self.jobstatus(jn)
                     if js == "success":
                         self.successjob[jn] = self.jobdict[jn]
@@ -123,9 +137,12 @@ class qsub(object):
                         self.throw("Error when qsub")
                     else:
                         subK = False
-                if subK and (k in self.waitjob):
+                if subK:
                     self.submit(self.jobdict[k])
-                    prepare_sub.add(k)
+                    if k in prepare_sub:
+                        prepare_sub.remove(k)
+                    if k in self.orders_rev:
+                        prepare_sub.update(self.orders_rev[k])
                     for jn in self.orders[k]:
                         if jn in prepare_sub:
                             prepare_sub.remove(jn)
@@ -135,7 +152,8 @@ class qsub(object):
         logfile = os.path.join(self.logdir, job.name + ".log")
 
         if self.jobstatus(job.name) == "success":
-            self.waitjob.pop(job.name)
+            if job.name in self.waitjob:
+                self.waitjob.pop(job.name)
             return
 
         qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
@@ -156,7 +174,8 @@ class qsub(object):
                 job.sched_options, job.name, self.pid, logfile, qsubline)
             call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         logcmd.close()
-        self.waitjob.pop(job.name)
+        if job.name in self.waitjob:
+            self.waitjob.pop(job.name)
 
     def finalstat(self):
         alljobs = set(self.jobdict.keys())
