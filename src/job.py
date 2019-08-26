@@ -25,14 +25,16 @@ class Jobfile(object):
         job = []
         with open(self._path) as fi:
             for line in fi:
-                if not line.strip() or line.startswith("#"):
+                if not line.strip() or line.strip().startswith("#"):
                     continue
+                if "#" in line:
+                    line = line[line.index("#"):]
                 line = line.strip()
                 if line.startswith("log_dir"):
                     self.logdir = os.path.join(self._pathdir,line.split()[-1])
                     continue
                 if line == "job_begin":
-                    if len(job):
+                    if len(job) and job[-1] == "job_end":
                         jobs.append(Job(job))
                         job = [line, ]
                     else:
@@ -66,7 +68,7 @@ class Job(object):
         self.name = None
         self.status = None
         self.sched_options = None
-        self.cmd = None
+        self.cmd = []
         self.host = None
         self.checkrule()
         cmd = False
@@ -74,10 +76,14 @@ class Job(object):
             j = j.strip()
             if not j or j.startswith("#"):
                 continue
-            if j in ["job_begin", "job_end", "cmd_end"]:
+            if j in ["job_begin", "job_end"]:
                 continue
             elif j.startswith("name"):
-                self.name = j.split()[-1]
+                name = j.split()[1:]
+                if len(name) > 1:
+                    self.name = self.name.replace(" ","_")
+                else:
+                    self.name = name[-1]
             elif j.startswith("status"):
                 self.status = j.split()[-1]
             elif j.startswith("sched_options"):
@@ -87,26 +93,41 @@ class Job(object):
             elif j == "cmd_begin":
                 cmd = True
                 continue
+            elif j == "cmd_end":
+                cmd = False
+            elif j.startswith("cmd"):
+                self.cmd.append(" ".join(j.split()[1:]))
+            elif j.startswith("memory"):     ## miss
+                continue
+            elif j.startswith("time"):       ## miss
+                continue
             else:
                 if cmd:
-                    self.cmd = j
-                    cmd = False
+                    self.cmd.append(j)
                 else:
-                    # print rules
-                    self.throw("Dup cmd in this job")
+                    self.throw("cmd after cmd_end")
+        if len(self.cmd) > 1:
+            self.cmd = " && ".join(self.cmd)
+        elif len(self.cmd) == 1:
+            self.cmd = self.cmd[0]
+        else:
+            print self.rules
+            self.throw("No cmd in %s job"%self.name)
 
     def checkrule(self):
         rules = self.rules[:]
-        if len(rules) <= 5:
-            self.throw("rule list less then 5")
+        if len(rules) <= 4:
+            self.throw("rules lack of elements")
         if rules[0] != "job_begin" or rules[-1] != "job_end":
             self.throw("No start or end in you rule")
         rules = rules[1:-1]
+        if any([i.startswith("cmd") for i in rules]):
+            return
         try:
             rules.remove("cmd_begin")
             rules.remove("cmd_end")
         except ValueError:
-            self.throw("No start or end in you cmd")
+            self.throw("No start or end in %s job"%"\n".join(rules))
 
     def throw(self, msg):
         raise RuleError(msg)
