@@ -5,7 +5,7 @@ import os
 import time
 import random
 
-from subprocess import call, PIPE
+from subprocess import call, PIPE, Popen
 from threading import Thread
 from Queue import Queue
 from datetime import datetime
@@ -48,14 +48,19 @@ class qsub(object):
         self.errjob = {}
         self.waitjob = {k: v for k, v in self.jobdict.items()}  # all jobs
 
+        self.error = set()
+        self.success = set()
+        self.thisjobs = set(self.jobdict.keys())
+
         for jn in self.jobdict:
             lf = os.path.join(self.logdir, jn + ".log")
             if os.path.isfile(lf):
                 if self.jobstatus(jn) != "success":
                     os.remove(lf)
+                else:
+                    self.thisjobs.remove(jn)
+        self.has_success = set(self.jobdict.keys()) - self.thisjobs
 
-        self.error = 0
-        self.success = 0
 
     def jobstatus(self, jobname):
         status = "wait"
@@ -68,8 +73,10 @@ class qsub(object):
                 return "run"
             if sta == "SUCCESS":
                 status = "success"
+                self.success.add(jobname)
             elif sta == "Error":
                 status = "error"
+                self.error.add(jobname)
             elif sta == "Exiting.":
                 status = "exit"
             else:
@@ -81,7 +88,8 @@ class qsub(object):
         fj = []
         secondjobs = []
         for sj in self.orders:
-            if self.jobstatus(sj) != "success":
+            #if self.jobstatus(sj) != "success":
+            if sj in self.thisjobs:
                 secondjobs.append(sj)
         for jn in self.jobs:
             if jn.name not in secondjobs:
@@ -91,7 +99,7 @@ class qsub(object):
     def qsubCheck(self, num, sec=1, ):
         qs = 0
         while True:
-            time.sleep(sec)  # check per 1 seconds
+            time.sleep(sec)  # check per 1 seconds if job pools
             if not self.jobqueue.full():
                 continue
             qs = os.popen('qstat -xml | grep _%s | wc -l' %
@@ -113,8 +121,10 @@ class qsub(object):
         for job in firstqsub:
             self.submit(job)
             if job.name in self.orders_rev:
+                # prepare_sub.update(
+                #    [i for i in self.orders_rev[job.name] if self.jobstatus(i) != "success"])
                 prepare_sub.update(
-                    [i for i in self.orders_rev[job.name] if self.jobstatus(i) != "success"])
+                    [i for i in self.orders_rev[job.name] if i in self.thisjobs])
         while True:
             time.sleep(sec)
             if len(self.waitjob) == 0:
@@ -131,8 +141,7 @@ class qsub(object):
                         self.successjob[jn] = self.jobdict[jn]
                     elif js == "error":
                         self.errjob[jn] = self.jobdict[jn]
-                        # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))
-                        pass
+                        # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))   ## if error, exit program
                     elif js == "exit":
                         self.throw("Error when qsub")
                     else:
@@ -156,18 +165,21 @@ class qsub(object):
                 self.waitjob.pop(job.name)
             return
 
-        qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
-            job.cmd + RUNSTAT
-
         logcmd = open(logfile, "w")
         logcmd.write(job.cmd+"\n")
         logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
         logcmd.flush()
 
         if job.name in self.localjobs:
-            cmd = qsubline
-            call(qsubline, shell=True, stdout=logcmd, stderr=logcmd)
+            qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
+               job.cmd + RUNSTAT
+            cmd = "echo " + qsubline[qsubline.index("RUNNING..."):]
+            cmd = cmd.replace("\\","")
+            Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         elif job.name in self.qsubjobs:
+            job.cmd = job.cmd.replace('"',"\\\"")
+            qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
+               job.cmd + RUNSTAT
             if self.max_jobs < 100:
                 self.jobqueue.put(job.name, block=True, timeout=1080000)
             cmd = 'qsub %s -N %s_%d -o %s -j y <<< "%s"' % (
@@ -178,21 +190,15 @@ class qsub(object):
             self.waitjob.pop(job.name)
 
     def finalstat(self):
-        alljobs = set(self.jobdict.keys())
-        self.success = 0
-        self.error = 0
+        finaljobs = set(self.jobdict.keys()) - self.success - self.error
         while True:
             time.sleep(2)
-            if len(alljobs) == 0:
+            if len(finaljobs) == 0:
                 break
-            for jn in alljobs.copy():
+            for jn in finaljobs.copy():
                 js = self.jobstatus(jn)
-                if js == "success":
-                    alljobs.remove(jn)
-                    self.success += 1
-                elif js == "error":
-                    alljobs.remove(jn)
-                    self.error += 1
+                if js in ["success", "error"]:
+                    finaljobs.remove(jn)
                 else:
                     continue
 

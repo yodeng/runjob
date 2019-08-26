@@ -47,14 +47,14 @@ def main():
     h.start()
     qjobs = qsub(args.jobfile, args.num)
     qjobs.run()
-    if qjobs.error == 0:
-        print("[%s] All tesks in file (%s) finished successfully." %
-              (datetime.today().isoformat(), os.path.abspath(qjobs.jfile)))
+    if len(qjobs.error) == 0:
+        print("[%s] All tesks(%d, %d) in file (%s) finished successfully." %
+              (datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), os.path.abspath(qjobs.jfile)))
     else:
-        print "[%s] All tesks in file (%s) finished, But there are ERROR tesks." % (
-            datetime.today().isoformat(),os.path.abspath(qjobs.jfile))
-        print "Success jobs: %d" % qjobs.success
-        print "Error jobs: %d" % qjobs.error
+        print "[%s] All tesks(%d, %d) in file (%s) finished, But there are ERROR tesks." % (
+            datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), os.path.abspath(qjobs.jfile))
+        print "Success jobs: %d" % len(qjobs.success)
+        print "Error jobs: %d" % len(qjobs.error)
 
 
 if __name__ == "__main__":
