@@ -16,7 +16,7 @@ RUNSTAT = " && echo [\`date +'%F %T'\`] SUCCESS || echo [\`date +'%F %T'\`] ERRO
 
 
 class qsub(object):
-    def __init__(self, jobfile, max_jobs=None):
+    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None):
         self.pid = os.getpid()
         self.jfile = jobfile
 
@@ -26,7 +26,9 @@ class qsub(object):
         for k, v in self.orders.items():
             for i in v:
                 self.orders_rev.setdefault(i, set()).add(k)
-        self.jobs = jf.jobs()
+        self.jobs = jf.jobs(jobnames, start, end)
+        self.totaljobs = jf.totaljobs
+        self.totaljobdict = {jf.name: jf for jf in self.totaljobs}
         self.jobdict = {jf.name: jf for jf in self.jobs}
         self.qsubjobs = {}
         self.localjobs = {}
@@ -61,7 +63,6 @@ class qsub(object):
                     self.thisjobs.remove(jn)
         self.has_success = set(self.jobdict.keys()) - self.thisjobs
 
-
     def jobstatus(self, jobname):
         status = "wait"
         logfile = os.path.join(self.logdir, jobname + ".log")
@@ -86,14 +87,21 @@ class qsub(object):
 
     def firstjob(self):
         fj = []
+        fj_bak = []
         secondjobs = []
         for sj in self.orders:
-            #if self.jobstatus(sj) != "success":
+            # if self.jobstatus(sj) != "success":
             if sj in self.thisjobs:
                 secondjobs.append(sj)
         for jn in self.jobs:
             if jn.name not in secondjobs:
                 fj.append(jn)
+        if len(fj) == 0:
+            for sj,sj2 in self.orders.items():
+                for i in sj2:
+                    if i not in self.orders:
+                        fj_bak.append(self.totaljobdict[i])
+            fj = fj_bak
         return fj
 
     def qsubCheck(self, num, sec=1, ):
@@ -117,7 +125,6 @@ class qsub(object):
             p.setDaemon(True)
             p.start()
         prepare_sub = set()
-        print "Start Submit Jobs..."
         for job in firstqsub:
             self.submit(job)
             if job.name in self.orders_rev:
@@ -138,7 +145,7 @@ class qsub(object):
                     time.sleep(0.1)
                     js = self.jobstatus(jn)
                     if js == "success":
-                        self.successjob[jn] = self.jobdict[jn]
+                        self.successjob[jn] = self.totaljobdict[jn]
                     elif js == "error":
                         self.errjob[jn] = self.jobdict[jn]
                         # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))   ## if error, exit program
@@ -172,14 +179,14 @@ class qsub(object):
 
         if job.name in self.localjobs:
             qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
-               job.cmd + RUNSTAT
+                job.cmd + RUNSTAT
             cmd = "echo " + qsubline[qsubline.index("RUNNING..."):]
-            cmd = cmd.replace("\\","")
+            cmd = cmd.replace("\\", "")
             Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         elif job.name in self.qsubjobs:
-            job.cmd = job.cmd.replace('"',"\\\"")
+            job.cmd = job.cmd.replace('"', "\\\"")
             qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
-               job.cmd + RUNSTAT
+                job.cmd + RUNSTAT
             if self.max_jobs < 100:
                 self.jobqueue.put(job.name, block=True, timeout=1080000)
             cmd = 'qsub %s -N %s_%d -o %s -j y <<< "%s"' % (

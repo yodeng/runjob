@@ -18,9 +18,9 @@ class Jobfile(object):
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
-        self.logdir = os.path.join(self._pathdir,"log")
+        self.logdir = os.path.join(self._pathdir, "log")
 
-    def jobs(self):
+    def jobs(self, names=None, start=1, end=None):
         jobs = []
         job = []
         with open(self._path) as fi:
@@ -31,7 +31,7 @@ class Jobfile(object):
                     line = line[line.index("#"):]
                 line = line.strip()
                 if line.startswith("log_dir"):
-                    self.logdir = os.path.join(self._pathdir,line.split()[-1])
+                    self.logdir = os.path.join(self._pathdir, line.split()[-1])
                     continue
                 if line == "job_begin":
                     if len(job) and job[-1] == "job_end":
@@ -45,7 +45,15 @@ class Jobfile(object):
                     job.append(line)
             if len(job):
                 jobs.append(Job(job))
-        return jobs
+        self.totaljobs = jobs
+        if names is not None:
+            newjobs = []
+            for jn in jobs:
+                if jn.name in names:
+                    newjobs.append(jn)
+            return newjobs
+        jobend = len(jobs) if end is None else end
+        return jobs[start-1:jobend]
 
     def orders(self):
         orders = {}
@@ -81,7 +89,7 @@ class Job(object):
             elif j.startswith("name"):
                 name = j.split()[1:]
                 if len(name) > 1:
-                    self.name = self.name.replace(" ","_")
+                    self.name = self.name.replace(" ", "_")
                 else:
                     self.name = name[-1]
             elif j.startswith("status"):
@@ -97,9 +105,9 @@ class Job(object):
                 cmd = False
             elif j.startswith("cmd"):
                 self.cmd.append(" ".join(j.split()[1:]))
-            elif j.startswith("memory"):     ## miss
+            elif j.startswith("memory"):  # miss
                 continue
-            elif j.startswith("time"):       ## miss
+            elif j.startswith("time"):  # miss
                 continue
             else:
                 if cmd:
@@ -111,8 +119,7 @@ class Job(object):
         elif len(self.cmd) == 1:
             self.cmd = self.cmd[0]
         else:
-            print self.rules
-            self.throw("No cmd in %s job"%self.name)
+            self.throw("No cmd in %s job" % self.name)
 
     def checkrule(self):
         rules = self.rules[:]
@@ -127,7 +134,7 @@ class Job(object):
             rules.remove("cmd_begin")
             rules.remove("cmd_end")
         except ValueError:
-            self.throw("No start or end in %s job"%"\n".join(rules))
+            self.throw("No start or end in %s job" % "\n".join(rules))
 
     def throw(self, msg):
         raise RuleError(msg)
