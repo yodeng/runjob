@@ -34,7 +34,7 @@ def parseArgs():
         description="For manger submit your jobs in a job file.")
     parser.add_argument("-n", "--num", type=int,
                         help="the max job number runing at the same time, default: 1000", default=1000, metavar="<int>")
-    parser.add_argument("-j", "--jobfile", type=str, required = True,
+    parser.add_argument("-j", "--jobfile", type=str, required=True,
                         help="the input jobfile", metavar="<jobfile>")
     parser.add_argument('-v', '--version',
                         action='version', version="%(prog)s v" + __version__)
@@ -44,6 +44,10 @@ def parseArgs():
                         type=int, default=1, metavar="<int>")
     parser.add_argument('-e', '--end', help="job ending with the number you given, last job by default",
                         type=int, metavar="<int>")
+    parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 3 times by default",
+                        type=int, default=3, metavar="<int>")
+    parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
+                        type=int, default=2, metavar="<int>")
     return parser.parse_args()
 
 
@@ -52,13 +56,13 @@ def main():
     h = ParseSingal()
     h.start()
     qjobs = qsub(args.jobfile, args.num, args.injname, args.start, args.end)
-    qjobs.run()
+    qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
     if len(qjobs.error) == 0:
-        print("[%s] All tesks(%d, %d) in file (%s) finished successfully." %
-              (datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), os.path.abspath(qjobs.jfile)))
+        print("[%s] All tesks(%d, %d, %d) in file (%s) finished successfully." %
+              (datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), len({k: v for k, v in qjobs.subtimes.items() if v != args.resub - 1}), os.path.abspath(qjobs.jfile)))
     else:
-        print "[%s] All tesks(%d, %d) in file (%s) finished, But there are ERROR tesks." % (
-            datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), os.path.abspath(qjobs.jfile))
+        print "[%s] All tesks(%d, %d, %d) in file (%s) finished, But there are ERROR tesks." % (
+            datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), len({k: v for k, v in qjobs.subtimes.items() if v != args.resub - 1}), os.path.abspath(qjobs.jfile))
         print "Success jobs: %d" % len(qjobs.success)
         print "Error jobs: %d" % len(qjobs.error)
 

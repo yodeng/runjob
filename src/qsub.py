@@ -9,6 +9,7 @@ from subprocess import call, PIPE, Popen
 from threading import Thread
 from Queue import Queue
 from datetime import datetime
+from collections import defaultdict
 
 from job import Jobfile
 
@@ -75,7 +76,7 @@ class qsub(object):
             if sta == "SUCCESS":
                 status = "success"
                 self.success.add(jobname)
-            elif sta == "Error":
+            elif sta == "ERROR":
                 status = "error"
                 self.error.add(jobname)
             elif sta == "Exiting.":
@@ -97,7 +98,7 @@ class qsub(object):
             if jn.name not in secondjobs:
                 fj.append(jn)
         if len(fj) == 0:
-            for sj,sj2 in self.orders.items():
+            for sj, sj2 in self.orders.items():
                 for i in sj2:
                     if i not in self.orders:
                         fj_bak.append(self.totaljobdict[i])
@@ -118,7 +119,11 @@ class qsub(object):
             else:
                 continue
 
-    def run(self, sec=2):
+    def run(self, sec=2, times=-1, resubivs=2):
+
+        self.times = times
+        self.subtimes = defaultdict(lambda: self.times)
+
         firstqsub = self.firstjob()
         if self.max_jobs < 100:
             p = Thread(target=self.qsubCheck, args=(self.max_jobs,))
@@ -147,8 +152,17 @@ class qsub(object):
                     if js == "success":
                         self.successjob[jn] = self.totaljobdict[jn]
                     elif js == "error":
-                        self.errjob[jn] = self.jobdict[jn]
-                        # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))   ## if error, exit program
+                        if self.subtimes[jn] < 0:
+                            if self.times >= 0:
+                                print "%s job resubmit/rerun %d times, still error" % (
+                                    jn, self.times+1)
+                            self.errjob[jn] = self.jobdict[jn]
+                            # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))   ## if error, exit program
+                        else:
+                            time.sleep(resubivs)  # sleep, re-submit
+                            self.submit(self.totaljobdict[jn], resub=True)
+                            self.subtimes[jn] -= 1
+                            subK = False
                     elif js == "exit":
                         self.throw("Error when qsub")
                     else:
@@ -162,9 +176,9 @@ class qsub(object):
                     for jn in self.orders[k]:
                         if jn in prepare_sub:
                             prepare_sub.remove(jn)
-        self.finalstat()
+        self.finalstat(resubivs)
 
-    def submit(self, job):
+    def submit(self, job, resub=False):
         logfile = os.path.join(self.logdir, job.name + ".log")
 
         if self.jobstatus(job.name) == "success":
@@ -172,7 +186,10 @@ class qsub(object):
                 self.waitjob.pop(job.name)
             return
 
-        logcmd = open(logfile, "w")
+        if resub:
+            logcmd = open(logfile, "a")
+        else:
+            logcmd = open(logfile, "w")
         logcmd.write(job.cmd+"\n")
         logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
         logcmd.flush()
@@ -182,6 +199,8 @@ class qsub(object):
                 job.cmd + RUNSTAT
             cmd = "echo " + qsubline[qsubline.index("RUNNING..."):]
             cmd = cmd.replace("\\", "")
+            if resub:
+                cmd = cmd.replace("RUNNING", "RUNNING \\(re-run\\)")
             Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         elif job.name in self.qsubjobs:
             job.cmd = job.cmd.replace('"', "\\\"")
@@ -191,12 +210,14 @@ class qsub(object):
                 self.jobqueue.put(job.name, block=True, timeout=1080000)
             cmd = 'qsub %s -N %s_%d -o %s -j y <<< "%s"' % (
                 job.sched_options, job.name, self.pid, logfile, qsubline)
+            if resub:
+                cmd = cmd.replace("RUNNING", "RUNNING \\(re-submit\\)")
             call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         logcmd.close()
         if job.name in self.waitjob:
             self.waitjob.pop(job.name)
 
-    def finalstat(self):
+    def finalstat(self, resubivs):
         finaljobs = set(self.jobdict.keys()) - self.success - self.error
         while True:
             time.sleep(2)
@@ -204,8 +225,19 @@ class qsub(object):
                 break
             for jn in finaljobs.copy():
                 js = self.jobstatus(jn)
-                if js in ["success", "error"]:
+                if js == "success":
                     finaljobs.remove(jn)
+                elif js == "error":
+                    if self.subtimes[jn] < 0:
+                        if self.times >= 0:
+                            print "%s job resubmit/rerun %d times, still error" % (
+                                jn, self.times+1)
+                        self.errjob[jn] = self.jobdict[jn]
+                        finaljobs.remove(jn)
+                    else:
+                        time.sleep(resubivs)  # sleep, re-submit
+                        self.submit(self.totaljobdict[jn], resub=True)
+                        self.subtimes[jn] -= 1
                 else:
                     continue
 

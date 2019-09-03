@@ -1,4 +1,5 @@
 README.md
+setup.cfg
 setup.py
 doc/example.job
 doc/jobA.log
