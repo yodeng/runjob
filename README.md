@@ -23,12 +23,18 @@ Installation
 
 	pip install ./runjob
 
+	or:
+
+	pip install runjob
+
 Usage
 =====
 
 You can run a quick test like this:
 
 	$ runjob doc/example.job
+    
+	$ runstate doc/example.job
 
 
 License

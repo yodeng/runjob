@@ -8,9 +8,11 @@ runjob.egg-info/PKG-INFO
 runjob.egg-info/SOURCES.txt
 runjob.egg-info/dependency_links.txt
 runjob.egg-info/entry_points.txt
+runjob.egg-info/requires.txt
 runjob.egg-info/top_level.txt
 src/__init__.py
 src/job.py
 src/main.py
 src/qsub.py
+src/stat.py
 src/version.py
