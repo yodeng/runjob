@@ -50,7 +50,6 @@ class qsub(object):
         self.jobqueue = Queue(maxsize=self.max_jobs)
         self.successjob = {}
         self.errjob = {}
-        self.waitjob = {k: v for k, v in self.jobdict.items()}  # all jobs
 
         self.error = set()
         self.success = set()
@@ -63,6 +62,7 @@ class qsub(object):
                     os.remove(lf)
                 else:
                     self.thisjobs.remove(jn)
+        self.waitjob = {k: self.jobdict[k] for k in self.thisjobs}  # this jobs
         self.has_success = set(self.jobdict.keys()) - self.thisjobs
 
     def not_qsub(self, jobname):
