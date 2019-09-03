@@ -114,6 +114,10 @@ class Job(object):
                     self.cmd.append(j)
                 else:
                     self.throw("cmd after cmd_end")
+        for c in self.cmd:
+            if c.startswith("exit"):
+                self.throw(
+                    "'exit' command not allow in the cmd string in %s job." % self.name)
         if len(self.cmd) > 1:
             self.cmd = " && ".join(self.cmd)
         elif len(self.cmd) == 1:

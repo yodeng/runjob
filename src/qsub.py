@@ -20,6 +20,7 @@ class qsub(object):
     def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None):
         self.pid = os.getpid()
         self.jfile = jobfile
+        self.is_run = False
 
         jf = Jobfile(self.jfile)
         self.orders = jf.orders()
@@ -64,6 +65,13 @@ class qsub(object):
                     self.thisjobs.remove(jn)
         self.has_success = set(self.jobdict.keys()) - self.thisjobs
 
+    def not_qsub(self, jobname):
+        qs = os.popen('qstat -xml | grep %s_%d | wc -l' %
+                      (jobname, self.pid)).read().strip()
+        if int(qs) == 0:
+            return True
+        return False
+
     def jobstatus(self, jobname):
         status = "wait"
         logfile = os.path.join(self.logdir, jobname + ".log")
@@ -72,7 +80,10 @@ class qsub(object):
             try:
                 sta = os.popen('tail -n 1 %s' % logfile).read().split()[-1]
             except IndexError:
-                return "run"
+                status = "run"
+                # if self.not_qsub(jobname) and self.is_run:                                                           ## job exit, qsub error
+                #    self.throw("Error in %s job, probably because of qsub interruption."%jobname)
+                return status
             if sta == "SUCCESS":
                 status = "success"
                 self.success.add(jobname)
@@ -84,6 +95,8 @@ class qsub(object):
             else:
                 if "RUNNING..." in os.popen("sed -n '3p' %s" % logfile).read():
                     status = "run"
+                    # if self.not_qsub(jobname) and self.is_run:                                                       ## job exit, qsub error
+                    #    self.throw("Error in %s job, probably because of qsub interruption."%jobname)
         return status
 
     def firstjob(self):
@@ -111,7 +124,7 @@ class qsub(object):
             time.sleep(sec)  # check per 1 seconds if job pools
             if not self.jobqueue.full():
                 continue
-            qs = os.popen('qstat -xml | grep _%s | wc -l' %
+            qs = os.popen('qstat -xml | grep _%d | wc -l' %
                           self.pid).read().strip()
             qs = int(qs)
             if qs < num:
@@ -121,6 +134,7 @@ class qsub(object):
 
     def run(self, sec=2, times=-1, resubivs=2):
 
+        self.is_run = True
         self.times = times
         self.subtimes = defaultdict(lambda: self.times)
 
@@ -188,9 +202,10 @@ class qsub(object):
 
         if resub:
             logcmd = open(logfile, "a")
+            logcmd.write("\n" + job.cmd+"\n")
         else:
             logcmd = open(logfile, "w")
-        logcmd.write(job.cmd+"\n")
+            logcmd.write(job.cmd+"\n")
         logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
         logcmd.flush()
 
