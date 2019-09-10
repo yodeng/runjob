@@ -1,4 +1,5 @@
 [console_scripts]
 runjob = runjob.main:main
+runsge = runjob.sge:main
 runstate = runjob.stat:main
 

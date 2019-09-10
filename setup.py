@@ -32,6 +32,7 @@ setup(
         'console_scripts': [
             'runjob = runjob.main:main',
             'runstate = runjob.stat:main',
+            'runsge = runjob.sge:main',
         ]
     }
 )

@@ -14,5 +14,7 @@ src/__init__.py
 src/job.py
 src/main.py
 src/qsub.py
+src/runtime.py
+src/sge.py
 src/stat.py
 src/version.py

@@ -36,6 +36,7 @@ You can run a quick test like this:
     
 	$ runstate doc/example.job
 
+	$ runsge --help
 
 License
 =======

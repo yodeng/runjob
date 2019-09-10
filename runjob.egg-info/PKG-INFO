@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: runjob
-Version: 1.3.2
+Version: 1.3.3
 Summary: UNKNOWN
 Home-page: https://github.com/yodeng/runjob
 Author: Deng Yong
@@ -44,6 +44,7 @@ Description: runjob
             
         	$ runstate doc/example.job
         
+        	$ runsge --help
         
         License
         =======
