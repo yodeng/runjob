@@ -2,7 +2,7 @@
 # coding:utf-8
 '''For summary all jobs
 
-Usage: runstate [jobfile]
+Usage: runstate [jobfile|logdir]
 '''
 
 import os
@@ -59,18 +59,21 @@ def main():
         print style("-"*47, mode="bold")
         if len(sys.argv) == 2:
             jobfile = sys.argv[1]
-            if not os.path.isfile(jobfile):
-                raise IOError("No such file %s" % jobfile)
-            with open(jobfile) as fi:
-                for line in fi:
-                    if not line.strip() or line.strip().startswith("#"):
-                        continue
-                    line = line.strip()
-                    if line.startswith("log_dir"):
-                        logdir = line.split(line)[-1]
-                        break
-            logdir = os.path.abspath(os.path.join(
-                os.path.dirname(jobfile), logdir))
+            if os.path.isfile(jobfile):
+                with open(jobfile) as fi:
+                    for line in fi:
+                        if not line.strip() or line.strip().startswith("#"):
+                            continue
+                        line = line.strip()
+                        if line.startswith("log_dir"):
+                            logdir = line.split(line)[-1]
+                            break
+                logdir = os.path.abspath(os.path.join(
+                    os.path.dirname(jobfile), logdir))
+            elif os.path.isdir(jobfile):
+                logdir = os.path.abspath(jobfile)
+            else:
+                raise IOError("No such file or directory %s." % jobfile)
             if not os.path.isdir(logdir):
                 raise IOError("No such log_dir %s" % logdir)
             fs = [os.path.join(logdir, i) for i in os.listdir(logdir)]
