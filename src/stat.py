@@ -11,6 +11,8 @@ import psutil
 from collections import defaultdict
 from commands import getstatusoutput
 
+from job import Jobfile
+
 
 def style(string, mode='', fore='', back=''):
     STYLE = {
@@ -60,16 +62,15 @@ def main():
         if len(sys.argv) == 2:
             jobfile = sys.argv[1]
             if os.path.isfile(jobfile):
-                with open(jobfile) as fi:
-                    for line in fi:
-                        if not line.strip() or line.strip().startswith("#"):
-                            continue
-                        line = line.strip()
-                        if line.startswith("log_dir"):
-                            logdir = line.split(line)[-1]
-                            break
+
+                jf = Jobfile(jobfile)
+                jobs = jf.jobs()
+                norun = []
+                for jn in jf.alljobnames:
+                    if not os.path.isfile(os.path.join(jf.logdir, jn + ".log")):
+                        norun.append(jn)
                 logdir = os.path.abspath(os.path.join(
-                    os.path.dirname(jobfile), logdir))
+                    os.path.dirname(jobfile), jf.logdir))
             elif os.path.isdir(jobfile):
                 logdir = os.path.abspath(jobfile)
             else:
@@ -105,6 +106,8 @@ def main():
             print style("-"*47, mode="bold")
             # if len(success) + len(error) + running < submit:
             #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
+            if os.path.isfile(jobfile):
+                print "Not submitted jobs: %s" % ", ".join(norun)
     else:
         try:
             users = os.popen(

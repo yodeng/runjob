@@ -19,8 +19,11 @@ class Jobfile(object):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.logdir = os.path.join(self._pathdir, "log")
+        self.alljobnames = None
+        self.thisorder = {}
+        self.firstjob = set()
 
-    def jobs(self, names=None, start=1, end=None):
+    def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
         jobs = []
         job = []
         with open(self._path) as fi:
@@ -46,14 +49,18 @@ class Jobfile(object):
             if len(job):
                 jobs.append(Job(job))
         self.totaljobs = jobs
+        self.alljobnames = set([j.name for j in self.totaljobs])
+        thisjobs = []
         if names is not None:
-            newjobs = []
             for jn in jobs:
                 if jn.name in names:
-                    newjobs.append(jn)
-            return newjobs
+                    thisjobs.append(jn)
+            self.thisjobnames = set([j.name for j in thisjobs])
+            return thisjobs
         jobend = len(jobs) if end is None else end
-        return jobs[start-1:jobend]
+        thisjobs = self.totaljobs[start-1:jobend]
+        self.thisjobnames = set([j.name for j in thisjobs])
+        return thisjobs
 
     def orders(self):
         orders = {}
@@ -63,11 +70,65 @@ class Jobfile(object):
                     continue
                 if line.startswith("order"):
                     line = line.split()
-                    if line[2] == "after":
-                        orders.setdefault(line[1], set()).add(line[3])
-                    elif line[2] == "before":
-                        orders.setdefault(line[3], set()).add(line[1])
+                    if "after" in line:
+                        idx = line.index("after")
+                        o1 = line[1:idx]
+                        o2 = line[idx+1:]
+                    elif "before" in line:
+                        idx = line.index("before")
+                        o1 = line[idx+1:]
+                        o2 = line[1:idx]
+                    for o in o1:
+                        if o in self.alljobnames:
+                            for i in o2:
+                                if i not in self.alljobnames:
+                                    self.throw("order names (%s) not in job, (%s)" % (
+                                        i, " ".join(line)))
+                                else:
+                                    orders.setdefault(o, set()).add(i)
+                        else:
+                            self.throw("order names (%s) not in job, (%s)" % (
+                                o, " ".join(line)))
         return orders
+
+    def parseorder(self):
+        orders = self.orders()
+        queryorder = {}
+        first = set()
+        queryjob = self.thisjobnames
+
+        def pickorder(jn):
+            jn2 = []
+            for j in jn:
+                if j in orders:
+                    queryorder[j] = orders[j]
+                    for v in orders[j]:
+                        if v in orders:
+                            queryorder[v] = orders[v]
+                            jn2.extend(queryorder[v])
+                        else:
+                            first.add(v)
+                else:
+                    first.add(j)
+            return jn2
+        while True:
+            if len(queryjob) == 0:
+                break
+            for i in queryjob:
+                if i not in orders:
+                    continue
+                else:
+                    break
+            else:
+                njn = pickorder(queryjob)
+                break
+            njn = pickorder(queryjob)
+            queryjob = njn
+        self.firstjob.update(first)
+        self.thisorder = queryorder
+
+    def throw(self, msg):
+        raise OrderError(msg)
 
 
 class Job(object):
@@ -105,10 +166,11 @@ class Job(object):
                 cmd = False
             elif j.startswith("cmd"):
                 self.cmd.append(" ".join(j.split()[1:]))
-            elif j.startswith("memory"):  # miss
-                continue
-            elif j.startswith("time"):  # miss
-                continue
+            elif j.startswith("memory"):
+                self.sched_options += " -l h_vmem=" + j.split()[-1].upper()
+            elif j.startswith("time"):
+                pass  # miss
+                # self.sched_options += " -l h_rt=" + j.split()[-1].upper()   # hh:mm:ss
             else:
                 if cmd:
                     self.cmd.append(j)
@@ -147,6 +209,16 @@ class Job(object):
 class RuleError(Exception):
     def __init__(self, ErrorInfo):
         super(RuleError, self).__init__(self)
+        self.errorinfo = ErrorInfo
+
+    def __str__(self):
+        return self.errorinfo
+    __repr__ = __str__
+
+
+class OrderError(Exception):
+    def __init__(self, ErrorInfo):
+        super(OrderError, self).__init__(self)
         self.errorinfo = ErrorInfo
 
     def __str__(self):

@@ -23,14 +23,25 @@ class qsub(object):
         self.is_run = False
 
         jf = Jobfile(self.jfile)
-        self.orders = jf.orders()
+        self.jobs = jf.jobs(jobnames, start, end)
+        self.totaljobs = jf.totaljobs
+        self.totaljobdict = {jf.name: jf for jf in self.totaljobs}
+
+        jf.parseorder()
+        self.thisorder = jf.thisorder  # real ordes
+        self.orders = jf.orders()  # total orders in job file
+        self.firstjobnames = jf.firstjob  # init job names
         self.orders_rev = {}
         for k, v in self.orders.items():
             for i in v:
                 self.orders_rev.setdefault(i, set()).add(k)
-        self.jobs = jf.jobs(jobnames, start, end)
-        self.totaljobs = jf.totaljobs
-        self.totaljobdict = {jf.name: jf for jf in self.totaljobs}
+
+        # order job name miss
+        order_all = set(self.orders.keys() + self.orders_rev.keys())
+        if order_all < jf.alljobnames:
+            self.extrajob = jf.alljobnames - order_all
+            self.throw("There are jobs not defined in orders")
+
         self.jobdict = {jf.name: jf for jf in self.jobs}
         self.qsubjobs = {}
         self.localjobs = {}
@@ -100,23 +111,7 @@ class qsub(object):
         return status
 
     def firstjob(self):
-        fj = []
-        fj_bak = []
-        secondjobs = []
-        for sj in self.orders:
-            # if self.jobstatus(sj) != "success":
-            if sj in self.thisjobs:
-                secondjobs.append(sj)
-        for jn in self.jobs:
-            if jn.name not in secondjobs:
-                fj.append(jn)
-        if len(fj) == 0:
-            for sj, sj2 in self.orders.items():
-                for i in sj2:
-                    if i not in self.orders:
-                        fj_bak.append(self.totaljobdict[i])
-            fj = fj_bak
-        return fj
+        return [self.totaljobdict[i] for i in self.firstjobnames]
 
     def qsubCheck(self, num, sec=1, ):
         qs = 0
