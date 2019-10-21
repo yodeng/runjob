@@ -2,6 +2,7 @@
 # coding:utf-8
 
 import os
+import re
 import sys
 from commands import getstatusoutput
 
@@ -53,8 +54,11 @@ class Jobfile(object):
         thisjobs = []
         if names is not None:
             for jn in jobs:
-                if jn.name in names:
-                    thisjobs.append(jn)
+                name = jn.name
+                for namereg in names:
+                    if re.search(namereg,name):
+                        thisjobs.append(jn)
+                        break
             self.thisjobnames = set([j.name for j in thisjobs])
             return thisjobs
         jobend = len(jobs) if end is None else end
