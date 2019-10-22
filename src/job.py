@@ -56,7 +56,7 @@ class Jobfile(object):
             for jn in jobs:
                 name = jn.name
                 for namereg in names:
-                    if re.search(namereg,name):
+                    if re.search(namereg, name):
                         thisjobs.append(jn)
                         break
             self.thisjobnames = set([j.name for j in thisjobs])
@@ -95,11 +95,12 @@ class Jobfile(object):
                                 o, " ".join(line)))
         return orders
 
-    def parseorder(self):
+    def parseorder(self, qj):
         orders = self.orders()
         queryorder = {}
         first = set()
-        queryjob = self.thisjobnames
+        # queryjob = self.thisjobnames
+        queryjob = qj.copy()
 
         def pickorder(jn):
             jn2 = []
@@ -128,7 +129,18 @@ class Jobfile(object):
                 break
             njn = pickorder(queryjob)
             queryjob = njn
-        self.firstjob.update(first)
+        self.firstjob.update(first.intersection(qj))
+        if not (first < qj):
+            queryjob_tmp = qj.copy()  # ？？ firstjob 是否只用此法便可求得，无需其他逻辑，后续将会优化？？？？
+            for j in qj:
+                if j in orders:
+                    for bj in orders[j]:
+                        if bj in qj:
+                            queryjob_tmp.remove(j)
+                            break
+            self.firstjob.update(queryjob_tmp)
+        else:
+            self.firstjob.update(first)
         self.thisorder = queryorder
 
     def throw(self, msg):

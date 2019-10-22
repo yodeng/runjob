@@ -27,10 +27,7 @@ class qsub(object):
         self.totaljobs = jf.totaljobs
         self.totaljobdict = {jf.name: jf for jf in self.totaljobs}
 
-        jf.parseorder()
-        self.thisorder = jf.thisorder  # real ordes
         self.orders = jf.orders()  # total orders in job file
-        self.firstjobnames = jf.firstjob  # init job names
         self.orders_rev = {}
         for k, v in self.orders.items():
             for i in v:
@@ -73,6 +70,10 @@ class qsub(object):
                     os.remove(lf)
                 else:
                     self.thisjobs.remove(jn)
+
+        jf.parseorder(self.thisjobs)
+        self.firstjobnames = jf.firstjob  # init job names
+        self.thisorder = jf.thisorder  # real ordes
         self.waitjob = {k: self.jobdict[k] for k in self.thisjobs}  # this jobs
         self.has_success = set(self.jobdict.keys()) - self.thisjobs
 
