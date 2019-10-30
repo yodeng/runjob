@@ -20,51 +20,6 @@ class Jobfile(object):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.logdir = os.path.join(self._pathdir, "log")
-        self.alljobnames = None
-        self.thisorder = {}
-        self.firstjob = set()
-
-    def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
-        jobs = []
-        job = []
-        with open(self._path) as fi:
-            for line in fi:
-                if not line.strip() or line.strip().startswith("#"):
-                    continue
-                if "#" in line:
-                    line = line[line.index("#"):]
-                line = line.strip()
-                if line.startswith("log_dir"):
-                    self.logdir = os.path.join(self._pathdir, line.split()[-1])
-                    continue
-                if line == "job_begin":
-                    if len(job) and job[-1] == "job_end":
-                        jobs.append(Job(job))
-                        job = [line, ]
-                    else:
-                        job.append(line)
-                elif line.startswith("order"):
-                    continue
-                else:
-                    job.append(line)
-            if len(job):
-                jobs.append(Job(job))
-        self.totaljobs = jobs
-        self.alljobnames = set([j.name for j in self.totaljobs])
-        thisjobs = []
-        if names is not None:
-            for jn in jobs:
-                name = jn.name
-                for namereg in names:
-                    if re.search(namereg, name):
-                        thisjobs.append(jn)
-                        break
-            self.thisjobnames = set([j.name for j in thisjobs])
-            return thisjobs
-        jobend = len(jobs) if end is None else end
-        thisjobs = self.totaljobs[start-1:jobend]
-        self.thisjobnames = set([j.name for j in thisjobs])
-        return thisjobs
 
     def orders(self):
         orders = {}
@@ -95,53 +50,45 @@ class Jobfile(object):
                                 o, " ".join(line)))
         return orders
 
-    def parseorder(self, qj):
-        orders = self.orders()
-        queryorder = {}
-        first = set()
-        # queryjob = self.thisjobnames
-        queryjob = qj.copy()
-
-        def pickorder(jn):
-            jn2 = []
-            for j in jn:
-                if j in orders:
-                    queryorder[j] = orders[j]
-                    for v in orders[j]:
-                        if v in orders:
-                            queryorder[v] = orders[v]
-                            jn2.extend(queryorder[v])
-                        else:
-                            first.add(v)
-                else:
-                    first.add(j)
-            return jn2
-        while True:
-            if len(queryjob) == 0:
-                break
-            for i in queryjob:
-                if i not in orders:
+    def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
+        jobs = []
+        job = []
+        with open(self._path) as fi:
+            for line in fi:
+                if not line.strip() or line.strip().startswith("#"):
+                    continue
+                if "#" in line:
+                    line = line[line.index("#"):]
+                line = line.strip()
+                if line.startswith("log_dir"):
+                    self.logdir = os.path.join(self._pathdir, line.split()[-1])
+                    continue
+                if line == "job_begin":
+                    if len(job) and job[-1] == "job_end":
+                        jobs.append(Job(job))
+                        job = [line, ]
+                    else:
+                        job.append(line)
+                elif line.startswith("order"):
                     continue
                 else:
-                    break
-            else:
-                njn = pickorder(queryjob)
-                break
-            njn = pickorder(queryjob)
-            queryjob = njn
-        self.firstjob.update(first.intersection(qj))
-        if not (first < qj):
-            queryjob_tmp = qj.copy()  # ？？ firstjob 是否只用此法便可求得，无需其他逻辑，后续将会优化？？？？
-            for j in qj:
-                if j in orders:
-                    for bj in orders[j]:
-                        if bj in qj:
-                            queryjob_tmp.remove(j)
-                            break
-            self.firstjob.update(queryjob_tmp)
-        else:
-            self.firstjob.update(first)
-        self.thisorder = queryorder
+                    job.append(line)
+            if len(job):
+                jobs.append(Job(job))
+        self.totaljobs = jobs
+        self.alljobnames = [j.name for j in jobs]
+        thisjobs = []
+        if names is not None:
+            for jn in jobs:
+                name = jn.name
+                for namereg in names:
+                    if re.search(namereg, name):
+                        thisjobs.append(jn)
+                        break
+            return thisjobs
+        jobend = len(jobs) if end is None else end
+        thisjobs = self.totaljobs[start-1:jobend]
+        return thisjobs
 
     def throw(self, msg):
         raise OrderError(msg)

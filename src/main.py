@@ -6,6 +6,7 @@ import sys
 import time
 import signal
 import argparse
+import logging
 
 from subprocess import call, PIPE
 from threading import Thread
@@ -26,6 +27,7 @@ class ParseSingal(Thread):
 
     def signal_handler(self, signum, frame):
         call('qdel "*_%d"' % os.getpid(), shell=True, stderr=PIPE, stdout=PIPE)
+        sumJobs(qjobs)
         sys.exit(signum)
 
 
@@ -51,20 +53,49 @@ def parseArgs():
     return parser.parse_args()
 
 
+def Mylog(logfile=None, level="info"):
+    logger = logging.getLogger()
+    f = logging.Formatter(
+        '[%(levelname)s %(processName)s %(asctime)s %(funcName)s] %(message)s')
+    if logfile is None:
+        h = logging.StreamHandler(sys.stdout)  # default: sys.stderr
+    else:
+        h = logging.FileHandler(logfile, mode='a')
+    h.setFormatter(f)
+    logger.addHandler(h)
+    if level.lower() == "info":
+        logger.setLevel(logging.INFO)
+    elif level.lower() == "debug":
+        logger.setLevel(logging.DEBUG)
+    return logger
+
+
+def sumJobs(qjobs):
+    thisrunjobs = set([j.name for j in qjobs.jobs])
+    realrunjobs = thisrunjobs - qjobs.has_success
+    realrunsuccess = qjobs.success - qjobs.has_success
+    realrunerror = qjobs.error
+    resubjobs = set(
+        [k for k, v in qjobs.subtimes.items() if v != qjobs.times])
+    thisjobstates = qjobs.state
+
+    if len(realrunerror) == 0:
+        print("[%s] All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished successfully." %
+              (datetime.today().isoformat(), len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile)))
+    else:
+        print "[%s] All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks." % (
+            datetime.today().isoformat(), len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
+    print {i: thisjobstates.get(i, "wait") for i in thisrunjobs}
+
+
 def main():
     args = parseArgs()
     h = ParseSingal()
     h.start()
+    global qjobs
     qjobs = qsub(args.jobfile, args.num, args.injname, args.start, args.end)
     qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
-    if len(qjobs.error) == 0:
-        print("[%s] All tesks(%d, %d, %d) in file (%s) finished successfully." %
-              (datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), len({k: v for k, v in qjobs.subtimes.items() if v != args.resub - 1}), os.path.abspath(qjobs.jfile)))
-    else:
-        print "[%s] All tesks(%d, %d, %d) in file (%s) finished, But there are ERROR tesks." % (
-            datetime.today().isoformat(), len(qjobs.success), len(qjobs.thisjobs), len({k: v for k, v in qjobs.subtimes.items() if v != args.resub - 1}), os.path.abspath(qjobs.jfile))
-        print "Success jobs: %d" % len(qjobs.success)
-        print "Error jobs: %d" % len(qjobs.error)
+    sumJobs(qjobs)
 
 
 if __name__ == "__main__":
