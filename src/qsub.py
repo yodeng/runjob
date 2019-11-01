@@ -10,6 +10,7 @@ from threading import Thread
 from Queue import Queue
 from datetime import datetime
 from collections import defaultdict
+from commands import getstatusoutput
 
 from job import Jobfile
 
@@ -19,6 +20,8 @@ RUNSTAT = " && echo [\`date +'%F %T'\`] SUCCESS || echo [\`date +'%F %T'\`] ERRO
 class qsub(object):
     def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None):
         self.pid = os.getpid()
+        self.has_sge = True if getstatusoutput(
+            'command -v qstat')[0] == 0 else False
         self.jfile = jobfile
         self.is_run = False
         self.firstjobnames = set()
@@ -62,6 +65,8 @@ class qsub(object):
                 else:
                     self.thisjobnames.remove(jn)  # thisjobs - successjobs
                     self.has_success.add(jn)
+            else:
+                self.state[jn] = "wait"
         # thisjobnames are real jobs
         # len(self.has_success) + len(self.thisjobnames) = len(self.jobs)
         self.max_jobs = len(
@@ -77,10 +82,10 @@ class qsub(object):
         return False
 
     def jobstatus(self, jobname):
-        status = "wait"
+        status = "wait"  # wait to submit
         logfile = os.path.join(self.logdir, jobname + ".log")
         if os.path.isfile(logfile):
-            status = "submit"
+            status = "submit"  # wait to run
             try:
                 sta = os.popen('tail -n 1 %s' % logfile).read().split()[-1]
             except IndexError:
@@ -121,9 +126,11 @@ class qsub(object):
             time.sleep(sec)  # check per 1 seconds if job pools
             if not self.jobqueue.full():
                 continue
-            qs = os.popen('qstat -xml | grep _%d | wc -l' %
-                          self.pid).read().strip()
-            qs = int(qs)
+            # qs = os.popen('qstat -xml | grep _%d | wc -l' %
+            #              self.pid).read().strip()
+            #qs = int(qs)
+            qs = len([i for i, j in self.state.items()
+                      if j in ["run", "submit", "resubmit"]])
             if qs < num:
                 [self.jobqueue.get() for _ in range(num-qs)]
             else:
@@ -193,6 +200,7 @@ class qsub(object):
         if resub:
             logcmd = open(logfile, "a")
             logcmd.write("\n" + job.cmd+"\n")
+            self.state[job.name] = "resubmit"
         else:
             logcmd = open(logfile, "w")
             logcmd.write(job.cmd+"\n")
@@ -200,18 +208,16 @@ class qsub(object):
         logcmd.flush()
         if self.max_jobs < 100:
             self.jobqueue.put(job.name, block=True, timeout=1080000)
+        qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
+            job.cmd + RUNSTAT
         if job.host is not None and job.host == "localhost":
-            qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
-                job.cmd + RUNSTAT
-            cmd = "echo " + qsubline[qsubline.index("RUNNING..."):]
+            cmd = '''echo "Your job \\('%s'\\) has been submitted in localhost" && ''' % job.name + qsubline
             cmd = cmd.replace("\\", "")
             if resub:
                 cmd = cmd.replace("RUNNING", "RUNNING \\(re-run\\)")
             Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         else:
             job.cmd = job.cmd.replace('"', "\\\"")
-            qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
-                job.cmd + RUNSTAT
             cmd = 'qsub %s -N %s_%d -o %s -j y <<< "%s"' % (
                 job.sched_options, job.name, self.pid, logfile, qsubline)
             if resub:

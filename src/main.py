@@ -11,6 +11,7 @@ import logging
 from subprocess import call, PIPE
 from threading import Thread
 from datetime import datetime
+from collections import Counter
 
 from qsub import qsub
 from version import __version__
@@ -26,7 +27,12 @@ class ParseSingal(Thread):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
-        call('qdel "*_%d"' % os.getpid(), shell=True, stderr=PIPE, stdout=PIPE)
+        if clear:
+            call('qdel "*_%d"' % os.getpid(),
+                 shell=True, stderr=PIPE, stdout=PIPE)
+            pid = os.getpid()
+            gid = os.getpgid(pid)
+            call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
         sumJobs(qjobs)
         sys.exit(signum)
 
@@ -50,6 +56,8 @@ def parseArgs():
                         type=int, default=3, metavar="<int>")
     parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
                         type=int, default=2, metavar="<int>")
+    parser.add_argument("-nc", '--noclean', action="store_false", help="whether to clean all jobs or subprocess created by this programe when the main process exits, default: clean.",
+                        default=True)
     return parser.parse_args()
 
 
@@ -85,11 +93,13 @@ def sumJobs(qjobs):
     else:
         print "[%s] All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks." % (
             datetime.today().isoformat(), len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
-    print {i: thisjobstates.get(i, "wait") for i in thisrunjobs}
+    print dict(Counter(thisjobstates.values()))
 
 
 def main():
     args = parseArgs()
+    global clear
+    clear = args.noclean
     h = ParseSingal()
     h.start()
     global qjobs
