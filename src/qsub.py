@@ -4,6 +4,7 @@
 import os
 import time
 import random
+import logging
 
 from subprocess import call, PIPE, Popen
 from threading import Thread
@@ -63,7 +64,7 @@ class qsub(object):
                 if js != "success":
                     os.remove(lf)
                     if js == "error":
-                        self.error.remove(jn)
+                        # self.error.remove(jn)
                         self.state.pop(jn)
                 else:
                     self.thisjobnames.remove(jn)  # thisjobs - successjobs
@@ -85,6 +86,11 @@ class qsub(object):
         return False
 
     def jobstatus(self, jobname):
+        js = self.state.get(jobname, "")
+        if js == "success":
+            return js
+        elif js == "error":
+            return js
         status = "wait"  # wait to submit
         logfile = os.path.join(self.logdir, jobname + ".log")
         if os.path.isfile(logfile):
@@ -101,7 +107,7 @@ class qsub(object):
                 self.success.add(jobname)
             elif sta == "ERROR":
                 status = "error"
-                self.error.add(jobname)
+                # self.error.add(jobname)
             elif sta == "Exiting.":
                 status = "exit"
             else:
@@ -167,12 +173,18 @@ class qsub(object):
                     time.sleep(0.1)
                     js = self.jobstatus(jn)
                     if js == "success":
+                        self.logger.info("job %s status %s", jn, js)
                         continue
                     elif js == "error":
                         if self.subtimes[jn] < 0:
+                            if jn not in self.error:
+                                self.logger.info("job %s status %s", jn, js)
+                            self.error.add(jn)
                             continue
                             # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))   ## if error, exit program
                         else:
+                            if self.subtimes[jn] == self.times:
+                                self.logger.info("job %s status %s", jn, js)
                             time.sleep(resubivs)  # sleep, re-submit
                             self.submit(self.totaljobdict[jn], resub=True)
                             self.subtimes[jn] -= 1
@@ -205,6 +217,7 @@ class qsub(object):
             logcmd = open(logfile, "a")
             logcmd.write("\n" + job.cmd+"\n")
             self.state[job.name] = "resubmit"
+            self.logger.info("job %s status resubmit", job.name)
         else:
             logcmd = open(logfile, "w")
             logcmd.write(job.cmd+"\n")
@@ -240,10 +253,16 @@ class qsub(object):
                 js = self.jobstatus(jn)
                 if js == "success":
                     finaljobs.remove(jn)
+                    self.logger.info("job %s status %s", jn, js)
                 elif js == "error":
                     if self.subtimes[jn] < 0:
                         finaljobs.remove(jn)
+                        if jn not in self.error:
+                            self.logger.info("job %s status %s", jn, js)
+                        self.error.add(jn)
                     else:
+                        if self.subtimes[jn] == self.times:
+                            self.logger.info("job %s status %s", jn, js)
                         time.sleep(resubivs)  # sleep, re-submit
                         self.submit(self.totaljobdict[jn], resub=True)
                         self.subtimes[jn] -= 1
@@ -266,3 +285,7 @@ class qsub(object):
         with open(outstat, "w") as fo:
             for jn, state in sorted(self.state.items()):
                 fo.write("job %s status %s\n" % (jn, state))
+
+    @property
+    def logger(self):
+        return logging.getLogger("state")

@@ -63,14 +63,14 @@ def parseArgs():
     return parser.parse_args()
 
 
-def Mylog(logfile=None, level="info"):
-    logger = logging.getLogger()
+def Mylog(logfile=None, level="info", name=None):
+    logger = logging.getLogger(name)
     f = logging.Formatter(
-        '[%(levelname)s %(processName)s %(asctime)s %(funcName)s] %(message)s')
+        '[%(levelname)s %(processName)s %(asctime)s] %(message)s')
     if logfile is None:
         h = logging.StreamHandler(sys.stdout)  # default: sys.stderr
     else:
-        h = logging.FileHandler(logfile, mode='a')
+        h = logging.FileHandler(logfile, mode='w')
     h.setFormatter(f)
     logger.addHandler(h)
     if level.lower() == "info":
@@ -90,15 +90,16 @@ def sumJobs(qjobs):
     thisjobstates = qjobs.state
     # qjobs.writejob(qjobs.jfile + ".bak")  ## write a new job file
 
+    logger = logging.getLogger(__name__)
     if len(realrunerror) == 0:
-        print("[%s] All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished successfully." %
-              (datetime.today().isoformat(), len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile)))
+        logger.info("All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished successfully.",
+                    len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
     else:
-        print "[%s] All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks." % (
-            datetime.today().isoformat(), len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
+        logger.info("All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks.",
+                    len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
 
     qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
-    print dict(Counter(thisjobstates.values()))
+    logger.info(str(dict(Counter(thisjobstates.values()))))
 
 
 def main():
@@ -110,6 +111,9 @@ def main():
     global qjobs
     qjobs = qsub(args.jobfile, args.num, args.injname,
                  args.start, args.end, mode=args.mode)
+    mainlogger = Mylog(name=__name__)
+    statelogger = Mylog(logfile=os.path.join(
+        qjobs.logdir, "job.run.txt"), name="state")
     qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
     sumJobs(qjobs)
 
