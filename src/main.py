@@ -27,13 +27,13 @@ class ParseSingal(Thread):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
+        sumJobs(qjobs)
         if clear:
             call('qdel "*_%d"' % os.getpid(),
                  shell=True, stderr=PIPE, stdout=PIPE)
             pid = os.getpid()
             gid = os.getpgid(pid)
             call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
-        sumJobs(qjobs)
         sys.exit(signum)
 
 
@@ -104,11 +104,10 @@ def sumJobs(qjobs):
 
 def main():
     args = parseArgs()
-    global clear
+    global clear, qjobs
     clear = args.noclean
     h = ParseSingal()
     h.start()
-    global qjobs
     qjobs = qsub(args.jobfile, args.num, args.injname,
                  args.start, args.end, mode=args.mode)
     mainlogger = Mylog(name=__name__)

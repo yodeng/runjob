@@ -61,6 +61,7 @@ def main():
         print style("-"*47, mode="bold")
         if len(sys.argv) == 2:
             jobfile = sys.argv[1]
+            submit = 0
             if os.path.isfile(jobfile):
 
                 jf = Jobfile(jobfile)
@@ -69,14 +70,45 @@ def main():
                 for jn in jf.alljobnames:
                     if not os.path.isfile(os.path.join(jf.logdir, jn + ".log")):
                         norun.append(jn)
+                    else:
+                        submit += 1
                 logdir = os.path.abspath(os.path.join(
                     os.path.dirname(jobfile), jf.logdir))
+
             elif os.path.isdir(jobfile):
                 logdir = os.path.abspath(jobfile)
             else:
                 raise IOError("No such file or directory %s." % jobfile)
             if not os.path.isdir(logdir):
                 raise IOError("No such log_dir %s" % logdir)
+            if submit == 0:
+                submit = len([i for i in os.listdir(
+                    logdir) if i.endswith(".log")])
+            if os.path.isfile(os.path.join(logdir, "job.run.txt")):
+                stat = {}
+                with open(os.path.join(logdir, "job.run.txt")) as fi:
+                    for line in fi:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        line = line.split()
+                        jobname = line[line.index("job")+1]
+                        stat[jobname] = line[-1]
+                success = stat.values().count("success")
+                error = stat.values().count("error")
+                running = submit - success - error
+                print style("-"*47, mode="bold")
+                print style("{0:<20} {1:>5}".format("submitted:", submit))
+                print style("{0:<20} {1:>5}".format(
+                    "runing/queue/exit:", running))
+                print style("{0:<20} {1:>5}".format(
+                    "success:", success))
+                print style("{0:<20} {1:>5}".format(
+                    "error:", error), mode="bold", fore="red")
+                print style("-"*47, mode="bold")
+                if os.path.isfile(jobfile):
+                    print "Not submitted jobs: %s" % ", ".join(norun)
+                return
             fs = [os.path.join(logdir, i) for i in os.listdir(logdir)]
             # submit = int(os.popen("awk 'FNR==2' " + " ".join(fs) + " | wc -l ").read().strip())
             submit = 0

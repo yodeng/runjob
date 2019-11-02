@@ -7,10 +7,10 @@ import random
 import logging
 
 from subprocess import call, PIPE, Popen
+from collections import defaultdict, Counter
 from threading import Thread
 from Queue import Queue
 from datetime import datetime
-from collections import defaultdict
 
 from job import Jobfile
 
@@ -67,7 +67,7 @@ class qsub(object):
                         # self.error.remove(jn)
                         self.state.pop(jn)
                 else:
-                    self.thisjobnames.remove(jn)  # thisjobs - successjobs
+                    self.thisjobnames.remove(jn)  # thisjobs - has_success
                     self.has_success.add(jn)
             else:
                 self.state[jn] = "wait"
@@ -101,6 +101,7 @@ class qsub(object):
                 status = "run"
                 # if self.not_qsub(jobname) and self.is_run:                                                           ## job exit, qsub error
                 #    self.throw("Error in %s job, probably because of qsub interruption."%jobname)
+                self.state[jobname] = status
                 return status
             if sta == "SUCCESS":
                 status = "success"
@@ -151,6 +152,9 @@ class qsub(object):
         self.times = times
         self.subtimes = defaultdict(lambda: self.times)
 
+        for jn in self.has_success:
+            self.logger.info("job %s status already success", jn)
+
         firstqsub = self.firstjob()
         if self.max_jobs < 100:
             p = Thread(target=self.qsubCheck, args=(self.max_jobs,))
@@ -173,7 +177,9 @@ class qsub(object):
                     time.sleep(0.1)
                     js = self.jobstatus(jn)
                     if js == "success":
-                        self.logger.info("job %s status %s", jn, js)
+                        if jn not in self.success:
+                            self.logger.info("job %s status %s", jn, js)
+                        self.success.add(jn)
                         continue
                     elif js == "error":
                         if self.subtimes[jn] < 0:
@@ -221,6 +227,8 @@ class qsub(object):
         else:
             logcmd = open(logfile, "w")
             logcmd.write(job.cmd+"\n")
+            self.state[job.name] = "submit"
+            self.logger.info("job %s status submit", job.name)
         logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
         logcmd.flush()
         if self.max_jobs < 100:
@@ -245,7 +253,7 @@ class qsub(object):
             self.thisjobnames.remove(job.name)
 
     def finalstat(self, resubivs):
-        finaljobs = set([j.name for j in self.jobs]) - \
+        finaljobs = set([j.name for j in self.jobs]) - self.has_success - \
             self.success - self.error
         while len(finaljobs) > 0:
             time.sleep(2)
@@ -253,7 +261,9 @@ class qsub(object):
                 js = self.jobstatus(jn)
                 if js == "success":
                     finaljobs.remove(jn)
-                    self.logger.info("job %s status %s", jn, js)
+                    if jn not in self.success:
+                        self.logger.info("job %s status %s", jn, js)
+                    self.success.add(jn)
                 elif js == "error":
                     if self.subtimes[jn] < 0:
                         finaljobs.remove(jn)
@@ -283,6 +293,7 @@ class qsub(object):
 
     def writestates(self, outstat):
         with open(outstat, "w") as fo:
+            fo.write(str(dict(Counter(self.state.values()))) + "\n\n")
             for jn, state in sorted(self.state.items()):
                 fo.write("job %s status %s\n" % (jn, state))
 
