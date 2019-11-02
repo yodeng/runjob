@@ -58,6 +58,7 @@ class qsub(object):
             if job.status is not None and job.status in ["done", "success"]:
                 self.thisjobnames.remove(jn)
                 self.has_success.add(jn)
+                self.success.add(jn)
                 continue
             if os.path.isfile(lf):  # if log file not exists, will run
                 js = self.jobstatus(jn)
@@ -69,6 +70,7 @@ class qsub(object):
                 else:
                     self.thisjobnames.remove(jn)  # thisjobs - has_success
                     self.has_success.add(jn)
+                    self.success.add(jn)
             else:
                 self.state[jn] = "wait"
         # thisjobnames are real jobs
@@ -105,7 +107,7 @@ class qsub(object):
                 return status
             if sta == "SUCCESS":
                 status = "success"
-                self.success.add(jobname)
+                # self.success.add(jobname)
             elif sta == "ERROR":
                 status = "error"
                 # self.error.add(jobname)
