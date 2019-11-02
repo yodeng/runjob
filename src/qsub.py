@@ -53,6 +53,11 @@ class qsub(object):
 
         for jn in self.thisjobnames.copy():
             lf = os.path.join(self.logdir, jn + ".log")
+            job = self.totaljobdict[jn]
+            if job.status is not None and job.status in ["done", "success"]:
+                self.thisjobnames.remove(jn)
+                self.has_success.add(jn)
+                continue
             if os.path.isfile(lf):  # if log file not exists, will run
                 js = self.jobstatus(jn)
                 if js != "success":
@@ -245,3 +250,19 @@ class qsub(object):
 
     def throw(self, msg):
         raise RuntimeError(msg)
+
+    def writejob(self, outjob):
+        with open(outjob, "w") as fo:
+            fo.write("log_dir " + self.logdir + "\n")
+            for job in self.totaljobs:
+                if job.name in self.state:
+                    job.status = self.state[job.name]
+                job.write(fo)
+            for k, v in self.orders.items():
+                for i in v:
+                    fo.write("order %s after %s\n" % (k, i))
+
+    def writestates(self, outstat):
+        with open(outstat, "w") as fo:
+            for jn, state in sorted(self.state.items()):
+                fo.write("job %s status %s\n" % (jn, state))

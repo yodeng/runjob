@@ -88,6 +88,7 @@ def sumJobs(qjobs):
     resubjobs = set(
         [k for k, v in qjobs.subtimes.items() if v != qjobs.times])
     thisjobstates = qjobs.state
+    # qjobs.writejob(qjobs.jfile + ".bak")  ## write a new job file
 
     if len(realrunerror) == 0:
         print("[%s] All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished successfully." %
@@ -95,6 +96,8 @@ def sumJobs(qjobs):
     else:
         print "[%s] All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks." % (
             datetime.today().isoformat(), len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
+
+    qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
     print dict(Counter(thisjobstates.values()))
 
 

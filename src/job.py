@@ -59,7 +59,8 @@ class Jobfile(object):
                     line = line[line.index("#"):]
                 line = line.strip()
                 if line.startswith("log_dir"):
-                    self.logdir = os.path.join(self._pathdir, line.split()[-1])
+                    self.logdir = os.path.normpath(
+                        os.path.join(self._pathdir, line.split()[-1]))
                     continue
                 if line == "job_begin":
                     if len(job) and job[-1] == "job_end":
@@ -173,6 +174,38 @@ class Job(object):
             rules.remove("cmd_end")
         except ValueError:
             self.throw("No start or end in %s job" % "\n".join(rules))
+
+    def write(self, fo):
+        fo.write("job_begin\n")
+        rules = self.rules
+        host = None
+        for r in rules:
+            r = r.strip()
+            if r.startswith("host"):
+                host = r.split()[-1]
+        for k, attr in self.__dict__.items():
+            if hasattr(attr, '__call__'):
+                continue
+            if k == "cmd":
+                fo.write("    cmd_begin\n")
+                cmdlines = ["        " +
+                            i.strip() + "\n" for i in attr.split("&&")]
+                fo.writelines(cmdlines)
+                fo.write("    cmd_end\n")
+            elif k == "rules":
+                continue
+            elif k == "host":
+                if host is None:
+                    continue
+                else:
+                    fo.write("    host " + host + "\n")
+            else:
+                try:
+                    line = "    " + k + " " + attr + "\n"
+                except TypeError:
+                    continue
+                fo.write(line)
+        fo.write("job_end\n")
 
     def throw(self, msg):
         raise RuleError(msg)
