@@ -190,10 +190,11 @@ class qsub(object):
     def submit(self, job, resub=False):
         logfile = os.path.join(self.logdir, job.name + ".log")
 
-        if self.jobstatus(job.name) == "success":
-            if job.name in self.thisjobnames:
-                self.thisjobnames.remove(job.name)
-            return
+        # if submit, jobstatus must not be "success", so don't need to do this condition.
+        # if self.jobstatus(job.name) == "success":
+        #    if job.name in self.thisjobnames:
+        #        self.thisjobnames.remove(job.name)
+        #    return
 
         if resub:
             logcmd = open(logfile, "a")
