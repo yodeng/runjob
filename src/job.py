@@ -8,18 +8,16 @@ from commands import getstatusoutput
 
 
 class Jobfile(object):
-    def __init__(self, jobfile):
-        has_qstat = True if getstatusoutput(
+    def __init__(self, jobfile, mode=None):
+        self.has_sge = True if getstatusoutput(
             'command -v qstat')[0] == 0 else False
-        if not has_qstat:
-            print "No qsub command..."
-            sys.exit(1)
 
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.logdir = os.path.join(self._pathdir, "log")
+        self.mode = "sge" if mode is None else mode
 
     def orders(self):
         orders = {}
@@ -65,7 +63,7 @@ class Jobfile(object):
                     continue
                 if line == "job_begin":
                     if len(job) and job[-1] == "job_end":
-                        jobs.append(Job(job))
+                        jobs.append(Job(self, job))
                         job = [line, ]
                     else:
                         job.append(line)
@@ -74,7 +72,7 @@ class Jobfile(object):
                 else:
                     job.append(line)
             if len(job):
-                jobs.append(Job(job))
+                jobs.append(Job(self, job))
         self.totaljobs = jobs
         self.alljobnames = [j.name for j in jobs]
         thisjobs = []
@@ -95,8 +93,9 @@ class Jobfile(object):
 
 
 class Job(object):
-    def __init__(self, rules):
+    def __init__(self, jobfile, rules):
         self.rules = rules
+        self.jf = jobfile
         self.name = None
         self.status = None
         self.sched_options = None
@@ -143,6 +142,16 @@ class Job(object):
             if c.startswith("exit"):
                 self.throw(
                     "'exit' command not allow in the cmd string in %s job." % self.name)
+        if self.jf.has_sge:
+            # if localhost defined, run localhost whether sge installed.
+            if self.jf.mode == "localhost":
+                self.host = "localhost"
+            else:
+                # if self.host has been defined other mode in job, sge default.
+                if self.host not in [None, "sge", "localhost"]:
+                    self.host = None
+        else:
+            self.host = "localhost"  # if not sge installed, only run localhost
         if len(self.cmd) > 1:
             self.cmd = " && ".join(self.cmd)
         elif len(self.cmd) == 1:

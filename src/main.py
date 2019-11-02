@@ -56,6 +56,8 @@ def parseArgs():
                         type=int, default=3, metavar="<int>")
     parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
                         type=int, default=2, metavar="<int>")
+    parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
+                        "sge", "localhost"], help="the mode to submit your jobs, 'sge' by default.")
     parser.add_argument("-nc", '--noclean', action="store_false", help="whether to clean all jobs or subprocess created by this programe when the main process exits, default: clean.",
                         default=True)
     return parser.parse_args()
@@ -103,7 +105,8 @@ def main():
     h = ParseSingal()
     h.start()
     global qjobs
-    qjobs = qsub(args.jobfile, args.num, args.injname, args.start, args.end)
+    qjobs = qsub(args.jobfile, args.num, args.injname,
+                 args.start, args.end, mode=args.mode)
     qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
     sumJobs(qjobs)
 

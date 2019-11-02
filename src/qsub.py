@@ -10,7 +10,6 @@ from threading import Thread
 from Queue import Queue
 from datetime import datetime
 from collections import defaultdict
-from commands import getstatusoutput
 
 from job import Jobfile
 
@@ -18,16 +17,15 @@ RUNSTAT = " && echo [\`date +'%F %T'\`] SUCCESS || echo [\`date +'%F %T'\`] ERRO
 
 
 class qsub(object):
-    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None):
+    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None, mode=None):
         self.pid = os.getpid()
-        self.has_sge = True if getstatusoutput(
-            'command -v qstat')[0] == 0 else False
         self.jfile = jobfile
         self.is_run = False
         self.firstjobnames = set()
         self.state = {}
 
-        jf = Jobfile(self.jfile)
+        jf = Jobfile(self.jfile, mode=mode)
+        self.has_sge = jf.has_sge
         self.jobs = jf.jobs(jobnames, start, end)  # all jobs defined by args
         self.totaljobs = jf.totaljobs  # all jobs in job file
         self.totaljobdict = {jf.name: jf for jf in self.totaljobs}
