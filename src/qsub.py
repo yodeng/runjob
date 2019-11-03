@@ -11,6 +11,7 @@ from collections import defaultdict, Counter
 from threading import Thread
 from Queue import Queue
 from datetime import datetime
+from psutil import Process
 
 from job import Jobfile
 
@@ -136,17 +137,20 @@ class qsub(object):
         self.firstjobnames.update(queryjob_tmp)
         return [self.totaljobdict[i] for i in self.firstjobnames]
 
-    def qsubCheck(self, num, sec=1, ):
+    def qsubCheck(self, num, sec=5, ):
         qs = 0
         while True:
             time.sleep(sec)  # check per 1 seconds if job pools
             if not self.jobqueue.full():
                 continue
-            # qs = os.popen('qstat -xml | grep _%d | wc -l' %
-            #              self.pid).read().strip()
+            qs_sge = os.popen('qstat -xml | grep _%d | wc -l' %
+                              self.pid).read().strip()
+            qs_local = Process(self.pid).children()
+            qs_local = [p for p in qs_local if p.status() != "zombie"]
+            qs = int(qs_sge) + len(qs_local)
             #qs = int(qs)
-            qs = len([i for i, j in self.state.items()
-                      if j in ["run", "submit", "resubmit"]])
+            # qs = len([i for i, j in self.state.items()
+            #          if j in ["run", "submit", "resubmit"]])
             if qs < num:
                 [self.jobqueue.get() for _ in range(num-qs)]
             else:
