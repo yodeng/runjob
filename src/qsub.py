@@ -184,10 +184,11 @@ class qsub(object):
                         self.logger.info("job %s status %s", jobname, js)
                     self.success.add(jobname)
                 elif js == "error":
-                    n = self.jobqueue.get(jobname)
-                    if jobname not in self.error:
-                        self.logger.info("job %s status %s", jobname, js)
-                    self.error.add(jobname)
+                    n = self.jobqueue.get(jobame)
+                    if self.subtimes[jn] < 0:
+                        if jobname not in self.error:
+                            self.logger.info("job %s status %s", jobname, js)
+                        self.error.add(jobname)
 
     def run(self, sec=2, times=-1, resubivs=2):
 
