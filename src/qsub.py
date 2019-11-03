@@ -11,11 +11,46 @@ from collections import defaultdict, Counter
 from threading import Thread
 from Queue import Queue
 from datetime import datetime
-from psutil import Process
 
 from job import Jobfile
 
 RUNSTAT = " && echo [\`date +'%F %T'\`] SUCCESS || echo [\`date +'%F %T'\`] ERROR"
+
+
+class myQueue(object):
+    def __init__(self, maxsize=0):
+        self._content = []
+        self._queue = Queue(maxsize=maxsize)
+
+    @property
+    def length(self):
+        return self._queue.qsize()
+
+    def put(self, v, **kwargs):
+        self._queue.put(v, **kwargs)
+        self._content.append(v)
+
+    def get(self, v=None):
+        if v is None:
+            self._queue.get()
+            return self._content.pop(0)
+        else:
+            if v not in self._content:
+                return "%s not in queue" % v
+            else:
+                self._content.remove(v)
+                self._queue.get()
+                return v
+
+    @property
+    def queue(self):
+        return self._content[:]
+
+    def isEmpty(self):
+        return self._queue.empty()
+
+    def isFull(self):
+        return self._queue.full()
 
 
 class qsub(object):
@@ -79,7 +114,7 @@ class qsub(object):
         self.max_jobs = len(
             self.thisjobnames) if max_jobs is None else max_jobs
 
-        self.jobqueue = Queue(maxsize=self.max_jobs)
+        self.jobqueue = myQueue(maxsize=self.max_jobs)
 
     def not_qsub(self, jobname):
         qs = os.popen('qstat -xml | grep %s_%d | wc -l' %
@@ -137,24 +172,22 @@ class qsub(object):
         self.firstjobnames.update(queryjob_tmp)
         return [self.totaljobdict[i] for i in self.firstjobnames]
 
-    def qsubCheck(self, num, sec=5, ):
-        qs = 0
+    def jobcheck(self, sec=2):
         while True:
-            time.sleep(sec)  # check per 1 seconds if job pools
-            if not self.jobqueue.full():
-                continue
-            qs_sge = os.popen('qstat -xml | grep _%d | wc -l' %
-                              self.pid).read().strip()
-            qs_local = Process(self.pid).children()
-            qs_local = [p for p in qs_local if p.status() != "zombie"]
-            qs = int(qs_sge) + len(qs_local)
-            #qs = int(qs)
-            # qs = len([i for i, j in self.state.items()
-            #          if j in ["run", "submit", "resubmit"]])
-            if qs < num:
-                [self.jobqueue.get() for _ in range(num-qs)]
-            else:
-                continue
+            time.sleep(sec/2)
+            for jobname in self.jobqueue.queue:
+                time.sleep(sec/2)
+                js = self.jobstatus(jobname)
+                if js == "success":
+                    n = self.jobqueue.get(jobname)
+                    if jobname not in self.success:
+                        self.logger.info("job %s status %s", jobname, js)
+                    self.success.add(jobname)
+                elif js == "error":
+                    n = self.jobqueue.get(jobname)
+                    if jobname not in self.error:
+                        self.logger.info("job %s status %s", jobname, js)
+                    self.error.add(jobname)
 
     def run(self, sec=2, times=-1, resubivs=2):
 
@@ -167,7 +200,7 @@ class qsub(object):
 
         firstqsub = self.firstjob()
         if self.max_jobs < 100:
-            p = Thread(target=self.qsubCheck, args=(self.max_jobs,))
+            p = Thread(target=self.jobcheck)
             p.setDaemon(True)
             p.start()
         prepare_sub = set()
@@ -228,6 +261,8 @@ class qsub(object):
         #    if job.name in self.thisjobnames:
         #        self.thisjobnames.remove(job.name)
         #    return
+        if self.max_jobs < 100:
+            self.jobqueue.put(job.name, block=True, timeout=1080000)
 
         if resub:
             logcmd = open(logfile, "a")
@@ -241,8 +276,6 @@ class qsub(object):
             self.logger.info("job %s status submit", job.name)
         logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
         logcmd.flush()
-        if self.max_jobs < 100:
-            self.jobqueue.put(job.name, block=True, timeout=1080000)
         qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
             job.cmd + RUNSTAT
         if job.host is not None and job.host == "localhost":
