@@ -101,6 +101,8 @@ class qsub(object):
                 sta = os.popen('tail -n 1 %s' % logfile).read().split()[-1]
             except IndexError:
                 status = "run"
+                if js in ["submit", "resubmit"]:
+                    self.logger.info("job %s status run", jobname)
                 # if self.not_qsub(jobname) and self.is_run:                                                           ## job exit, qsub error
                 #    self.throw("Error in %s job, probably because of qsub interruption."%jobname)
                 self.state[jobname] = status
@@ -116,6 +118,8 @@ class qsub(object):
             else:
                 if "RUNNING..." in os.popen("sed -n '3p' %s" % logfile).read():
                     status = "run"
+                    if js in ["submit", "resubmit"]:
+                        self.logger.info("job %s status run", jobname)
                     # if self.not_qsub(jobname) and self.is_run:                                                       ## job exit, qsub error
                     #    self.throw("Error in %s job, probably because of qsub interruption."%jobname)
         self.state[jobname] = status
