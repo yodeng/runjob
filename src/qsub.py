@@ -74,6 +74,11 @@ class qsub(object):
             for i in v:
                 self.orders_rev.setdefault(i, set()).add(k)
 
+        # duplicate job names
+        if len(jf.alljobnames) != len(set(jf.alljobnames)):
+            names = [i for i, j in Counter(jf.alljobnames).items() if j > 1]
+            self.throw("duplicate job name: %s" % " ".join(names))
+
         # order job name miss
         order_all = set(self.orders.keys() + self.orders_rev.keys())
         if order_all < jf.alljobnames:
