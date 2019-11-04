@@ -190,7 +190,7 @@ class qsub(object):
                         self.logger.info("job %s status %s", jobname, js)
                     self.success.add(jobname)
                 elif js == "error":
-                    n = self.jobqueue.get(jobame)
+                    n = self.jobqueue.get(jobname)
                     if self.subtimes[jn] < 0:
                         if jobname not in self.error:
                             self.logger.info("job %s status %s", jobname, js)
