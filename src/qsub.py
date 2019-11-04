@@ -55,12 +55,13 @@ class myQueue(object):
 
 
 class qsub(object):
-    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None, mode=None):
+    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None, mode=None, usestrict=False):
         self.pid = os.getpid()
         self.jfile = jobfile
         self.is_run = False
         self.firstjobnames = set()
         self.state = {}
+        self.usestrict = usestrict
 
         jf = Jobfile(self.jfile, mode=mode)
         self.has_sge = jf.has_sge
@@ -195,7 +196,9 @@ class qsub(object):
                         if jobname not in self.error:
                             self.logger.info("job %s status %s", jobname, js)
                         self.error.add(jobname)
-                        #self.throw("Error job %s, Exit." % jobname)
+                        if self.usestrict:
+                            self.throw("Error jobs return, %s" % os.path.join(
+                                self.logdir, jn + ".log"))  # if error, exit program
 
     def run(self, sec=2, times=-1, resubivs=2):
 
@@ -237,9 +240,10 @@ class qsub(object):
                             if jn not in self.error:
                                 self.logger.info("job %s status %s", jn, js)
                             self.error.add(jn)
-                            #self.throw("Error job %s, Exit." % jn)
+                            if self.usestrict:
+                                self.throw("Error jobs return, %s" % os.path.join(
+                                    self.logdir, jn + ".log"))  # if error, exit program
                             continue
-                            # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))   ## if error, exit program
                         else:
                             if self.subtimes[jn] == self.times:
                                 self.logger.info("job %s status %s", jn, js)
@@ -322,7 +326,9 @@ class qsub(object):
                         if jn not in self.error:
                             self.logger.info("job %s status %s", jn, js)
                         self.error.add(jn)
-                        #self.throw("Error job %s, Exit." % jn)
+                        if self.usestrict:
+                            self.throw("Error jobs return, %s" % os.path.join(
+                                self.logdir, jn + ".log"))  # if error, exit program
                     else:
                         if self.subtimes[jn] == self.times:
                             self.logger.info("job %s status %s", jn, js)

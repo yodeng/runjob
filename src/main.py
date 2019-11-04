@@ -30,10 +30,13 @@ class ParseSingal(Thread):
     def signal_handler(self, signum, frame):
         sumJobs(qjobs)
         if clear:
-            call('qdel "*_%d"' % os.getpid(),
-                 shell=True, stderr=PIPE, stdout=PIPE)
             pid = os.getpid()
             gid = os.getpgid(pid)
+            stillrunjob = qjobs.jobqueue.queue
+            for jn in stillrunjob:
+                qjobs.state[jn] = "kill"
+            call('qdel "*_%d"' % os.getpid(),
+                 shell=True, stderr=PIPE, stdout=PIPE)
             call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
         sys.exit(signum)
 
@@ -57,8 +60,6 @@ def parseArgs():
                         help="the max job number runing at the same time, default: 1000", default=1000, metavar="<int>")
     parser.add_argument("-j", "--jobfile", type=str, required=True,
                         help="the input jobfile", metavar="<jobfile>")
-    parser.add_argument('-v', '--version',
-                        action='version', version="%(prog)s v" + __version__)
     parser.add_argument('-i', '--injname', help="job names you need to run, default: all jobnames of you job file",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument('-s', '--start', help="job beginning with the number you given, 1 by default",
@@ -73,6 +74,10 @@ def parseArgs():
                         "sge", "localhost"], help="the mode to submit your jobs, 'sge' by default.")
     parser.add_argument("-nc", '--noclean', action="store_false", help="whether to clean all jobs or subprocess created by this programe when the main process exits, default: clean.",
                         default=True)
+    parser.add_argument("--strict", action="store_true", default=False,
+                        help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
+    parser.add_argument('-v', '--version',
+                        action='version', version="%(prog)s v" + __version__)
     return parser.parse_args()
 
 
@@ -124,7 +129,7 @@ def main():
     h = ParseSingal()
     h.start()
     qjobs = qsub(args.jobfile, args.num, args.injname,
-                 args.start, args.end, mode=args.mode)
+                 args.start, args.end, mode=args.mode, usestrict=args.strict)
     statelogger = Mylog(logfile=os.path.join(
         qjobs.logdir, "job.run.txt"), name="state")
     qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
