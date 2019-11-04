@@ -32,8 +32,9 @@ class myQueue(object):
 
     def get(self, v=None):
         if v is None:
+            o = self._content.pop(0)
             self._queue.get()
-            return self._content.pop(0)
+            return o
         else:
             if v not in self._content:
                 return "%s not in queue" % v
