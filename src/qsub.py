@@ -186,12 +186,11 @@ class qsub(object):
                 time.sleep(sec/2)
                 js = self.jobstatus(jobname)
                 if js == "success":
-                    n = self.jobqueue.get(jobname)
                     if jobname not in self.success:
                         self.logger.info("job %s status %s", jobname, js)
                     self.success.add(jobname)
-                elif js == "error":
                     n = self.jobqueue.get(jobname)
+                elif js == "error":
                     if self.subtimes[jobname] < 0:
                         if jobname not in self.error:
                             self.logger.info("job %s status %s", jobname, js)
@@ -199,6 +198,7 @@ class qsub(object):
                         if self.usestrict:
                             self.throw("Error jobs return, %s" % os.path.join(
                                 self.logdir, jobname + ".log"))  # if error, exit program
+                    n = self.jobqueue.get(jobname)
 
     def run(self, sec=2, times=-1, resubivs=2):
 
