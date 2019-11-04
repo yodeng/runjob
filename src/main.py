@@ -116,7 +116,8 @@ def sumJobs(qjobs):
         logger.info("All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks.",
                     len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
 
-    qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
+    qjobs.writestates(os.path.join(
+        qjobs.logdir, "job.status.%d.txt" % os.getpid()))
     logger.info(str(dict(Counter(thisjobstates.values()))))
 
 

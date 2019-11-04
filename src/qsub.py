@@ -212,6 +212,7 @@ class qsub(object):
             self.logger.info("job %s status already success", jn)
 
         firstqsub = self.firstjob()
+        firstjobnames = set([j.name for j in firstqsub])
         if self.max_jobs < 100:
             p = Thread(target=self.jobcheck)
             p.setDaemon(True)
@@ -226,7 +227,9 @@ class qsub(object):
                     prepare_sub.update(
                         [i for i in self.orders_rev[job.name] if i in self.thisjobnames])
         else:
-            prepare_sub = set([j.name for j in firstqsub])
+            prepare_sub = firstjobnames.copy()
+            for j in prepare_sub:
+                self.orders[j] = set([j])
         while len(self.thisjobnames) > 0:
             time.sleep(sec)
             for k in prepare_sub.copy():
@@ -260,6 +263,8 @@ class qsub(object):
                     elif js == "exit":
                         self.throw("Error when qsub")
                     else:
+                        if jn in firstjobnames:
+                            continue
                         subK = False
                 if subK:
                     self.submit(self.totaljobdict[k])
