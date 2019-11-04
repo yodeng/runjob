@@ -8,6 +8,8 @@ Usage: runstate [jobfile|logdir]
 import os
 import sys
 import psutil
+import glob
+
 from collections import defaultdict
 from commands import getstatusoutput
 
@@ -137,16 +139,18 @@ def main():
         if submit == 0:
             submit = len([i for i in os.listdir(
                 logdir) if i.endswith(".log")])
-        if os.path.isfile(os.path.join(logdir, "job.run.txt")):
+        runfile = glob.glob(os.path.join(logdir, "job.run*.txt"))
+        if len(runfile):
             stat = {}
-            with open(os.path.join(logdir, "job.run.txt")) as fi:
-                for line in fi:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    line = line.split()
-                    jobname = line[line.index("job")+1]
-                    stat[jobname] = line[-1]
+            for f in sorted(runfile, key=os.path.getctime):
+                with open(f) as fi:
+                    for line in fi:
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+                        line = line.split()
+                        jobname = line[line.index("job")+1]
+                        stat[jobname] = line[-1]
             success = stat.values().count("success")
             error = stat.values().count("error")
             running = submit - success - error
@@ -184,7 +188,7 @@ def main():
         print style("-"*47, mode="bold")
         print style("{0:<20} {1:>5}".format("submitted:", submit))
         print style("{0:<20} {1:>5}".format(
-            "still runing/queue:", running))
+            "runing/queue/exit:", running))
         print style("{0:<20} {1:>5}".format("success:", len(success)))
         print style("{0:<20} {1:>5}".format(
             "error:", len(error)), mode="bold", fore="red")

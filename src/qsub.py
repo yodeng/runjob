@@ -182,23 +182,25 @@ class qsub(object):
     def jobcheck(self, sec=2):
         while True:
             time.sleep(sec/2)
-            for jobname in self.jobqueue.queue:
+            for jn in self.jobqueue.queue:
                 time.sleep(sec/2)
-                js = self.jobstatus(jobname)
+                js = self.jobstatus(jn)
                 if js == "success":
-                    if jobname not in self.success:
-                        self.logger.info("job %s status %s", jobname, js)
-                    self.success.add(jobname)
-                    n = self.jobqueue.get(jobname)
+                    if jn not in self.success:
+                        self.logger.info("job %s status %s", jn, js)
+                    self.success.add(jn)
+                    if jn in self.error:
+                        self.error.remove(jn)
+                    n = self.jobqueue.get(jn)
                 elif js == "error":
-                    if self.subtimes[jobname] < 0:
-                        if jobname not in self.error:
-                            self.logger.info("job %s status %s", jobname, js)
-                        self.error.add(jobname)
-                        if self.usestrict:
-                            self.throw("Error jobs return, %s" % os.path.join(
-                                self.logdir, jobname + ".log"))  # if error, exit program
-                    n = self.jobqueue.get(jobname)
+                    # if self.subtimes[jn] < 0:
+                    if jn not in self.error:
+                        self.logger.info("job %s status %s", jn, js)
+                    self.error.add(jn)
+                    if self.usestrict:
+                        self.throw("Error jobs return, %s" % os.path.join(
+                            self.logdir, jn + ".log"))  # if error, exit program
+                    n = self.jobqueue.get(jn)
 
     def run(self, sec=2, times=-1, resubivs=2):
 
@@ -215,13 +217,16 @@ class qsub(object):
             p.setDaemon(True)
             p.start()
         prepare_sub = set()
-        for job in firstqsub:
-            self.submit(job)
-            if job.name in self.orders_rev:
-                # prepare_sub.update(
-                #    [i for i in self.orders_rev[job.name] if self.jobstatus(i) != "success"])
-                prepare_sub.update(
-                    [i for i in self.orders_rev[job.name] if i in self.thisjobnames])
+        if len(firstqsub) <= self.max_jobs:
+            for job in firstqsub:
+                self.submit(job)
+                if job.name in self.orders_rev:
+                    # prepare_sub.update(
+                    #    [i for i in self.orders_rev[job.name] if self.jobstatus(i) != "success"])
+                    prepare_sub.update(
+                        [i for i in self.orders_rev[job.name] if i in self.thisjobnames])
+        else:
+            prepare_sub = set([j.name for j in firstqsub])
         while len(self.thisjobnames) > 0:
             time.sleep(sec)
             for k in prepare_sub.copy():
@@ -233,20 +238,21 @@ class qsub(object):
                     if js == "success":
                         if jn not in self.success:
                             self.logger.info("job %s status %s", jn, js)
+                        if jn in self.error:
+                            self.error.remove(jn)
                         self.success.add(jn)
                         continue
                     elif js == "error":
+                        if jn not in self.error:
+                            self.logger.info("job %s status %s", jn, js)
+                        self.error.add(jn)
                         if self.subtimes[jn] < 0:
-                            if jn not in self.error:
-                                self.logger.info("job %s status %s", jn, js)
-                            self.error.add(jn)
                             if self.usestrict:
                                 self.throw("Error jobs return, %s" % os.path.join(
                                     self.logdir, jn + ".log"))  # if error, exit program
                             continue
                         else:
-                            if self.subtimes[jn] == self.times:
-                                self.logger.info("job %s status %s", jn, js)
+                            self.error.remove(jn)
                             time.sleep(resubivs)  # sleep, re-submit
                             self.submit(self.totaljobdict[jn], resub=True)
                             self.subtimes[jn] -= 1
@@ -320,18 +326,19 @@ class qsub(object):
                     if jn not in self.success:
                         self.logger.info("job %s status %s", jn, js)
                     self.success.add(jn)
+                    if jn in self.error:
+                        self.error.remove(jn)
                 elif js == "error":
+                    if jn not in self.error:
+                        self.logger.info("job %s status %s", jn, js)
+                    self.error.add(jn)
                     if self.subtimes[jn] < 0:
                         finaljobs.remove(jn)
-                        if jn not in self.error:
-                            self.logger.info("job %s status %s", jn, js)
-                        self.error.add(jn)
                         if self.usestrict:
                             self.throw("Error jobs return, %s" % os.path.join(
                                 self.logdir, jn + ".log"))  # if error, exit program
                     else:
-                        if self.subtimes[jn] == self.times:
-                            self.logger.info("job %s status %s", jn, js)
+                        self.error.remove(jn)
                         time.sleep(resubivs)  # sleep, re-submit
                         self.submit(self.totaljobdict[jn], resub=True)
                         self.subtimes[jn] -= 1

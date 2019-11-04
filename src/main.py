@@ -84,7 +84,7 @@ def parseArgs():
 def Mylog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
     f = logging.Formatter(
-        '[%(levelname)s %(processName)s %(asctime)s] %(message)s')
+        '[%(levelname)s %(asctime)s] %(message)s')
     if logfile is None:
         h = logging.StreamHandler(sys.stdout)  # default: sys.stderr
     else:
@@ -131,7 +131,7 @@ def main():
     qjobs = qsub(args.jobfile, args.num, args.injname,
                  args.start, args.end, mode=args.mode, usestrict=args.strict)
     statelogger = Mylog(logfile=os.path.join(
-        qjobs.logdir, "job.run.txt"), name="state")
+        qjobs.logdir, "job.run.%d.txt" % os.getpid()), name="state")
     qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
     sumJobs(qjobs)
 
