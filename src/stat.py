@@ -59,87 +59,6 @@ def main():
                 print style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
                     user, job, run, qw))
         print style("-"*47, mode="bold")
-        if len(sys.argv) == 2:
-            jobfile = sys.argv[1]
-            submit = 0
-            if os.path.isfile(jobfile):
-
-                jf = Jobfile(jobfile)
-                jobs = jf.jobs()
-                norun = []
-                for jn in jf.alljobnames:
-                    if not os.path.isfile(os.path.join(jf.logdir, jn + ".log")):
-                        norun.append(jn)
-                    else:
-                        submit += 1
-                logdir = os.path.abspath(os.path.join(
-                    os.path.dirname(jobfile), jf.logdir))
-
-            elif os.path.isdir(jobfile):
-                logdir = os.path.abspath(jobfile)
-            else:
-                raise IOError("No such file or directory %s." % jobfile)
-            if not os.path.isdir(logdir):
-                raise IOError("No such log_dir %s" % logdir)
-            if submit == 0:
-                submit = len([i for i in os.listdir(
-                    logdir) if i.endswith(".log")])
-            if os.path.isfile(os.path.join(logdir, "job.run.txt")):
-                stat = {}
-                with open(os.path.join(logdir, "job.run.txt")) as fi:
-                    for line in fi:
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        line = line.split()
-                        jobname = line[line.index("job")+1]
-                        stat[jobname] = line[-1]
-                success = stat.values().count("success")
-                error = stat.values().count("error")
-                running = submit - success - error
-                print style("-"*47, mode="bold")
-                print style("{0:<20} {1:>5}".format("submitted:", submit))
-                print style("{0:<20} {1:>5}".format(
-                    "runing/queue/exit:", running))
-                print style("{0:<20} {1:>5}".format(
-                    "success:", success))
-                print style("{0:<20} {1:>5}".format(
-                    "error:", error), mode="bold", fore="red")
-                print style("-"*47, mode="bold")
-                if os.path.isfile(jobfile):
-                    print "Not submitted jobs: %s" % ", ".join(norun)
-                return
-            fs = [os.path.join(logdir, i) for i in os.listdir(logdir)]
-            # submit = int(os.popen("awk 'FNR==2' " + " ".join(fs) + " | wc -l ").read().strip())
-            submit = 0
-            stat = []
-            for i in fs:
-                if not i.endswith("log"):
-                    continue
-                submit += 1
-                s = os.popen("sed -n '$p' " + i).read().strip()
-                if s:
-                    stat.append(s.split()[-1])
-                else:
-                    stat.append("")
-            # stat = [os.popen("sed -n '$p' " + i).read().strip().split()[-1] for i in fs]
-            # stat = [int(os.popen("grep -i ERROR %s | wc -l"%i).read().strip()) for i in fs]
-            success = filter(lambda x: x == "SUCCESS", stat)
-            error = filter(lambda x: x == "ERROR", stat)
-            # running = jobs[username]["r"] + jobs[username]["qw"] if username in jobs else 0
-            running = submit - len(success) - len(error)
-            print style("-"*47, mode="bold")
-            print style("{0:<20} {1:>5}".format("submitted:", submit))
-            print style("{0:<20} {1:>5}".format(
-                "still runing/queue:", running))
-            print style("{0:<20} {1:>5}".format("success:", len(success)))
-            print style("{0:<20} {1:>5}".format(
-                "error:", len(error)), mode="bold", fore="red")
-            print style("-"*47, mode="bold")
-            # if len(success) + len(error) + running < submit:
-            #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
-            if os.path.isfile(jobfile):
-                print "Not submitted jobs: %s" % ", ".join(norun)
     else:
         try:
             users = os.popen(
@@ -192,6 +111,88 @@ def main():
                     style("{:>8} ".format(vms))
                 print printstr.rstrip()
         print style("-"*70, mode="bold")
+
+    if len(sys.argv) == 2:
+        jobfile = sys.argv[1]
+        submit = 0
+        if os.path.isfile(jobfile):
+
+            jf = Jobfile(jobfile)
+            jobs = jf.jobs()
+            norun = []
+            for jn in jf.alljobnames:
+                if not os.path.isfile(os.path.join(jf.logdir, jn + ".log")):
+                    norun.append(jn)
+                else:
+                    submit += 1
+            logdir = os.path.abspath(os.path.join(
+                os.path.dirname(jobfile), jf.logdir))
+
+        elif os.path.isdir(jobfile):
+            logdir = os.path.abspath(jobfile)
+        else:
+            raise IOError("No such file or directory %s." % jobfile)
+        if not os.path.isdir(logdir):
+            raise IOError("No such log_dir %s" % logdir)
+        if submit == 0:
+            submit = len([i for i in os.listdir(
+                logdir) if i.endswith(".log")])
+        if os.path.isfile(os.path.join(logdir, "job.run.txt")):
+            stat = {}
+            with open(os.path.join(logdir, "job.run.txt")) as fi:
+                for line in fi:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    line = line.split()
+                    jobname = line[line.index("job")+1]
+                    stat[jobname] = line[-1]
+            success = stat.values().count("success")
+            error = stat.values().count("error")
+            running = submit - success - error
+            print style("-"*47, mode="bold")
+            print style("{0:<20} {1:>5}".format("submitted:", submit))
+            print style("{0:<20} {1:>5}".format(
+                "runing/queue/exit:", running))
+            print style("{0:<20} {1:>5}".format(
+                "success:", success))
+            print style("{0:<20} {1:>5}".format(
+                "error:", error), mode="bold", fore="red")
+            print style("-"*47, mode="bold")
+            if os.path.isfile(jobfile):
+                print "Not submitted jobs: %s" % ", ".join(norun)
+            return
+        fs = [os.path.join(logdir, i) for i in os.listdir(logdir)]
+        # submit = int(os.popen("awk 'FNR==2' " + " ".join(fs) + " | wc -l ").read().strip())
+        submit = 0
+        stat = []
+        for i in fs:
+            if not i.endswith("log"):
+                continue
+            submit += 1
+            s = os.popen("sed -n '$p' " + i).read().strip()
+            if s:
+                stat.append(s.split()[-1])
+            else:
+                stat.append("")
+        # stat = [os.popen("sed -n '$p' " + i).read().strip().split()[-1] for i in fs]
+        # stat = [int(os.popen("grep -i ERROR %s | wc -l"%i).read().strip()) for i in fs]
+        success = filter(lambda x: x == "SUCCESS", stat)
+        error = filter(lambda x: x == "ERROR", stat)
+        # running = jobs[username]["r"] + jobs[username]["qw"] if username in jobs else 0
+        running = submit - len(success) - len(error)
+        print style("-"*47, mode="bold")
+        print style("{0:<20} {1:>5}".format("submitted:", submit))
+        print style("{0:<20} {1:>5}".format(
+            "still runing/queue:", running))
+        print style("{0:<20} {1:>5}".format("success:", len(success)))
+        print style("{0:<20} {1:>5}".format(
+            "error:", len(error)), mode="bold", fore="red")
+        print style("-"*47, mode="bold")
+        # if len(success) + len(error) + running < submit:
+        #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
+        if os.path.isfile(jobfile):
+            print "Not submitted jobs: %s" % ", ".join(norun)
 
 
 if __name__ == "__main__":
