@@ -7,6 +7,7 @@ import time
 import signal
 import argparse
 import logging
+import functools
 
 from subprocess import call, PIPE
 from threading import Thread
@@ -35,6 +36,18 @@ class ParseSingal(Thread):
             gid = os.getpgid(pid)
             call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
         sys.exit(signum)
+
+
+def LogExc(f):
+    @functools.wraps(f)
+    def wrapper(*largs, **kwargs):
+        try:
+            res = f(*largs, **kwargs)
+        except Exception, e:
+            logging.get_logger(__name__).exception(e)
+            os.kill(os.getpid(), 15)
+        return res
+    return wrapper
 
 
 def parseArgs():
@@ -102,15 +115,16 @@ def sumJobs(qjobs):
     logger.info(str(dict(Counter(thisjobstates.values()))))
 
 
+@LogExc
 def main():
     args = parseArgs()
+    mainlogger = Mylog(name=__name__)
     global clear, qjobs
     clear = args.noclean
     h = ParseSingal()
     h.start()
     qjobs = qsub(args.jobfile, args.num, args.injname,
                  args.start, args.end, mode=args.mode)
-    mainlogger = Mylog(name=__name__)
     statelogger = Mylog(logfile=os.path.join(
         qjobs.logdir, "job.run.txt"), name="state")
     qjobs.run(times=args.resub - 1, resubivs=args.resubivs)

@@ -195,6 +195,7 @@ class qsub(object):
                         if jobname not in self.error:
                             self.logger.info("job %s status %s", jobname, js)
                         self.error.add(jobname)
+                        #self.throw("Error job %d, Exit." % jobname)
 
     def run(self, sec=2, times=-1, resubivs=2):
 
@@ -236,6 +237,7 @@ class qsub(object):
                             if jn not in self.error:
                                 self.logger.info("job %s status %s", jn, js)
                             self.error.add(jn)
+                            #self.throw("Error job %d, Exit." % jn)
                             continue
                             # self.throw("Error jobs return, %s"%os.path.join(self.logdir, jn + ".log"))   ## if error, exit program
                         else:
@@ -320,6 +322,7 @@ class qsub(object):
                         if jn not in self.error:
                             self.logger.info("job %s status %s", jn, js)
                         self.error.add(jn)
+                        #self.throw("Error job %d, Exit." % jn)
                     else:
                         if self.subtimes[jn] == self.times:
                             self.logger.info("job %s status %s", jn, js)
