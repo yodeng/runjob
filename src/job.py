@@ -17,7 +17,10 @@ class Jobfile(object):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.logdir = os.path.join(self._pathdir, "log")
-        self.mode = "sge" if mode is None else mode
+        if self.has_sge:
+            self.mode = "sge" if mode is None else mode
+        else:
+            self.mode = "localhost"
 
     def orders(self):
         orders = {}

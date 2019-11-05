@@ -28,16 +28,21 @@ class ParseSingal(Thread):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
-        sumJobs(qjobs)
+        stillrunjob = qjobs.jobqueue.queue
         if clear:
             pid = os.getpid()
             gid = os.getpgid(pid)
-            stillrunjob = qjobs.jobqueue.queue
             for jn in stillrunjob:
                 qjobs.state[jn] = "kill"
+                qjobs.error.add(jn)
+            sumJobs(qjobs)
             call('qdel "*_%d"' % os.getpid(),
                  shell=True, stderr=PIPE, stdout=PIPE)
             call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
+        else:
+            for jn in stillrunjob:
+                qjobs.state[jn] = "run"
+            sumJobs(qjobs)
         sys.exit(signum)
 
 
@@ -71,11 +76,13 @@ def parseArgs():
     parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
                         type=int, default=2, metavar="<int>")
     parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
-                        "sge", "localhost"], help="the mode to submit your jobs, 'sge' by default.")
+                        "sge", "localhost"], help="the mode to submit your jobs, 'sge' by default, if no sge installed, always localhost.")
     parser.add_argument("-nc", '--noclean', action="store_false", help="whether to clean all jobs or subprocess created by this programe when the main process exits, default: clean.",
                         default=True)
     parser.add_argument("--strict", action="store_true", default=False,
                         help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
+    parser.add_argument("-l", "--log", type=str,
+                        help='append log info to file, sys.stdout by default', metavar="<file>")
     parser.add_argument('-v', '--version',
                         action='version', version="%(prog)s v" + __version__)
     return parser.parse_args()
@@ -115,24 +122,22 @@ def sumJobs(qjobs):
     else:
         logger.info("All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks.",
                     len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
-
-    qjobs.writestates(os.path.join(
-        qjobs.logdir, "job.status.%d.txt" % os.getpid()))
+    if len(qjobs.jobs) == len(qjobs.totaljobs):
+        qjobs.writestates(os.path.join(
+            qjobs.logdir, "job.status.txt"))
     logger.info(str(dict(Counter(thisjobstates.values()))))
 
 
 @LogExc
 def main():
     args = parseArgs()
-    mainlogger = Mylog(name=__name__)
+    logger = Mylog(logfile=args.log, name=__name__)
     global clear, qjobs
     clear = args.noclean
     h = ParseSingal()
     h.start()
     qjobs = qsub(args.jobfile, args.num, args.injname,
                  args.start, args.end, mode=args.mode, usestrict=args.strict)
-    statelogger = Mylog(logfile=os.path.join(
-        qjobs.logdir, "job.run.%d.txt" % os.getpid()), name="state")
     qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
     sumJobs(qjobs)
 

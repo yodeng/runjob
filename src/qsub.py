@@ -185,21 +185,7 @@ class qsub(object):
             for jn in self.jobqueue.queue:
                 time.sleep(sec/2)
                 js = self.jobstatus(jn)
-                if js == "success":
-                    if jn not in self.success:
-                        self.logger.info("job %s status %s", jn, js)
-                    self.success.add(jn)
-                    if jn in self.error:
-                        self.error.remove(jn)
-                    n = self.jobqueue.get(jn)
-                elif js == "error":
-                    # if self.subtimes[jn] < 0:
-                    if jn not in self.error:
-                        self.logger.info("job %s status %s", jn, js)
-                    self.error.add(jn)
-                    if self.usestrict:
-                        self.throw("Error jobs return, %s" % os.path.join(
-                            self.logdir, jn + ".log"))  # if error, exit program
+                if js in ["success", "error"]:
                     n = self.jobqueue.get(jn)
 
     def run(self, sec=2, times=-1, resubivs=2):
@@ -251,8 +237,8 @@ class qsub(object):
                         self.error.add(jn)
                         if self.subtimes[jn] < 0:
                             if self.usestrict:
-                                self.throw("Error jobs return, %s" % os.path.join(
-                                    self.logdir, jn + ".log"))  # if error, exit program
+                                self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
+                                    self.logdir, jn + ".log")))  # if error, exit program
                             continue
                         else:
                             self.error.remove(jn)
@@ -306,7 +292,7 @@ class qsub(object):
             cmd = '''echo "Your job \\('%s'\\) has been submitted in localhost" && ''' % job.name + qsubline
             cmd = cmd.replace("\\", "")
             if resub:
-                cmd = cmd.replace("RUNNING", "RUNNING \\(re-run\\)")
+                cmd = cmd.replace("RUNNING", "RUNNING \\(re-submit\\)")
             Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         else:
             job.cmd = job.cmd.replace('"', "\\\"")
@@ -340,8 +326,8 @@ class qsub(object):
                     if self.subtimes[jn] < 0:
                         finaljobs.remove(jn)
                         if self.usestrict:
-                            self.throw("Error jobs return, %s" % os.path.join(
-                                self.logdir, jn + ".log"))  # if error, exit program
+                            self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
+                                self.logdir, jn + ".log")))  # if error, exit program
                     else:
                         self.error.remove(jn)
                         time.sleep(resubivs)  # sleep, re-submit
@@ -365,9 +351,12 @@ class qsub(object):
     def writestates(self, outstat):
         with open(outstat, "w") as fo:
             fo.write(str(dict(Counter(self.state.values()))) + "\n\n")
-            for jn, state in sorted(self.state.items()):
-                fo.write("job %s status %s\n" % (jn, state))
+            sumary = {}
+            for k, v in self.state.items():
+                sumary.setdefault(v, []).append(k)
+            for k, v in sorted(sumary.items(), key=lambda x: len(x[1])):
+                fo.write(k + " : " + " ".join(v) + "\n")
 
     @property
     def logger(self):
-        return logging.getLogger("state")
+        return logging.getLogger("__main__")
