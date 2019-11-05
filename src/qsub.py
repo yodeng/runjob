@@ -263,7 +263,7 @@ class qsub(object):
                     elif js == "exit":
                         self.throw("Error when qsub")
                     else:
-                        if jn in firstjobnames:
+                        if jn == k:
                             continue
                         subK = False
                 if subK:
