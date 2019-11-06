@@ -8,7 +8,7 @@ import logging
 
 from subprocess import call, PIPE, Popen
 from collections import defaultdict, Counter
-from threading import Thread
+from threading import Thread, Lock
 from Queue import Queue
 from datetime import datetime
 
@@ -62,6 +62,7 @@ class qsub(object):
         self.firstjobnames = set()
         self.state = {}
         self.usestrict = usestrict
+        self.lock = Lock()
 
         jf = Jobfile(self.jfile, mode=mode)
         self.has_sge = jf.has_sge
@@ -179,13 +180,27 @@ class qsub(object):
         self.firstjobnames.update(queryjob_tmp)
         return [self.totaljobdict[i] for i in self.firstjobnames]
 
-    def jobcheck(self, sec=2):
+    def jobcheck(self, lock, sec=2):
         while True:
             time.sleep(sec/2)
             for jn in self.jobqueue.queue:
                 time.sleep(sec/2)
                 js = self.jobstatus(jn)
-                if js in ["success", "error"]:
+                if js == "success":
+                    lock.acquire()
+                    if jn not in self.success:
+                        self.logger.info("job %s status %s", jn, js)
+                    if jn in self.error:
+                        self.error.remove(jn)
+                    self.success.add(jn)
+                    lock.release()
+                    n = self.jobqueue.get(jn)
+                elif js == "error":
+                    lock.acquire()
+                    if jn not in self.error:
+                        self.logger.info("job %s status %s", jn, js)
+                    self.error.add(jn)
+                    lock.release()
                     n = self.jobqueue.get(jn)
 
     def run(self, sec=2, times=-1, resubivs=2):
@@ -200,7 +215,7 @@ class qsub(object):
         firstqsub = self.firstjob()
         firstjobnames = set([j.name for j in firstqsub])
         if self.max_jobs < 100:
-            p = Thread(target=self.jobcheck)
+            p = Thread(target=self.jobcheck, args=(self.lock,))
             p.setDaemon(True)
             p.start()
         prepare_sub = set()
@@ -225,23 +240,29 @@ class qsub(object):
                     time.sleep(0.1)
                     js = self.jobstatus(jn)
                     if js == "success":
+                        self.lock.acquire()
                         if jn not in self.success:
                             self.logger.info("job %s status %s", jn, js)
                         if jn in self.error:
                             self.error.remove(jn)
                         self.success.add(jn)
+                        self.lock.release()
                         continue
                     elif js == "error":
+                        self.lock.acquire()
                         if jn not in self.error:
                             self.logger.info("job %s status %s", jn, js)
                         self.error.add(jn)
+                        self.lock.release()
                         if self.subtimes[jn] < 0:
                             if self.usestrict:
                                 self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
                                     self.logdir, jn + ".log")))  # if error, exit program
                             continue
                         else:
+                            self.lock.acquire()
                             self.error.remove(jn)
+                            self.lock.release()
                             time.sleep(resubivs)  # sleep, re-submit
                             self.submit(self.totaljobdict[jn], resub=True)
                             self.subtimes[jn] -= 1
@@ -314,22 +335,28 @@ class qsub(object):
                 js = self.jobstatus(jn)
                 if js == "success":
                     finaljobs.remove(jn)
+                    self.lock.acquire()
                     if jn not in self.success:
                         self.logger.info("job %s status %s", jn, js)
                     self.success.add(jn)
                     if jn in self.error:
                         self.error.remove(jn)
+                    self.lock.release()
                 elif js == "error":
+                    self.lock.acquire()
                     if jn not in self.error:
                         self.logger.info("job %s status %s", jn, js)
                     self.error.add(jn)
+                    self.lock.release()
                     if self.subtimes[jn] < 0:
                         finaljobs.remove(jn)
                         if self.usestrict:
                             self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
                                 self.logdir, jn + ".log")))  # if error, exit program
                     else:
+                        self.lock.acquire()
                         self.error.remove(jn)
+                        self.lock.release()
                         time.sleep(resubivs)  # sleep, re-submit
                         self.submit(self.totaljobdict[jn], resub=True)
                         self.subtimes[jn] -= 1
