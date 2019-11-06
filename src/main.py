@@ -115,7 +115,7 @@ def sumJobs(qjobs):
     thisjobstates = qjobs.state
     # qjobs.writejob(qjobs.jfile + ".bak")  ## write a new job file
 
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger()
     if len(realrunerror) == 0:
         logger.info("All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished successfully.",
                     len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
@@ -131,7 +131,7 @@ def sumJobs(qjobs):
 @LogExc
 def main():
     args = parseArgs()
-    logger = Mylog(logfile=args.log, name=__name__)
+    logger = Mylog(logfile=args.log)
     global clear, qjobs
     clear = args.noclean
     h = ParseSingal()

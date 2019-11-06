@@ -152,7 +152,7 @@ def main():
                             "success:", num))
                     elif k == "error":
                         print style("{0:<20} {1:>5} ".format(
-                            "error:", error), mode="bold", fore="red"), ", ".join(v)
+                            "error:", num), mode="bold", fore="red"), ", ".join(v)
                     else:
                         print style("{0:<20} {1:>5} ".format(
                             k + ":", num)), ", ".join(v)

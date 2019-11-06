@@ -359,4 +359,4 @@ class qsub(object):
 
     @property
     def logger(self):
-        return logging.getLogger("__main__")
+        return logging.getLogger()
