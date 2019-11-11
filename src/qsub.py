@@ -3,7 +3,6 @@
 
 import os
 import time
-import random
 import logging
 
 from subprocess import call, PIPE, Popen
@@ -11,6 +10,7 @@ from collections import defaultdict, Counter
 from threading import Thread, Lock
 from Queue import Queue
 from datetime import datetime
+from random import shuffle
 
 from job import Jobfile
 
@@ -95,6 +95,8 @@ class qsub(object):
         self.success = set()  # args jobs success,   self.error + self.success = len(self.jobs)
         self.thisjobnames = set([j.name for j in self.jobs])
         self.has_success = set()
+        self.logger.info("Total jobs to submit: %s" %
+                         " ".join(self.thisjobnames))
 
         for jn in self.thisjobnames.copy():
             lf = os.path.join(self.logdir, jn + ".log")
@@ -233,10 +235,14 @@ class qsub(object):
                 self.orders[j] = set([j])
         while len(self.thisjobnames) > 0:
             time.sleep(sec)
-            for k in prepare_sub.copy():
+            tmp = prepare_sub.copy()
+            shuffle(tmp)
+            for k in tmp:
                 time.sleep(0.1)
                 subK = True
-                for jn in self.orders[k]:
+                tmp_ = self.orders[k]
+                shuffle(tmp_)
+                for jn in tmp_:
                     time.sleep(0.1)
                     js = self.jobstatus(jn)
                     if js == "success":

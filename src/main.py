@@ -33,9 +33,10 @@ class ParseSingal(Thread):
             pid = os.getpid()
             gid = os.getpgid(pid)
             for jn in stillrunjob:
-                qjobs.state[jn] = "kill"
                 qjobs.lock.acquire()
+                qjobs.state[jn] = "killed"
                 qjobs.error.add(jn)
+                qjobs.logger.info("job %s status killed", jn)
                 qjobs.lock.release()
             sumJobs(qjobs)
             call('qdel "*_%d"' % os.getpid(),
@@ -43,7 +44,8 @@ class ParseSingal(Thread):
             call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
         else:
             for jn in stillrunjob:
-                qjobs.state[jn] = "run"
+                qjobs.state[jn] = "run-but-exit"
+                qjobs.logger.info("job %s status run-but-exit", jn)
             sumJobs(qjobs)
         sys.exit(signum)
 

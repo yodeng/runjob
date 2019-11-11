@@ -2,7 +2,7 @@
 # coding:utf-8
 '''For summary all jobs
 
-Usage: runstate [jobfile|logdir]
+Usage: runstate [jobfile|logdir|logfile]
 '''
 
 import os
@@ -132,12 +132,22 @@ def main():
             except:
                 statfile = jobfile
                 stat = {}
+                alljobnames = []
                 with open(statfile) as fi:
                     for line in fi:
                         if line.startswith("[") and "] job " in line:
                             line = line.split()
                             jobname = line[line.index("job")+1]
-                            stat[jobname] = line[-1]
+                            if line[-1] == "success" and line[-2] == "already":
+                                stat[jobname] = "already success"
+                            else:
+                                stat[jobname] = line[-1]
+                        elif "All tesks" in line:
+                            print style("Jobfile finish runing...",
+                                        mode="bold", fore="red")
+                        elif "Total jobs to submit" in line:
+                            alljobnames = line.split(
+                                "Total jobs to submit:")[1].split()
                 stat2 = {}
                 for k, v in stat.items():
                     stat2.setdefault(v, []).append(k)
@@ -147,15 +157,18 @@ def main():
                 print style("{0:<20} {1:>5}".format("submitted:", submit))
                 for k, v in stat2.items():
                     num = len(v)
-                    if k == "success":
+                    if k in ["success", "already success"]:
                         print style("{0:<20} {1:>5}".format(
-                            "success:", num))
+                            k+":", num))
                     elif k == "error":
                         print style("{0:<20} {1:>5} ".format(
                             "error:", num), mode="bold", fore="red"), ", ".join(v)
                     else:
                         print style("{0:<20} {1:>5} ".format(
                             k + ":", num)), ", ".join(v)
+                wait = set(alljobnames) - set(stat.keys())
+                print style("{0:<20} {1:>5} ".format(
+                    "wait:", len(wait))), ", ".join(wait)
                 print style("-"*47, mode="bold")
                 return
 
@@ -196,12 +209,13 @@ def main():
         print style("{0:<20} {1:>5}".format("success:", len(success)))
         print style("{0:<20} {1:>5}".format(
             "error:", len(error)), mode="bold", fore="red")
+        if os.path.isfile(jobfile):
+            if len(norun):
+                print style("{0:<20} {1:>5}".format(
+                    "wait:", len(norun))), ", ".join(norun)
         print style("-"*47, mode="bold")
         # if len(success) + len(error) + running < submit:
         #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
-        if os.path.isfile(jobfile):
-            if len(norun):
-                print "Not submitted jobs: %s" % ", ".join(norun)
 
 
 if __name__ == "__main__":
