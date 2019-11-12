@@ -235,12 +235,12 @@ class qsub(object):
                 self.orders[j] = set([j])
         while len(self.thisjobnames) > 0:
             time.sleep(sec)
-            tmp = prepare_sub.copy()
+            tmp = list(prepare_sub.copy())
             shuffle(tmp)
             for k in tmp:
                 time.sleep(0.1)
                 subK = True
-                tmp_ = self.orders[k]
+                tmp_ = list(self.orders[k])
                 shuffle(tmp_)
                 for jn in tmp_:
                     time.sleep(0.1)
