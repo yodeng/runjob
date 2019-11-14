@@ -147,8 +147,9 @@ def main():
                     ostat = oll.readlines()[-1].strip().split()[-1]
                     if ocmd and ostat == "SUCCESS":
                         success.append(ocmd)
+                    else:
+                        rmtree(args.logdir)
                     continue
-            rmtree(args.logdir)
         os.makedirs(args.logdir)
         for n, line in enumerate(fi):
             line = line.strip().strip("& ")

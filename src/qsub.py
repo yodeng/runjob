@@ -189,20 +189,22 @@ class qsub(object):
                 time.sleep(sec/2)
                 js = self.jobstatus(jn)
                 if js == "success":
-                    lock.acquire()
                     if jn not in self.success:
+                        lock.acquire()
                         self.logger.info("job %s status %s", jn, js)
+                        self.success.add(jn)
+                        lock.release()
                     if jn in self.error:
+                        lock.acquire()
                         self.error.remove(jn)
-                    self.success.add(jn)
-                    lock.release()
+                        lock.release()
                     n = self.jobqueue.get(jn)
                 elif js == "error":
-                    lock.acquire()
                     if jn not in self.error:
+                        lock.acquire()
                         self.logger.info("job %s status %s", jn, js)
-                    self.error.add(jn)
-                    lock.release()
+                        self.error.add(jn)
+                        lock.release()
                     n = self.jobqueue.get(jn)
 
     def run(self, sec=2, times=-1, resubivs=2):
@@ -255,11 +257,11 @@ class qsub(object):
                         self.lock.release()
                         continue
                     elif js == "error":
-                        self.lock.acquire()
                         if jn not in self.error:
+                            self.lock.acquire()
                             self.logger.info("job %s status %s", jn, js)
-                        self.error.add(jn)
-                        self.lock.release()
+                            self.error.add(jn)
+                            self.lock.release()
                         if self.subtimes[jn] < 0:
                             if self.usestrict:
                                 self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
@@ -349,11 +351,11 @@ class qsub(object):
                         self.error.remove(jn)
                     self.lock.release()
                 elif js == "error":
-                    self.lock.acquire()
                     if jn not in self.error:
+                        self.lock.acquire()
                         self.logger.info("job %s status %s", jn, js)
-                    self.error.add(jn)
-                    self.lock.release()
+                        self.error.add(jn)
+                        self.lock.release()
                     if self.subtimes[jn] < 0:
                         finaljobs.remove(jn)
                         if self.usestrict:
