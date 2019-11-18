@@ -2,8 +2,10 @@ README.md
 setup.cfg
 setup.py
 doc/example.job
+doc/job.status.txt
 doc/jobA.log
 doc/jobB.log
+doc/manual_instruction_for_runjob.pdf
 runjob.egg-info/PKG-INFO
 runjob.egg-info/SOURCES.txt
 runjob.egg-info/dependency_links.txt

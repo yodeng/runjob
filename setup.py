@@ -16,7 +16,7 @@ setup(
     version=__version__,
     packages=["runjob"],
     package_dir={"runjob": "src"},
-    data_files=[("doc", ["doc/jobA.log", "doc/jobB.log", "doc/example.job"]), ],
+    data_files=[("doc", [os.path.join("doc",i) for i in os.listdir("doc")]), ],
     author="Deng Yong",
     author_email="yodeng@tju.edu.cn",
     url="https://github.com/yodeng/runjob",
