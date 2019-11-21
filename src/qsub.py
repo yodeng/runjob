@@ -122,7 +122,7 @@ class qsub(object):
         # thisjobnames are real jobs
         # len(self.has_success) + len(self.thisjobnames) = len(self.jobs)
         self.max_jobs = len(
-            self.thisjobnames) if max_jobs is None else max_jobs
+            self.thisjobnames) if max_jobs is None else min(max_jobs, len(self.thisjobnames))
 
         self.jobqueue = myQueue(maxsize=self.max_jobs)
 
@@ -218,7 +218,7 @@ class qsub(object):
 
         firstqsub = self.firstjob()
         firstjobnames = set([j.name for j in firstqsub])
-        if self.max_jobs < 100:
+        if self.max_jobs < len(self.thisjobnames):
             p = Thread(target=self.jobcheck, args=(self.lock,))
             p.setDaemon(True)
             p.start()
@@ -300,8 +300,7 @@ class qsub(object):
         #    if job.name in self.thisjobnames:
         #        self.thisjobnames.remove(job.name)
         #    return
-        if self.max_jobs < 100:
-            self.jobqueue.put(job.name, block=True, timeout=1080000)
+        self.jobqueue.put(job.name, block=True, timeout=1080000)
 
         if resub:
             logcmd = open(logfile, "a")

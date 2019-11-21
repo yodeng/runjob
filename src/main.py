@@ -33,6 +33,8 @@ class ParseSingal(Thread):
             pid = os.getpid()
             gid = os.getpgid(pid)
             for jn in stillrunjob:
+                if qjobs.state[jn] in ["error", "success"]:
+                    continue
                 qjobs.lock.acquire()
                 qjobs.state[jn] = "killed"
                 qjobs.error.add(jn)
@@ -44,8 +46,11 @@ class ParseSingal(Thread):
             call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
         else:
             for jn in stillrunjob:
-                qjobs.state[jn] = "run-but-exit"
-                qjobs.logger.info("job %s status run-but-exit", jn)
+                if qjobs.state[jn] in ["error", "success"]:
+                    continue
+                # job still activate, main process exit but not clean.
+                qjobs.state[jn] = "%s-but-exit" % qjobs.state[jn]
+                qjobs.logger.info("job %s status %s", jn, qjobs.state[jn])
             sumJobs(qjobs)
         sys.exit(signum)
 
