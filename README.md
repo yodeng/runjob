@@ -27,6 +27,10 @@ Installation
 
 	pip install runjob
 
+User Guide
+======
+All manual instruction for runjob can be found in [PDF](https://github.com/yodeng/runjob/blob/master/doc/manual_instruction_for_runjob.pdf)
+
 Usage
 =====
 

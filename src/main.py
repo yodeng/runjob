@@ -61,7 +61,7 @@ def LogExc(f):
         try:
             res = f(*largs, **kwargs)
         except Exception, e:
-            logging.getLogger(__name__).exception(e)
+            logging.getLogger().exception(e)
             os.kill(os.getpid(), 15)
         return res
     return wrapper
