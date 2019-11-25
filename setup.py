@@ -29,6 +29,7 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     long_description=getdes(),
+    long_description_content_type='text/markdown',
     entry_points={
         'console_scripts': [
             'runjob = runjob.main:main',

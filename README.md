@@ -29,7 +29,7 @@ Installation
 
 User Guide
 ======
-All manual instruction for runjob can be found in [PDF](https://github.com/yodeng/runjob/blob/master/doc/manual_instruction_for_runjob.pdf)
+All manual instruction for runjob can be found in [PDF中文文档使用说明](https://github.com/yodeng/runjob/blob/master/doc/manual_instruction_for_runjob.pdf)
 
 Usage
 =====

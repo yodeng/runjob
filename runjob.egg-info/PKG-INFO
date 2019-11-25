@@ -1,6 +1,6 @@
-Metadata-Version: 1.1
+Metadata-Version: 2.1
 Name: runjob
-Version: 1.3.16
+Version: 1.3.17
 Summary: UNKNOWN
 Home-page: https://github.com/yodeng/runjob
 Author: Deng Yong
@@ -35,6 +35,10 @@ Description: runjob
         
         	pip install runjob
         
+        User Guide
+        ======
+        All manual instruction for runjob can be found in [PDF中文文档使用说明](https://github.com/yodeng/runjob/blob/master/doc/manual_instruction_for_runjob.pdf)
+        
         Usage
         =====
         
@@ -67,3 +71,4 @@ Platform: UNKNOWN
 Classifier: Programming Language :: Python
 Classifier: Programming Language :: Python :: 2
 Classifier: Programming Language :: Python :: 2.7
+Description-Content-Type: text/markdown
