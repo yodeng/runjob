@@ -237,7 +237,8 @@ class qsub(object):
         #    prepare_sub = firstjobnames.copy()
         #    for j in prepare_sub:
         #        self.orders[j] = set([j])
-        while len(self.thisjobnames) > 0:
+        while len(prepare_sub) > 0:
+            #print self.thisjobnames,prepare_sub
             time.sleep(sec)
             tmp = list(prepare_sub.copy())
             shuffle(tmp)
@@ -260,8 +261,8 @@ class qsub(object):
                             self.error.remove(jn)
                         self.success.add(jn)
                         self.lock.release()
-                        if jn in self.thisjobnames:
-                            self.thisjobnames.remove(jn)
+                        #if jn in self.thisjobnames:
+                        #    self.thisjobnames.remove(jn)
                         continue
                     elif js == "error":
                         if jn not in self.error:
@@ -270,8 +271,8 @@ class qsub(object):
                             self.error.add(jn)
                             self.lock.release()
                         if self.subtimes[jn] < 0:
-                            if jn in self.thisjobnames:
-                                self.thisjobnames.remove(jn)
+                            #if jn in self.thisjobnames:
+                            #    self.thisjobnames.remove(jn)
                             if self.usestrict:
                                 self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
                                     self.logdir, jn + ".log")))  # if error, exit program
@@ -295,19 +296,20 @@ class qsub(object):
                         prepare_sub.remove(k)
                     if k in self.orders_rev:
                         prepare_sub.update(
-                            [i for i in self.orders_rev[k] if i in self.thisjobnames])
+                        [i for i in self.orders_rev[k] if i in self.thisjobnames])
                     for jn in self.orders[k]:
                         if jn in prepare_sub:
                             prepare_sub.remove(jn)
-        # self.finalstat(resubivs)
+        #print self.success,self.error,self.thisjobnames,prepare_sub
+        self.finalstat(resubivs)
 
     def submit(self, job, resub=False):
         logfile = os.path.join(self.logdir, job.name + ".log")
 
         # if submit, jobstatus must not be "success", so don't need to do this condition.
-        if job.name in self.success:
-            if job.name in self.thisjobnames:
-                self.thisjobnames.remove(job.name)
+        if job.name in self.success or self.subtimes[job.name] < 0:
+            #if job.name in self.thisjobnames:
+            #    self.thisjobnames.remove(job.name)
             return
         self.jobqueue.put(job.name, block=True, timeout=1080000)
 

@@ -99,10 +99,10 @@ def parseArgs():
 
 def Mylog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
+    #f = logging.Formatter(
+    #   '[%(levelname)s %(asctime)s] %(message)s')
     f = logging.Formatter(
-        '[%(levelname)s %(asctime)s] %(message)s')
-    # f = logging.Formatter(
-    #    '[%(levelname)s %(asctime)s %(filename)s line:%(lineno)d %(funcName)s] %(message)s')
+       '[%(levelname)s %(asctime)s %(filename)s line:%(lineno)d %(funcName)s] %(message)s')
     if logfile is None:
         h = logging.StreamHandler(sys.stdout)  # default: sys.stderr
     else:
