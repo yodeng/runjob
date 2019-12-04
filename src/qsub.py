@@ -260,8 +260,8 @@ class qsub(object):
                             self.error.remove(jn)
                         self.success.add(jn)
                         self.lock.release()
-                        if jn in self.thisjobnames:
-                            self.thisjobnames.remove(jn)
+                        #if jn in self.thisjobnames:
+                        #    self.thisjobnames.remove(jn)
                         continue
                     elif js == "error":
                         if jn not in self.error:
@@ -270,8 +270,8 @@ class qsub(object):
                             self.error.add(jn)
                             self.lock.release()
                         if self.subtimes[jn] < 0:
-                            if jn in self.thisjobnames:
-                                self.thisjobnames.remove(jn)
+                            #if jn in self.thisjobnames:
+                            #    self.thisjobnames.remove(jn)
                             if self.usestrict:
                                 self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
                                     self.logdir, jn + ".log")))  # if error, exit program
@@ -299,7 +299,7 @@ class qsub(object):
                     for jn in self.orders[k]:
                         if jn in prepare_sub:
                             prepare_sub.remove(jn)
-        # self.finalstat(resubivs)
+        self.finalstat(resubivs)
 
     def submit(self, job, resub=False):
         logfile = os.path.join(self.logdir, job.name + ".log")
@@ -339,8 +339,8 @@ class qsub(object):
                 cmd = cmd.replace("RUNNING", "RUNNING \\(re-submit\\)")
             call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
         logcmd.close()
-        # if job.name in self.thisjobnames:
-        #    self.thisjobnames.remove(job.name)
+        if job.name in self.thisjobnames:
+           self.thisjobnames.remove(job.name)
 
     def finalstat(self, resubivs):
         finaljobs = set([j.name for j in self.jobs]) - self.has_success - \
