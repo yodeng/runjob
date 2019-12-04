@@ -162,13 +162,13 @@ def main():
                             k+":", num))
                     elif k == "error":
                         print style("{0:<20} {1:>5} ".format(
-                            "error:", num), mode="bold", fore="red"), ", ".join(v)
+                            "error:", num), mode="bold", fore="red"), ", ".join(sorted(v))
                     else:
                         print style("{0:<20} {1:>5} ".format(
-                            k + ":", num)), ", ".join(v)
+                            k + ":", num)), ", ".join(sorted(v))
                 wait = set(alljobnames) - set(stat.keys())
                 print style("{0:<20} {1:>5} ".format(
-                    "wait:", len(wait))), ", ".join(wait)
+                    "wait:", len(wait))), ", ".join(sorted(wait))
                 print style("-"*47, mode="bold")
                 return
 
@@ -185,30 +185,32 @@ def main():
 
         fs = [os.path.join(logdir, i) for i in os.listdir(logdir)]
         # submit = int(os.popen("awk 'FNR==2' " + " ".join(fs) + " | wc -l ").read().strip())
-        submit = 0
+        submit = []
         stat = []
-        for i in fs:
+        for n, i in enumerate(fs):
             if not i.endswith("log"):
                 continue
-            submit += 1
+            submit.append(n)
             s = os.popen("sed -n '$p' " + i).read().strip()
             if s:
-                stat.append(s.split()[-1])
+                stat.append((n, s.split()[-1]))
             else:
-                stat.append("")
+                stat.append((n, ""))
         # stat = [os.popen("sed -n '$p' " + i).read().strip().split()[-1] for i in fs]
         # stat = [int(os.popen("grep -i ERROR %s | wc -l"%i).read().strip()) for i in fs]
-        success = filter(lambda x: x == "SUCCESS", stat)
-        error = filter(lambda x: x == "ERROR", stat)
+        success = filter(lambda x: x[1] == "SUCCESS", stat)
+        error = filter(lambda x: x[1] == "ERROR", stat)
         # running = jobs[username]["r"] + jobs[username]["qw"] if username in jobs else 0
-        running = submit - len(success) - len(error)
+        #running = submit - len(success) - len(error)
+        running = set([os.path.basename(fs[i])[:-4] for i in submit]) - set([os.path.basename(fs[i[0]])[:-4]
+                                                                             for i in success]) - set([os.path.basename(fs[i[0]])[:-4] for i in error])
         print style("-"*47, mode="bold")
-        print style("{0:<20} {1:>5}".format("submitted:", submit))
+        print style("{0:<20} {1:>5}".format("submitted:", len(submit)))
         print style("{0:<20} {1:>5}".format(
-            "runing/queue/exit:", running))
+            "runing/queue/exit:", len(running))), ", ".join(sorted(running))
         print style("{0:<20} {1:>5}".format("success:", len(success)))
         print style("{0:<20} {1:>5}".format(
-            "error:", len(error)), mode="bold", fore="red")
+            "error:", len(error)), mode="bold", fore="red"), ", ".join(sorted(set([os.path.basename(fs[i[0]])[:-4] for i in error])))
         if os.path.isfile(jobfile):
             if len(norun):
                 print style("{0:<20} {1:>5}".format(

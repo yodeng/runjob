@@ -45,6 +45,8 @@ class Jobfile(object):
                                     self.throw("order names (%s) not in job, (%s)" % (
                                         i, " ".join(line)))
                                 else:
+                                    if i == o:
+                                        continue
                                     orders.setdefault(o, set()).add(i)
                         else:
                             self.throw("order names (%s) not in job, (%s)" % (
