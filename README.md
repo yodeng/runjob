@@ -1,7 +1,4 @@
 <img src='doc/version.svg'>
-
-
-
 runjob
 ========================
 
