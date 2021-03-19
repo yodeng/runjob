@@ -13,7 +13,7 @@ from Queue import Queue
 from datetime import datetime
 from shutil import rmtree
 
-RUNSTAT = " && echo [\`date +'%F %T'\`] SUCCESS || echo [\`date +'%F %T'\`] ERROR"
+RUNSTAT = " && echo [`date +'%F %T'`] SUCCESS || echo [`date +'%F %T'`] ERROR"
 
 
 class ParseSingal(Thread):
@@ -39,7 +39,7 @@ def parserArg():
     parser = argparse.ArgumentParser(
         description="For qsub your jobs in a job file.")
     parser.add_argument("-q", "--queue", type=str, help="the queue your job running, default: all.q",
-                        default="all.q", metavar="<queue>")
+                        default=["all.q",] ,nargs = "*", metavar="<queue>")
     parser.add_argument("-m", "--memory", type=int,
                         help="the memory used per command (GB), default: 1", default=1, metavar="<int>")
     parser.add_argument("-c", "--cpu", type=int,
@@ -170,8 +170,9 @@ def main():
                 # 300 hours  3600*300 = 1080000
                 q.put(n, block=True, timeout=1080000)
                 qsubline = line if line.endswith("ERROR") else line+RUNSTAT
-                qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + qsubline
-                cmd = 'qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d <<< "%s"' % (args.queue,
+                qsubline = "echo [`date +'%F %T'`] RUNNING... && " + qsubline
+                qsubline = qsubline.replace('"', '\\"')
+                cmd = 'qsub -q %s -wd %s -N "%s" -o %s -j y -l vf=%dg,p=%d <<< "%s"' % (" -q ".join(args.queue),
                                                                                       args.workdir, args.jobname+"_" +
                                                                                       str(
                                                                                           n+1), logfile, args.memory, args.cpu, qsubline
