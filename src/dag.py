@@ -18,6 +18,7 @@ class DAG(object):
     def __init__(self):
         """ Construct a new DAG with no nodes or edges. """
         self.reset_graph()
+        self.all_nodes = set()
 
     def add_node(self, node_name, graph=None):
         """ Add a node if it does not exist yet, or error out. """
@@ -25,6 +26,7 @@ class DAG(object):
             graph = self.graph
         if node_name in graph:
             raise KeyError('node %s already exists' % node_name)
+        self.all_nodes.add(node_name)
         graph[node_name] = set()
 
     def add_node_if_not_exists(self, node_name, graph=None):
@@ -40,6 +42,7 @@ class DAG(object):
         if node_name not in graph:
             raise KeyError('node %s does not exist' % node_name)
         graph.pop(node_name)
+        self.all_nodes.remove(node_name)
 
         for node, edges in graph.items():
             if node_name in edges:
@@ -57,13 +60,7 @@ class DAG(object):
             graph = self.graph
         if ind_node not in graph or dep_node not in graph:
             raise KeyError('one or more nodes do not exist in graph')
-        test_graph = deepcopy(graph)
-        test_graph[ind_node].add(dep_node)
-        is_valid, message = self.validate(test_graph)
-        if is_valid:
-            graph[ind_node].add(dep_node)
-        else:
-            raise DAGValidationError()
+        graph[ind_node].add(dep_node)
 
     def delete_edge(self, ind_node, dep_node, graph=None):
         """ Delete an edge from the graph. """

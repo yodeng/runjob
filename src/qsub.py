@@ -87,7 +87,7 @@ class qsub(object):
                 self.jobsgraph.add_node_if_not_exists(i)
                 self.jobsgraph.add_edge(i, k)
 
-        for jn in self.jobsgraph.topological_sort():
+        for jn in self.jobsgraph.all_nodes:
             if jn not in self.jobnames:
                 self.jobsgraph.delete_node(jn)
 
@@ -183,8 +183,8 @@ class qsub(object):
 
     def run(self, sec=2, times=3, resubivs=2):
         self.is_run = True
-        self.times = times
-        self.resubivs = resubivs
+        self.times = max(times, 0)
+        self.resubivs = max(resubivs, 0)
 
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
@@ -238,7 +238,7 @@ class qsub(object):
                 job.cmd + RUNSTAT
 
             if job.host is not None and job.host == "localhost":
-                cmd = 'echo Your job ("%s") has been submitted in localhost && ' % job.name + qsubline
+                cmd = 'echo Your job \("%s"\) has been submitted in localhost && ' % job.name + qsubline
                 if job.subtimes > 1:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)

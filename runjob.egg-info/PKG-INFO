@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: runjob
-Version: 2.0.0
+Version: 2.0.3
 Summary: UNKNOWN
 Home-page: https://github.com/yodeng/runjob
 Author: Deng Yong
@@ -44,7 +44,7 @@ Description: runjob
         
         You can run a quick test like this:
         
-        	$ runjob doc/example.job
+        	$ runjob -j doc/example.job
             
         	$ runstate doc/example.job
         

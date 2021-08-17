@@ -36,7 +36,7 @@ Usage
 
 You can run a quick test like this:
 
-	$ runjob doc/example.job
+	$ runjob -j doc/example.job
     
 	$ runstate doc/example.job
 

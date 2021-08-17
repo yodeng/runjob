@@ -14,7 +14,7 @@ from dag import DAG
 
 from datetime import datetime
 from threading import Thread
-from subprocess import Popen
+from subprocess import Popen, call
 from collections import Counter
 
 
@@ -142,22 +142,23 @@ class RunSge(object):
             job.subtimes += 1
 
             if job.host is not None and job.host == "localhost":
-                cmd = 'echo Your job ("%s") has been submitted in localhost && ' % job.name + job.cmd
+                cmd = 'echo Your job \("%s"\) has been submitted in localhost && ' % job.name + job.cmd
                 if job.subtimes > 1:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
+                Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             else:
                 cmd = 'echo "%s" | qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
                     job.cmd, " -q ".join(self.queue), self.sgefile.workdir, job.jobname, logfile, self.mem, self.cpu)
                 if job.subtimes > 1:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
-            Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
 
     def run(self, sec=2, times=3, resubivs=2):
         self.is_run = True
-        self.times = times   # 最大重投次数
-        self.resubivs = resubivs
+        self.times = max(0, times)   # 最大重投次数
+        self.resubivs = max(resubivs, 0)
 
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
