@@ -6,6 +6,8 @@ import re
 import sys
 from commands import getstatusoutput
 
+from sge import RUNSTAT
+
 
 class Jobfile(object):
     def __init__(self, jobfile, mode=None):
@@ -45,6 +47,8 @@ class Jobfile(object):
                                     self.throw("order names (%s) not in job, (%s)" % (
                                         i, " ".join(line)))
                                 else:
+                                    if i == o:
+                                        continue
                                     orders.setdefault(o, set()).add(i)
                         else:
                             self.throw("order names (%s) not in job, (%s)" % (
@@ -89,7 +93,7 @@ class Jobfile(object):
                         break
             return thisjobs
         jobend = len(jobs) if end is None else end
-        thisjobs = self.totaljobs[start-1:jobend]
+        thisjobs = self.totaljobs[start:jobend]
         return thisjobs
 
     def throw(self, msg):
@@ -232,3 +236,61 @@ class OrderError(Exception):
     def __str__(self):
         return self.errorinfo
     __repr__ = __str__
+
+
+class SGEfile(object):
+    def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
+        self.has_sge = True if getstatusoutput(
+            'command -v qstat')[0] == 0 else False
+        self._path = os.path.abspath(jobfile)
+        if not os.path.exists(self._path):
+            raise IOError("No such file: %s" % self._path)
+        self._pathdir = os.path.dirname(self._path)
+
+        if self.has_sge:
+            self.mode = "sge" if mode is None else mode
+        else:
+            self.mode = "localhost"
+        self.logdir = os.path.abspath(logdir)
+        if not os.path.isdir(self.logdir):
+            os.makedirs(self.logdir)
+        self.workdir = workdir
+        self.name = name
+
+    def jobshells(self, start=0, end=None):
+        jobs = []
+        job = ""
+        with open(self._path) as fi:
+            for n, line in enumerate(fi):
+                if n < start:
+                    continue
+                elif end is not None and n > end:
+                    continue
+                line = line.strip().strip("&")
+                if line.startswith("#"):
+                    continue
+                jobs.append(SGEJob(self, n, line))
+        return jobs
+
+
+class SGEJob(object):
+    def __init__(self, sgefile, linenum=None, cmd=None):
+        self.sf = sgefile
+        name = self.sf.name
+        if name is None:
+            name = os.path.basename(self.sf._path) + "_" + str(os.getpid())
+            if name[0].isdigit():
+                name = "job_" + name
+        self.rawstring = cmd
+        self.jobname = name + "_%d" % linenum
+        self.name = self.jobname
+        self.linenum = linenum
+        self.logfile = os.path.join(self.sf.logdir, os.path.basename(
+            self.sf._path) + "_line%d.log" % self.linenum)
+        self.cmd = "echo [`date +'%F %T'`] RUNNING... && " + cmd + RUNSTAT
+        self.subtimes = 0
+        self.status = None
+        if self.sf.mode == "localhost":
+            self.host = "localhost"
+        else:
+            self.host = "sge"

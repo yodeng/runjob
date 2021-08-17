@@ -42,6 +42,8 @@ You can run a quick test like this:
 
 	$ runsge --help
 
+	$ runsge0 --help
+
 License
 =======
 

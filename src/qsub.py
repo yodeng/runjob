@@ -5,16 +5,19 @@ import os
 import time
 import logging
 
-from subprocess import call, PIPE, Popen
-from collections import defaultdict, Counter
-from threading import Thread, Lock
+from subprocess import Popen
+from collections import Counter
+from threading import Thread
 from Queue import Queue
 from datetime import datetime
-from random import shuffle
 
 from job import Jobfile
+from sge import RUNSTAT
+from dag import DAG
 
-RUNSTAT = " && echo [\`date +'%F %T'\`] SUCCESS || echo [\`date +'%F %T'\`] ERROR"
+
+class QsubError(Exception):
+    pass
 
 
 class myQueue(object):
@@ -36,9 +39,7 @@ class myQueue(object):
             self._queue.get()
             return o
         else:
-            if v not in self._content:
-                return "%s not in queue" % v
-            else:
+            if v in self._content:
                 self._content.remove(v)
                 self._queue.get()
                 return v
@@ -55,74 +56,75 @@ class myQueue(object):
 
 
 class qsub(object):
-    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=1, end=None, mode=None, usestrict=False):
+    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=0, end=None, mode=None, usestrict=False):
         self.pid = os.getpid()
         self.jfile = jobfile
         self.is_run = False
         self.firstjobnames = set()
         self.state = {}
         self.usestrict = usestrict
-        self.lock = Lock()
+        self.times = 3
 
         jf = Jobfile(self.jfile, mode=mode)
         self.has_sge = jf.has_sge
-        self.jobs = jf.jobs(jobnames, start, end)  # all jobs defined by args
-        self.totaljobs = jf.totaljobs  # all jobs in job file
-        self.totaljobdict = {jf.name: jf for jf in self.totaljobs}
+        self.jobs = jf.jobs(jobnames, start, end)
+        self.jobnames = [j.name for j in self.jobs]
 
-        self.orders = jf.orders()  # total orders in job file
-        self.orders_rev = {}   # total orders_rev in job file
-        for k, v in self.orders.items():
-            for i in v:
-                self.orders_rev.setdefault(i, set()).add(k)
+        self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
+
+        self.orders = jf.orders()
 
         # duplicate job names
         if len(jf.alljobnames) != len(set(jf.alljobnames)):
             names = [i for i, j in Counter(jf.alljobnames).items() if j > 1]
             self.throw("duplicate job name: %s" % " ".join(names))
 
-        # order job name miss
-        order_all = set(self.orders.keys() + self.orders_rev.keys())
-        if order_all < jf.alljobnames:
-            self.extrajob = jf.alljobnames - order_all
-            self.throw("There are jobs not defined in orders")
+        self.jobsgraph = DAG()
+        for k, v in self.orders.items():
+            self.jobsgraph.add_node_if_not_exists(k)
+            for i in v:
+                self.jobsgraph.add_node_if_not_exists(i)
+                self.jobsgraph.add_edge(i, k)
+
+        for jn in self.jobsgraph.topological_sort():
+            if jn not in self.jobnames:
+                self.jobsgraph.delete_node(jn)
 
         self.logdir = jf.logdir
         if not os.path.isdir(self.logdir):
             os.makedirs(self.logdir)
 
-        self.error = set()  # args jobs error
-        self.success = set()  # args jobs success,   self.error + self.success = len(self.jobs)
-        self.thisjobnames = set([j.name for j in self.jobs])
-        self.has_success = set()
         self.logger.info("Total jobs to submit: %s" %
-                         " ".join(self.thisjobnames))
+                         " ".join([j.name for j in self.jobs]))
+        self.logger.info("All logs can be found in %s directory", self.logdir)
 
-        for jn in self.thisjobnames.copy():
-            lf = os.path.join(self.logdir, jn + ".log")
-            job = self.totaljobdict[jn]
+        self.has_success = set()
+        for job in self.jobs[:]:
+            lf = os.path.join(self.logdir, job.name + ".log")
+            job.subtimes = 0
             if job.status is not None and job.status in ["done", "success"]:
-                self.thisjobnames.remove(jn)
-                self.has_success.add(jn)
-                self.success.add(jn)
+                self.jobsgraph.delete_node_if_exists(job.name)
+                self.has_success.add(job.name)
+                self.jobs.remove(job)
                 continue
-            if os.path.isfile(lf):  # if log file not exists, will run
-                js = self.jobstatus(jn)
+            if os.path.isfile(lf):
+                js = self.jobstatus(job)
                 if js != "success":
                     os.remove(lf)
-                    if js == "error":
-                        # self.error.remove(jn)
-                        self.state.pop(jn)
+                    job.status = "wait"
                 else:
-                    self.thisjobnames.remove(jn)  # thisjobs - has_success
-                    self.has_success.add(jn)
-                    self.success.add(jn)
+                    self.jobsgraph.delete_node_if_exists(job.name)
+                    self.has_success.add(job.name)
+                    self.jobs.remove(job)
             else:
-                self.state[jn] = "wait"
-        # thisjobnames are real jobs
-        # len(self.has_success) + len(self.thisjobnames) = len(self.jobs)
-        self.max_jobs = len(
-            self.thisjobnames) if max_jobs is None else min(max_jobs, len(self.thisjobnames))
+                job.status = "wait"
+
+        if self.jobsgraph.size() == 0:
+            for jb in self.jobs:
+                self.jobsgraph.add_node_if_not_exists(jb.name)
+
+        self.max_jobs = len(self.jobs) if max_jobs is None else min(
+            max_jobs, len(self.jobs))
 
         self.jobqueue = myQueue(maxsize=self.max_jobs)
 
@@ -133,243 +135,129 @@ class qsub(object):
             return True
         return False
 
-    def jobstatus(self, jobname):
-        js = self.state.get(jobname, "")
-        if js == "success":
-            return js
-        elif js == "error":
-            return js
-        status = "wait"  # wait to submit
+    def jobstatus(self, job):
+        jobname = job.name
+        status = job.status
         logfile = os.path.join(self.logdir, jobname + ".log")
         if os.path.isfile(logfile):
-            status = "submit"  # wait to run
             try:
                 sta = os.popen('tail -n 1 %s' % logfile).read().split()[-1]
             except IndexError:
-                status = "run"
-                if js in ["submit", "resubmit"]:
-                    self.logger.info("job %s status run", jobname)
-                # if self.not_qsub(jobname) and self.is_run:                                                           ## job exit, qsub error
-                #    self.throw("Error in %s job, probably because of qsub interruption."%jobname)
-                self.state[jobname] = status
-                return status
+                if status not in ["submit", "resubmit"]:
+                    status = "run"
             if sta == "SUCCESS":
                 status = "success"
-                # self.success.add(jobname)
             elif sta == "ERROR":
                 status = "error"
-                # self.error.add(jobname)
             elif sta == "Exiting.":
                 status = "exit"
             else:
                 if "RUNNING..." in os.popen("sed -n '3p' %s" % logfile).read():
                     status = "run"
-                    if js in ["submit", "resubmit"]:
-                        self.logger.info("job %s status run", jobname)
-                    # if self.not_qsub(jobname) and self.is_run:                                                       ## job exit, qsub error
-                    #    self.throw("Error in %s job, probably because of qsub interruption."%jobname)
-        self.state[jobname] = status
+        if status != job.status and self.is_run:
+            self.logger.info("job %s status %s", jobname, status)
+            job.status = status
         return status
 
-    def firstjob(self):
-        queryjob_tmp = self.thisjobnames.copy()
-        for j in self.thisjobnames:
-            if j in self.orders:
-                for bj in self.orders[j]:
-                    if bj in self.thisjobnames:
-                        queryjob_tmp.remove(j)
-                        break
-        self.firstjobnames.update(queryjob_tmp)
-        return [self.totaljobdict[i] for i in self.firstjobnames]
-
-    def jobcheck(self, lock, sec=2):
+    def jobcheck(self, sec=2):
         while True:
             time.sleep(sec/2)
-            for jn in self.jobqueue.queue:
+            for jb in self.jobqueue.queue:
                 time.sleep(sec/2)
-                js = self.jobstatus(jn)
+                js = self.jobstatus(jb)
                 if js == "success":
-                    if jn not in self.success:
-                        lock.acquire()
-                        self.logger.info("job %s status %s", jn, js)
-                        self.success.add(jn)
-                        lock.release()
-                    if jn in self.error:
-                        lock.acquire()
-                        self.error.remove(jn)
-                        lock.release()
-                    n = self.jobqueue.get(jn)
+                    self.jobqueue.get(jb)
+                    self.jobsgraph.delete_node_if_exists(jb.name)
                 elif js == "error":
-                    if jn not in self.error:
-                        lock.acquire()
-                        self.logger.info("job %s status %s", jn, js)
-                        self.error.add(jn)
-                        lock.release()
-                    n = self.jobqueue.get(jn)
+                    self.jobqueue.get(jb)
+                    if jb.subtimes >= self.times + 1:
+                        self.jobsgraph.delete_node_if_exists(jb.name)
+                        if self.usestrict:
+                            self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
+                                self.logdir, jb.name + ".log")))  # if error, exit program
+                    else:
+                        self.submit(jb)
+                elif js == "exit":
+                    self.throw("Error when submit")
 
-    def run(self, sec=2, times=-1, resubivs=2):
+    def subJobThread(self):
+        n = 0
+        while n == len(self.jobs):
+            job = self.jobqueue.get()
+            self.submit(job)
+            n += 1
 
+    def run(self, sec=2, times=3, resubivs=2):
         self.is_run = True
         self.times = times
-        self.subtimes = defaultdict(lambda: self.times)
+        self.resubivs = resubivs
 
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
 
-        firstqsub = self.firstjob()
-        firstjobnames = set([j.name for j in firstqsub])
-        if self.max_jobs < len(self.thisjobnames):
-            p = Thread(target=self.jobcheck, args=(self.lock,))
-            p.setDaemon(True)
-            p.start()
-        prepare_sub = set()
-        if len(firstqsub) <= self.max_jobs:
-            for job in firstqsub:
-                self.submit(job)
-                if job.name in self.orders_rev:
-                    # prepare_sub.update(
-                    #    [i for i in self.orders_rev[job.name] if self.jobstatus(i) != "success"])
-                    prepare_sub.update(
-                        [i for i in self.orders_rev[job.name] if i in self.thisjobnames])
-        else:
-            prepare_sub = firstjobnames.copy()
-            for j in prepare_sub:
-                self.orders[j] = set([j])
-        while len(self.thisjobnames) > 0:
-            time.sleep(sec)
-            tmp = list(prepare_sub.copy())
-            shuffle(tmp)
-            for k in tmp:
-                time.sleep(0.1)
-                subK = True
-                tmp_ = list(self.orders[k])
-                shuffle(tmp_)
-                for jn in tmp_:
-                    time.sleep(0.1)
-                    js = self.jobstatus(jn)
-                    if js == "success":
-                        self.lock.acquire()
-                        if jn not in self.success:
-                            self.logger.info("job %s status %s", jn, js)
-                        if jn in self.error:
-                            self.error.remove(jn)
-                        self.success.add(jn)
-                        self.lock.release()
-                        continue
-                    elif js == "error":
-                        if jn not in self.error:
-                            self.lock.acquire()
-                            self.logger.info("job %s status %s", jn, js)
-                            self.error.add(jn)
-                            self.lock.release()
-                        if self.subtimes[jn] < 0:
-                            if self.usestrict:
-                                self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
-                                    self.logdir, jn + ".log")))  # if error, exit program
-                            continue
-                        else:
-                            self.lock.acquire()
-                            self.error.remove(jn)
-                            self.lock.release()
-                            time.sleep(resubivs)  # sleep, re-submit
-                            self.submit(self.totaljobdict[jn], resub=True)
-                            self.subtimes[jn] -= 1
-                            subK = False
-                    elif js == "exit":
-                        self.throw("Error when qsub")
-                    else:
-                        if jn == k:
-                            continue
-                        subK = False
-                if subK:
-                    self.submit(self.totaljobdict[k])
-                    if k in prepare_sub:
-                        prepare_sub.remove(k)
-                    if k in self.orders_rev:
-                        prepare_sub.update(self.orders_rev[k])
-                    for jn in self.orders[k]:
-                        if jn in prepare_sub:
-                            prepare_sub.remove(jn)
-        self.finalstat(resubivs)
+        p = Thread(target=self.jobcheck)
+        p.setDaemon(True)
+        p.start()
 
-    def submit(self, job, resub=False):
+        pre_subjobs = []
+        while True:
+            subjobs = self.jobsgraph.ind_nodes()
+            if len(subjobs) == 0:
+                break
+            if subjobs == pre_subjobs:
+                time.sleep(sec)
+                continue
+            for j in subjobs:
+                jb = self.totaljobdict[j]
+                if 0 <= jb.subtimes <= self.times + 1:
+                    self.submit(jb)
+                else:
+                    self.jobsgraph.delete_node(j)
+            time.sleep(sec)
+            pre_subjobs = subjobs
+
+    def submit(self, job):
+        if not self.is_run:
+            return
+
         logfile = os.path.join(self.logdir, job.name + ".log")
 
-        # if submit, jobstatus must not be "success", so don't need to do this condition.
-        # if self.jobstatus(job.name) == "success":
-        #    if job.name in self.thisjobnames:
-        #        self.thisjobnames.remove(job.name)
-        #    return
-        self.jobqueue.put(job.name, block=True, timeout=1080000)
+        self.jobqueue.put(job, block=True, timeout=1080000)
 
-        if resub:
-            logcmd = open(logfile, "a")
-            logcmd.write("\n" + job.cmd+"\n")
-            self.state[job.name] = "resubmit"
-            self.logger.info("job %s status resubmit", job.name)
-        else:
-            logcmd = open(logfile, "w")
-            logcmd.write(job.cmd+"\n")
-            self.state[job.name] = "submit"
-            self.logger.info("job %s status submit", job.name)
-        logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
-        logcmd.flush()
-        qsubline = "echo [\`date +'%F %T'\`] RUNNING... && " + \
-            job.cmd + RUNSTAT
-        if job.host is not None and job.host == "localhost":
-            cmd = '''echo "Your job \\('%s'\\) has been submitted in localhost" && ''' % job.name + qsubline
-            cmd = cmd.replace("\\", "")
-            if resub:
-                cmd = cmd.replace("RUNNING", "RUNNING \\(re-submit\\)")
+        if job.status in ["run", "submit", "resubmit", "success"]:
+            return
+
+        with open(logfile, "a") as logcmd:
+            if job.subtimes == 0:
+                logcmd.write(job.cmd+"\n")
+                job.status = "submit"
+                self.logger.info("job %s status %s", job.name, job.status)
+            elif job.subtimes <= self.times + 1:
+                logcmd.write("\n" + job.cmd+"\n")
+                job.status = "resubmit"
+                self.logger.info("job %s status %s", job.name, job.status)
+
+            logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
+            logcmd.flush()
+            job.subtimes += 1
+            qsubline = "echo [`date +'%F %T'`] RUNNING... && " + \
+                job.cmd + RUNSTAT
+
+            if job.host is not None and job.host == "localhost":
+                cmd = 'echo Your job ("%s") has been submitted in localhost && ' % job.name + qsubline
+                if job.subtimes > 1:
+                    cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
+                    time.sleep(self.resubivs)
+            else:
+                cmd = 'echo "%s" | qsub %s -N %s_%d -o %s -j y' % (
+                    qsubline, job.sched_options, job.name, self.pid, logfile)
+                if job.subtimes > 1:
+                    cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
+                    time.sleep(self.resubivs)
             Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
-        else:
-            job.cmd = job.cmd.replace('"', "\\\"")
-            cmd = 'qsub %s -N %s_%d -o %s -j y <<< "%s"' % (
-                job.sched_options, job.name, self.pid, logfile, qsubline)
-            if resub:
-                cmd = cmd.replace("RUNNING", "RUNNING \\(re-submit\\)")
-            call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
-        logcmd.close()
-        if job.name in self.thisjobnames:
-            self.thisjobnames.remove(job.name)
-
-    def finalstat(self, resubivs):
-        finaljobs = set([j.name for j in self.jobs]) - self.has_success - \
-            self.success - self.error
-        while len(finaljobs) > 0:
-            time.sleep(2)
-            for jn in finaljobs.copy():
-                js = self.jobstatus(jn)
-                if js == "success":
-                    finaljobs.remove(jn)
-                    self.lock.acquire()
-                    if jn not in self.success:
-                        self.logger.info("job %s status %s", jn, js)
-                    self.success.add(jn)
-                    if jn in self.error:
-                        self.error.remove(jn)
-                    self.lock.release()
-                elif js == "error":
-                    if jn not in self.error:
-                        self.lock.acquire()
-                        self.logger.info("job %s status %s", jn, js)
-                        self.error.add(jn)
-                        self.lock.release()
-                    if self.subtimes[jn] < 0:
-                        finaljobs.remove(jn)
-                        if self.usestrict:
-                            self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
-                                self.logdir, jn + ".log")))  # if error, exit program
-                    else:
-                        self.lock.acquire()
-                        self.error.remove(jn)
-                        self.lock.release()
-                        time.sleep(resubivs)  # sleep, re-submit
-                        self.submit(self.totaljobdict[jn], resub=True)
-                        self.subtimes[jn] -= 1
 
     def throw(self, msg):
-        raise RuntimeError(msg)
+        raise QsubError(msg)
 
     def writejob(self, outjob):
         with open(outjob, "w") as fo:
@@ -383,13 +271,14 @@ class qsub(object):
                     fo.write("order %s after %s\n" % (k, i))
 
     def writestates(self, outstat):
+        summary = {j.name: j.status for j in self.jobs}
         with open(outstat, "w") as fo:
-            fo.write(str(dict(Counter(self.state.values()))) + "\n\n")
-            sumary = {}
-            for k, v in self.state.items():
-                sumary.setdefault(v, []).append(k)
-            for k, v in sorted(sumary.items(), key=lambda x: len(x[1])):
-                fo.write(k + " : " + " ".join(v) + "\n")
+            fo.write(str(dict(Counter(summary.values()))) + "\n\n")
+            sumout = {}
+            for k, v in summary.items():
+                sumout.setdefault(v, []).append(k)
+            for k, v in sorted(sumout.items(), key=lambda x: len(x[1])):
+                fo.write(k + " : " + ", ".join(v) + "\n")
 
     @property
     def logger(self):

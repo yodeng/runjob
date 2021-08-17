@@ -33,24 +33,20 @@ class ParseSingal(Thread):
             pid = os.getpid()
             gid = os.getpgid(pid)
             for jn in stillrunjob:
-                if qjobs.state[jn] in ["error", "success"]:
+                if jn.status in ["error", "success"]:
                     continue
-                qjobs.lock.acquire()
-                qjobs.state[jn] = "killed"
-                qjobs.error.add(jn)
-                qjobs.logger.info("job %s status killed", jn)
-                qjobs.lock.release()
+                jn.status = "killed"
+                qjobs.logger.info("job %s status killed", jn.name)
             sumJobs(qjobs)
             call('qdel "*_%d"' % os.getpid(),
                  shell=True, stderr=PIPE, stdout=PIPE)
-            call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
+            call("kill -15 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
         else:
             for jn in stillrunjob:
-                if qjobs.state[jn] in ["error", "success"]:
+                if jn.status in ["error", "success"]:
                     continue
-                # job still activate, main process exit but not clean.
-                qjobs.state[jn] = "%s-but-exit" % qjobs.state[jn]
-                qjobs.logger.info("job %s status %s", jn, qjobs.state[jn])
+                jn.status += "-but-exit"
+                qjobs.logger.info("job %s status %s", jn.name, jn.status)
             sumJobs(qjobs)
         sys.exit(signum)
 
@@ -76,8 +72,8 @@ def parseArgs():
                         help="the input jobfile", metavar="<jobfile>")
     parser.add_argument('-i', '--injname', help="job names you need to run, default: all jobnames of you job file",
                         nargs="*", type=str, metavar="<str>")
-    parser.add_argument('-s', '--start', help="job beginning with the number you given, 1 by default",
-                        type=int, default=1, metavar="<int>")
+    parser.add_argument('-s', '--start', help="job beginning with the number(0-base) you given, 0 by default",
+                        type=int, default=0, metavar="<int>")
     parser.add_argument('-e', '--end', help="job ending with the number you given, last job by default",
                         type=int, metavar="<int>")
     parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 3 times by default",
@@ -115,26 +111,22 @@ def Mylog(logfile=None, level="info", name=None):
 
 
 def sumJobs(qjobs):
-    thisrunjobs = set([j.name for j in qjobs.jobs])
-    realrunjobs = thisrunjobs - qjobs.has_success
-    realrunsuccess = qjobs.success - qjobs.has_success
-    realrunerror = qjobs.error
-    resubjobs = set(
-        [k for k, v in qjobs.subtimes.items() if v != qjobs.times])
-    thisjobstates = qjobs.state
-    # qjobs.writejob(qjobs.jfile + ".bak")  ## write a new job file
+    run_jobs = qjobs.jobs
+    has_success_jobs = qjobs.has_success
+    error_jobs = [j for j in run_jobs if j.status == "error"]
+    success_jobs = [j for j in run_jobs if j.status == 'success']
 
     logger = logging.getLogger()
-    if len(realrunerror) == 0:
-        logger.info("All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished successfully.",
-                    len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
+    status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished" % (len(
+        run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs), os.path.abspath(qjobs.jfile))
+    if len(error_jobs) == 0:
+        status += " successfully."
     else:
-        logger.info("All tesks( total(%d), actual(%d), actual_success(%d), actual_error(%d) ) in file (%s) finished, But there are ERROR tesks.",
-                    len(thisrunjobs), len(realrunjobs), len(realrunsuccess), len(realrunerror), os.path.abspath(qjobs.jfile))
-    if len(qjobs.jobs) == len(qjobs.totaljobs):
-        qjobs.writestates(os.path.join(
-            qjobs.logdir, "job.status.txt"))
-    logger.info(str(dict(Counter(thisjobstates.values()))))
+        status += ", but there are ERROR tesks."
+    logger.info(status)
+
+    qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
+    logger.info(str(dict(Counter([j.status for j in run_jobs]))))
 
 
 @LogExc

@@ -37,9 +37,9 @@ def not_empty(s):
 def parserArg():
     pid = os.getpid()
     parser = argparse.ArgumentParser(
-        description="For qsub your jobs in a job file.")
+        description="For multi-run your shell scripts localhost or qsub, please use `runsge` instead.")
     parser.add_argument("-q", "--queue", type=str, help="the queue your job running, default: all.q",
-                        default=["all.q",] ,nargs = "*", metavar="<queue>")
+                        default=["all.q", ], nargs="*", metavar="<queue>")
     parser.add_argument("-m", "--memory", type=int,
                         help="the memory used per command (GB), default: 1", default=1, metavar="<int>")
     parser.add_argument("-c", "--cpu", type=int,
@@ -173,10 +173,10 @@ def main():
                 qsubline = "echo [`date +'%F %T'`] RUNNING... && " + qsubline
                 qsubline = qsubline.replace('"', '\\"')
                 cmd = 'qsub -q %s -wd %s -N "%s" -o %s -j y -l vf=%dg,p=%d <<< "%s"' % (" -q ".join(args.queue),
-                                                                                      args.workdir, args.jobname+"_" +
-                                                                                      str(
-                                                                                          n+1), logfile, args.memory, args.cpu, qsubline
-                                                                                      )
+                                                                                        args.workdir, args.jobname+"_" +
+                                                                                        str(
+                    n+1), logfile, args.memory, args.cpu, qsubline
+                )
                 logcmd = open(logfile, "w")
                 logcmd.write(line+"\n")
                 logcmd.write("[%s] " % datetime.today().strftime("%F %X"))

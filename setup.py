@@ -11,13 +11,19 @@ def getdes():
     return des
 
 
+def listdir(path):
+    df = []
+    for a, b, c in os.walk(path):
+        df.append((a, [os.path.join(a, i) for i in c]))
+    return df
+
+
 setup(
     name="runjob",
     version=__version__,
     packages=["runjob"],
     package_dir={"runjob": "src"},
-    data_files=[("doc", [os.path.join("doc", i)
-                         for i in os.listdir("doc")]), ],
+    data_files=listdir("doc"),
     author="Deng Yong",
     author_email="yodeng@tju.edu.cn",
     url="https://github.com/yodeng/runjob",
@@ -32,9 +38,10 @@ setup(
     long_description_content_type='text/markdown',
     entry_points={
         'console_scripts': [
-            'runjob = runjob.main:main',
+            'runjob = runjob.run:main',
             'runstate = runjob.stat:main',
-            'runsge = runjob.sge:main',
+            'runsge0 = runjob.sge:main',
+            'runsge = runjob.sge_run:main',
         ]
     }
 )

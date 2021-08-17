@@ -1,5 +1,5 @@
 echo hello from job jobA
-[2019-08-20 23:10:15] Your job 480977 ("jobA_25079") has been submitted
-[2019-08-20 23:10:18] RUNNING...
+[2021-08-17 11:26:23] Your job 4374726 ("jobA_6877") has been submitted
+[2021-08-17 11:26:23] RUNNING...
 hello from job jobA
-[2019-08-20 23:10:18] SUCCESS
+[2021-08-17 11:26:23] SUCCESS
