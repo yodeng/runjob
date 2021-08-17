@@ -5,7 +5,7 @@ import os
 import time
 import logging
 
-from subprocess import Popen
+from subprocess import Popen, call
 from collections import Counter
 from threading import Thread
 from Queue import Queue
@@ -22,7 +22,7 @@ class QsubError(Exception):
 
 class myQueue(object):
     def __init__(self, maxsize=0):
-        self._content = []
+        self._content = set()
         self._queue = Queue(maxsize=maxsize)
 
     @property
@@ -30,12 +30,13 @@ class myQueue(object):
         return self._queue.qsize()
 
     def put(self, v, **kwargs):
-        self._queue.put(v, **kwargs)
-        self._content.append(v)
+        if v not in self._content:
+            self._queue.put(v, **kwargs)
+            self._content.add(v)
 
     def get(self, v=None):
         if v is None:
-            o = self._content.pop(0)
+            o = self._content.pop()
             self._queue.get()
             return o
         else:
@@ -46,7 +47,7 @@ class myQueue(object):
 
     @property
     def queue(self):
-        return self._content[:]
+        return self._content.copy()
 
     def isEmpty(self):
         return self._queue.empty()
@@ -127,13 +128,6 @@ class qsub(object):
             max_jobs, len(self.jobs))
 
         self.jobqueue = myQueue(maxsize=self.max_jobs)
-
-    def not_qsub(self, jobname):
-        qs = os.popen('qstat -xml | grep %s_%d | wc -l' %
-                      (jobname, self.pid)).read().strip()
-        if int(qs) == 0:
-            return True
-        return False
 
     def jobstatus(self, job):
         jobname = job.name
@@ -248,13 +242,14 @@ class qsub(object):
                 if job.subtimes > 1:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
+                Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             else:
                 cmd = 'echo "%s" | qsub %s -N %s_%d -o %s -j y' % (
                     qsubline, job.sched_options, job.name, self.pid, logfile)
                 if job.subtimes > 1:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
-            Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
 
     def throw(self, msg):
         raise QsubError(msg)

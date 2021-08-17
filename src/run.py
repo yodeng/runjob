@@ -40,7 +40,7 @@ class ParseSingal(Thread):
             sumJobs(qjobs)
             call('qdel "*_%d"' % os.getpid(),
                  shell=True, stderr=PIPE, stdout=PIPE)
-            call("kill -15 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
+            call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
         else:
             for jn in stillrunjob:
                 if jn.status in ["error", "success"]:
