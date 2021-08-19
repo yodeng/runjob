@@ -33,6 +33,7 @@ class RunSge(object):
         self.maxjob = maxjob
         self.logdir = logdir
         self.is_run = False
+        self.subjobs = set()
 
         self.jobsgraph = DAG()
         pre_dep = []
@@ -83,7 +84,8 @@ class RunSge(object):
         logfile = job.logfile
         if os.path.isfile(logfile):
             try:
-                sta = os.popen('tail -n 1 %s' % logfile).read().split()[-1]
+                with os.popen('tail -n 1 %s' % logfile) as fi:
+                    sta = fi.read().split()[-1]
             except IndexError:
                 if status not in ["submit", "resubmit"]:
                     status = "run"
@@ -103,29 +105,36 @@ class RunSge(object):
 
     def jobcheck(self, sec=2):
         while True:
-            time.sleep(sec/2)
-            for jb in self.jobqueue.queue:
+            time.sleep(0.5)
+            for jb in self.subjobs.copy():
                 time.sleep(sec/2)
                 js = self.jobstatus(jb)
                 if js == "success":
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(jb.jobname)
+                    self.subjobs.remove(jb)
                 elif js == "error":
                     self.jobqueue.get(jb)
                     if jb.subtimes >= self.times + 1:
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
+                        self.subjobs.remove(jb)
                     else:
+                        self.logger.debug(
+                            "%s job submit %s times", jb.name, jb.subtimes+1)
                         self.submit(jb)
                 elif js == "exit":
                     self.throw("Error when submit")
 
     def submit(self, job):
-        logfile = job.logfile
-
-        self.jobqueue.put(job, block=True, timeout=1080000)
+        if not self.is_run:
+            return
 
         if job.status in ["run", "submit", "resubmit", "success"]:
             return
+
+        logfile = job.logfile
+
+        self.jobqueue.put(job, block=True, timeout=1080000)
 
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
@@ -154,6 +163,7 @@ class RunSge(object):
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
                 call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+            self.subjobs.add(job)
 
     def run(self, sec=2, times=3, resubivs=2):
         self.is_run = True
@@ -167,7 +177,7 @@ class RunSge(object):
         p.setDaemon(True)
         p.start()
 
-        pre_subjobs = []
+        pre_subjobs = set()
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
@@ -176,13 +186,18 @@ class RunSge(object):
                 time.sleep(sec)
                 continue
             for j in subjobs:
+                if j in pre_subjobs:
+                    continue
                 jb = self.totaljobdict[j]
                 if 0 <= jb.subtimes <= self.times + 1:
+                    self.logger.debug(
+                        "%s job submit %s times", j, jb.subtimes+1)
                     self.submit(jb)
                 else:
                     self.jobsgraph.delete_node(j)
-            time.sleep(sec)
+                    self.subjobs.remove(jb)
             pre_subjobs = subjobs
+            time.sleep(sec)
 
     @property
     def logger(self):
@@ -224,6 +239,8 @@ def parserArg():
                         help="which line number(0-base) be used for the first job tesk. default: 0", metavar="<int>", default=0)
     parser.add_argument("-e", "--endline", type=int,
                         help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='log debug info', default=False)
     parser.add_argument("-l", "--log", type=str,
                         help='append log info to file, sys.stdout by default', metavar="<file>")
     parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 3 times by default",
@@ -243,7 +260,7 @@ def parserArg():
 
 def main():
     args = parserArg()
-    logger = Mylog(logfile=args.log)
+    logger = Mylog(logfile=args.log, level="debug" if args.debug else "info")
     runsge2 = RunSge(args.jobfile, args.queue, args.cpu, args.memory, args.jobname,
                      args.startline, args.endline, args.logdir, args.workdir, args.num)
     runsge2.run(times=args.resub, resubivs=args.resubivs)

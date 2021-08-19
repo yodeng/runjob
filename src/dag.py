@@ -148,14 +148,14 @@ class DAG(object):
         self.graph = OrderedDict()
 
     def ind_nodes(self, graph=None):
-        """ Returns a list of all nodes in the graph with no dependencies. """
+        """ Returns a set of all nodes in the graph with no dependencies. """
         if graph is None:
             graph = self.graph
 
         dependent_nodes = set(
             node for dependents in graph.values() for node in dependents
         )
-        return [node for node in graph.keys() if node not in dependent_nodes]
+        return set([node for node in graph.keys() if node not in dependent_nodes])
 
     def validate(self, graph=None):
         """ Returns (Boolean, message) of whether DAG is valid. """

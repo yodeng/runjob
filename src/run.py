@@ -86,6 +86,8 @@ def parseArgs():
                         default=True)
     parser.add_argument("--strict", action="store_true", default=False,
                         help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='log debug info', default=False)
     parser.add_argument("-l", "--log", type=str,
                         help='append log info to file, sys.stdout by default', metavar="<file>")
     parser.add_argument('-v', '--version',
@@ -95,18 +97,20 @@ def parseArgs():
 
 def Mylog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
-    f = logging.Formatter(
-        '[%(levelname)s %(asctime)s] %(message)s')
+    if level.lower() == "info":
+        logger.setLevel(logging.INFO)
+        f = logging.Formatter(
+            '[%(levelname)s %(asctime)s] %(message)s')
+    elif level.lower() == "debug":
+        logger.setLevel(logging.DEBUG)
+        f = logging.Formatter(
+            '[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s')
     if logfile is None:
         h = logging.StreamHandler(sys.stdout)  # default: sys.stderr
     else:
         h = logging.FileHandler(logfile, mode='w')
     h.setFormatter(f)
     logger.addHandler(h)
-    if level.lower() == "info":
-        logger.setLevel(logging.INFO)
-    elif level.lower() == "debug":
-        logger.setLevel(logging.DEBUG)
     return logger
 
 
@@ -132,7 +136,7 @@ def sumJobs(qjobs):
 @LogExc
 def main():
     args = parseArgs()
-    logger = Mylog(logfile=args.log)
+    logger = Mylog(logfile=args.log, level="debug" if args.debug else "info")
     global clear, qjobs
     clear = args.noclean
     h = ParseSingal()
