@@ -115,21 +115,16 @@ class RunSge(object):
                     self.subjobs.remove(jb)
                 elif js == "error":
                     self.jobqueue.get(jb)
-                    if jb.subtimes >= self.times + 1:
+                    if jb.subtimes > self.times + 1:
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
                         self.subjobs.remove(jb)
                     else:
-                        self.logger.debug(
-                            "%s job submit %s times", jb.name, jb.subtimes+1)
                         self.submit(jb)
                 elif js == "exit":
                     self.throw("Error when submit")
 
     def submit(self, job):
-        if not self.is_run:
-            return
-
-        if job.status in ["run", "submit", "resubmit", "success"]:
+        if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
             return
 
         logfile = job.logfile
@@ -140,29 +135,29 @@ class RunSge(object):
             if job.subtimes == 0:
                 logcmd.write(job.rawstring+"\n")
                 job.status = "submit"
-                self.logger.info("job %s status %s", job.name, job.status)
             elif job.subtimes <= self.times + 1:
                 logcmd.write("\n" + job.rawstring+"\n")
                 job.status = "resubmit"
-                self.logger.info("job %s status %s", job.name, job.status)
 
+            self.logger.info("job %s status %s", job.name, job.status)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
-            job.subtimes += 1
 
             if job.host is not None and job.host == "localhost":
                 cmd = 'echo Your job \("%s"\) has been submitted in localhost && ' % job.name + job.cmd
-                if job.subtimes > 1:
+                if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
                 Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             else:
                 cmd = 'echo "%s" | qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
                     job.cmd, " -q ".join(self.queue), self.sgefile.workdir, job.jobname, logfile, self.mem, self.cpu)
-                if job.subtimes > 1:
+                if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
                 call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+            self.logger.debug("%s job submit %s times", job.name, job.subtimes)
+            job.subtimes += 1
             self.subjobs.add(job)
 
     def run(self, sec=2, times=3, resubivs=2):
@@ -177,26 +172,15 @@ class RunSge(object):
         p.setDaemon(True)
         p.start()
 
-        pre_subjobs = set()
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
                 break
-            if subjobs == pre_subjobs:
-                time.sleep(sec)
-                continue
             for j in subjobs:
-                if j in pre_subjobs:
-                    continue
                 jb = self.totaljobdict[j]
-                if 0 <= jb.subtimes <= self.times + 1:
-                    self.logger.debug(
-                        "%s job submit %s times", j, jb.subtimes+1)
-                    self.submit(jb)
-                else:
-                    self.jobsgraph.delete_node(j)
-                    self.subjobs.remove(jb)
-            pre_subjobs = subjobs
+                if jb in self.subjobs:
+                    continue
+                self.submit(jb)
             time.sleep(sec)
 
     @property
@@ -261,10 +245,10 @@ def parserArg():
 def main():
     args = parserArg()
     logger = Mylog(logfile=args.log, level="debug" if args.debug else "info")
-    runsge2 = RunSge(args.jobfile, args.queue, args.cpu, args.memory, args.jobname,
-                     args.startline, args.endline, args.logdir, args.workdir, args.num)
-    runsge2.run(times=args.resub, resubivs=args.resubivs)
-    sumJobs(runsge2)
+    runsge = RunSge(args.jobfile, args.queue, args.cpu, args.memory, args.jobname,
+                    args.startline, args.endline, args.logdir, args.workdir, args.num)
+    runsge.run(times=args.resub - 1, resubivs=args.resubivs)
+    sumJobs(runsge)
 
 
 if __name__ == "__main__":

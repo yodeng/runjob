@@ -173,8 +173,6 @@ class qsub(object):
                         self.jobsgraph.delete_node_if_exists(jb.name)
                         self.subjobs.remove(jb)
                     else:
-                        self.logger.debug(
-                            "%s job submit %s times", jb.name, jb.subtimes+1)
                         self.submit(jb)
                 elif js == "exit":
                     self.throw("Error when submit")
@@ -191,33 +189,19 @@ class qsub(object):
         p.setDaemon(True)
         p.start()
 
-        pre_subjobs = set()
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
                 break
-            if subjobs == pre_subjobs:
-                time.sleep(sec)
-                continue
             for j in subjobs:
-                if j in pre_subjobs:
-                    continue
                 jb = self.totaljobdict[j]
-                if 0 <= jb.subtimes <= self.times + 1:
-                    self.logger.debug("%s job submit %s times",
-                                      jb.name, jb.subtimes+1)
-                    self.submit(jb)
-                else:
-                    self.jobsgraph.delete_node(j)
-                    self.subjobs.remove(jb)
-            pre_subjobs = subjobs
+                if jb in self.subjobs:
+                    continue
+                self.submit(jb)
             time.sleep(sec)
 
     def submit(self, job):
-        if not self.is_run:
-            return
-
-        if job.status in ["run", "submit", "resubmit", "success"]:
+        if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
             return
 
         logfile = os.path.join(self.logdir, job.name + ".log")
@@ -228,31 +212,32 @@ class qsub(object):
             if job.subtimes == 0:
                 logcmd.write(job.cmd+"\n")
                 job.status = "submit"
-                self.logger.info("job %s status %s", job.name, job.status)
             elif job.subtimes <= self.times + 1:
                 logcmd.write("\n" + job.cmd+"\n")
                 job.status = "resubmit"
-                self.logger.info("job %s status %s", job.name, job.status)
 
+            self.logger.info("job %s status %s", job.name, job.status)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
-            job.subtimes += 1
+
             qsubline = "echo [`date +'%F %T'`] RUNNING... && " + \
                 job.cmd + RUNSTAT
 
             if (job.host is not None and job.host == "localhost") or not self.has_sge:
                 cmd = 'echo Your job \("%s"\) has been submitted in localhost && ' % job.name + qsubline
-                if job.subtimes > 1:
+                if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
                 Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             else:
                 cmd = 'echo "%s" | qsub %s -N %s_%d -o %s -j y' % (
                     qsubline, job.sched_options, job.name, self.pid, logfile)
-                if job.subtimes > 1:
+                if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
                 call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+            job.subtimes += 1
+            self.logger.debug("%s job submit %s times", job.name, job.subtimes)
             self.subjobs.add(job)
 
     def throw(self, msg):
