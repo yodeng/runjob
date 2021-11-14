@@ -7,7 +7,7 @@ import logging
 
 from subprocess import Popen, call
 from collections import Counter
-from threading import Thread
+from threading import Thread, Lock
 from Queue import Queue
 from datetime import datetime
 
@@ -21,7 +21,6 @@ class QsubError(Exception):
 
 
 class myQueue(object):
-    __slots__ = ["put", "get", "_content", "_queue"]
 
     def __init__(self, maxsize=0):
         self._content = set()
@@ -73,7 +72,6 @@ class qsub(object):
         self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
 
         self.orders = jf.orders()
-        self.subjobs = set()
 
         # duplicate job names
         if len(jf.alljobnames) != len(set(jf.alljobnames)):
@@ -157,13 +155,12 @@ class qsub(object):
     def jobcheck(self, sec=2):
         while True:
             time.sleep(sec/2)
-            for jb in self.subjobs.copy():
+            for jb in self.jobqueue.queue:
                 time.sleep(sec/2)
                 js = self.jobstatus(jb)
                 if js == "success":
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(jb.name)
-                    self.subjobs.remove(jb)
                 elif js == "error":
                     self.jobqueue.get(jb)
                     if jb.subtimes > self.times + 1:
@@ -171,7 +168,6 @@ class qsub(object):
                             self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
                                 self.logdir, jb.name + ".log")))  # if error, exit program
                         self.jobsgraph.delete_node_if_exists(jb.name)
-                        self.subjobs.remove(jb)
                     else:
                         self.submit(jb)
                 elif js == "exit":
@@ -195,7 +191,7 @@ class qsub(object):
                 break
             for j in subjobs:
                 jb = self.totaljobdict[j]
-                if jb in self.subjobs:
+                if jb in self.jobqueue.queue:
                     continue
                 self.submit(jb)
             time.sleep(sec)
@@ -238,7 +234,6 @@ class qsub(object):
                 call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             job.subtimes += 1
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
-            self.subjobs.add(job)
 
     def throw(self, msg):
         raise QsubError(msg)

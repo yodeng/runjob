@@ -33,7 +33,6 @@ class RunSge(object):
         self.maxjob = maxjob
         self.logdir = logdir
         self.is_run = False
-        self.subjobs = set()
 
         self.jobsgraph = DAG()
         pre_dep = []
@@ -106,18 +105,16 @@ class RunSge(object):
     def jobcheck(self, sec=2):
         while True:
             time.sleep(0.5)
-            for jb in self.subjobs.copy():
+            for jb in self.jobqueue.queue:
                 time.sleep(sec/2)
                 js = self.jobstatus(jb)
                 if js == "success":
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(jb.jobname)
-                    self.subjobs.remove(jb)
                 elif js == "error":
                     self.jobqueue.get(jb)
                     if jb.subtimes > self.times + 1:
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
-                        self.subjobs.remove(jb)
                     else:
                         self.submit(jb)
                 elif js == "exit":
@@ -158,7 +155,6 @@ class RunSge(object):
                 call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
             job.subtimes += 1
-            self.subjobs.add(job)
 
     def run(self, sec=2, times=3, resubivs=2):
         self.is_run = True
@@ -178,7 +174,7 @@ class RunSge(object):
                 break
             for j in subjobs:
                 jb = self.totaljobdict[j]
-                if jb in self.subjobs:
+                if jb in self.jobqueue.queue:
                     continue
                 self.submit(jb)
             time.sleep(sec)
