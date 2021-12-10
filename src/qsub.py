@@ -25,6 +25,7 @@ class myQueue(object):
     def __init__(self, maxsize=0):
         self._content = set()
         self._queue = Queue(maxsize=maxsize)
+        self.lock = Lock()
 
     @property
     def length(self):
@@ -32,19 +33,22 @@ class myQueue(object):
 
     def put(self, v, **kwargs):
         if v not in self._content:
-            self._queue.put(v, **kwargs)
-            self._content.add(v)
+            with self.lock:
+                self._queue.put(v, **kwargs)
+                self._content.add(v)
 
     def get(self, v=None):
         if v is None:
-            self._queue.get()
-            o = self._content.pop()
-            return o
+            with self.lock:
+                self._queue.get()
+                o = self._content.pop()
+                return o
         else:
             if v in self._content:
-                self._queue.get()
-                self._content.remove(v)
-                return v
+                with self.lock:
+                    self._queue.get()
+                    self._content.remove(v)
+                    return v
 
     @property
     def queue(self):

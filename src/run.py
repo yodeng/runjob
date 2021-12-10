@@ -56,10 +56,10 @@ def LogExc(f):
     def wrapper(*largs, **kwargs):
         try:
             res = f(*largs, **kwargs)
+            return res
         except Exception, e:
             logging.getLogger().exception(e)
-            os.kill(os.getpid(), 15)
-        return res
+            sys.exit(1)
     return wrapper
 
 
@@ -123,10 +123,10 @@ def sumJobs(qjobs):
     logger = logging.getLogger()
     status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished" % (len(
         run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs), os.path.abspath(qjobs.jfile))
-    if len(error_jobs) == 0:
+    if len(error_jobs) == len(run_jobs):
         status += " successfully."
     else:
-        status += ", but there are ERROR tesks."
+        status += ", but there are Unsuccessful tesks."
     logger.info(status)
 
     qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
