@@ -161,7 +161,10 @@ class qsub(object):
             time.sleep(sec/2)
             for jb in self.jobqueue.queue:
                 time.sleep(sec/2)
-                js = self.jobstatus(jb)
+                try:
+                    js = self.jobstatus(jb)
+                except:
+                    continue
                 if js == "success":
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(jb.name)
