@@ -39,7 +39,7 @@ setup(
     entry_points={
         'console_scripts': [
             'runjob = runjob.run:main',
-            'runstate = runjob.stat:main',
+            'qs = runjob.stat:main',
             'runsge0 = runjob.sge:main',
             'runsge = runjob.sge_run:main',
         ]

@@ -9,8 +9,10 @@ import os
 
 from job import SGEfile
 from qsub import myQueue
+from sge import ParseSingal
 from run import sumJobs, Mylog
 from dag import DAG
+from version import __version__
 
 from datetime import datetime
 from threading import Thread
@@ -232,6 +234,8 @@ def parserArg():
                         type=int, default=2, metavar="<int>")
     # parser.add_argument("-b", "--block", action="store_true", default=False,
     # help="if passed, block when submitted you job, default: off")
+    parser.add_argument('-v', '--version',
+                        action='version', version="v" + __version__)
     parser.add_argument("jobfile", type=str,
                         help="the input jobfile", metavar="<jobfile>")
     progargs = parser.parse_args()
@@ -243,6 +247,14 @@ def parserArg():
 
 def main():
     args = parserArg()
+    name = args.jobname
+    if name is None:
+        name = os.path.basename(args.jobfile) + "_" + str(os.getpid())
+        if name[0].isdigit():
+            name = "job_" + name
+    args.jobname = name
+    h = ParseSingal(name=args.jobname)
+    h.start()
     logger = Mylog(logfile=args.log, level="debug" if args.debug else "info")
     runsge = RunSge(args.jobfile, args.queue, args.cpu, args.memory, args.jobname,
                     args.startline, args.endline, args.logdir, args.workdir, args.num)

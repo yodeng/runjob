@@ -17,16 +17,17 @@ RUNSTAT = " && echo [`date +'%F %T'`] SUCCESS || echo [`date +'%F %T'`] ERROR"
 
 
 class ParseSingal(Thread):
-    def __init__(self):
+    def __init__(self, name=""):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+        self.name = name
 
     def run(self):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
-        call('qdel "%s*"' % jn, shell=True, stderr=PIPE, stdout=PIPE)
+        call('qdel "%s*"' % self.name, shell=True, stderr=PIPE, stdout=PIPE)
         sys.exit(signum)
 
 
@@ -134,7 +135,7 @@ def main():
     p = Thread(target=qsubCheck, args=(args.jobname, args.num, args.block))
     p.setDaemon(True)
     p.start()
-    h = ParseSingal()
+    h = ParseSingal(name=jn)
     h.start()
     success = []
     with open(jobfile) as fi:
