@@ -38,7 +38,7 @@ You can run a quick test like this:
 
 	$ runjob -j doc/example.job
     
-	$ runstate doc/example.job
+	$ qs doc/example.job
 
 	$ runsge --help
 
