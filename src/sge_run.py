@@ -166,8 +166,10 @@ class RunSge(object):
                 p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
                 self.localprocess[job.name] = p
             else:
+                jobcpu = job.cpu if job.cpu else self.cpu
+                jobmem = job.mem if job.mem else self.mem
                 cmd = 'echo "%s" | qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
-                    job.cmd, " -q ".join(self.queue), self.sgefile.workdir, job.jobname, logfile, self.mem, self.cpu)
+                    job.cmd, " -q ".join(self.queue), self.sgefile.workdir, job.jobname, logfile, jobmem, jobcpu)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
