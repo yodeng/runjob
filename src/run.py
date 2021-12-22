@@ -65,7 +65,7 @@ def parseArgs():
     parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
                         type=int, default=2, metavar="<int>")
     parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
-                        "sge", "localhost"], help="the mode to submit your jobs, 'sge' by default, if no sge installed, always localhost.")
+                        "sge", "local", "localhost"], help="the mode to submit your jobs, 'sge' by default, if no sge installed, always localhost.")
     parser.add_argument("-nc", '--noclean', action="store_false", help="whether to clean all jobs or subprocess created by this programe when the main process exits, default: clean.",
                         default=True)
     parser.add_argument("--strict", action="store_true", default=False,
