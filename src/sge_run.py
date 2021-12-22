@@ -248,14 +248,14 @@ def parserArg():
                         help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
     parser.add_argument('-d', '--debug', action='store_true',
                         help='log debug info', default=False)
-    parser.add_argument("--local", default=False, action="store_true",
-                        help="submit your jobs in localhost instead of sge, if no sge installed, always localhost.")
     parser.add_argument("-l", "--log", type=str,
                         help='append log info to file, sys.stdout by default', metavar="<file>")
     parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 3 times by default",
                         type=int, default=3, metavar="<int>")
     parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
                         type=int, default=2, metavar="<int>")
+    parser.add_argument("--local", default=False, action="store_true",
+                        help="submit your jobs in localhost instead of sge, if no sge installed, always localhost.")
     parser.add_argument("--strict", action="store_true", default=False,
                         help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
     parser.add_argument('-v', '--version',

@@ -26,6 +26,8 @@ class Jobfile(object):
             self.mode = "sge" if mode is None else mode
         else:
             self.mode = "localhost"
+        if "local" in self.mode:
+            self.mode = "localhost"
 
     def orders(self):
         orders = {}
@@ -155,11 +157,11 @@ class Job(object):
                     "'exit' command not allow in the cmd string in %s job." % self.name)
         if self.jf.has_sge:
             # if localhost defined, run localhost whether sge installed.
-            if self.jf.mode == "localhost":
+            if self.jf.mode in ["localhost", "local"]:
                 self.host = "localhost"
             else:
                 # if self.host has been defined other mode in job, sge default.
-                if self.host not in [None, "sge", "localhost"]:
+                if self.host not in [None, "sge", "localhost", "local"]:
                     self.host = None
         else:
             self.host = "localhost"  # if not sge installed, only run localhost
