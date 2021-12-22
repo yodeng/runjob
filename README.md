@@ -14,7 +14,7 @@ is used in the login compute node.
 Software Requirements
 =====================
 
-python 2.7
+python >=2.7.10, <3.10
 
 Installation
 ============

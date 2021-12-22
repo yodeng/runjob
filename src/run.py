@@ -14,9 +14,9 @@ from threading import Thread
 from datetime import datetime
 from collections import Counter
 
-from qsub import qsub
-from utils import *
-from version import __version__
+from .qsub import qsub
+from .utils import *
+from .version import __version__
 
 
 class ParseSingal(Thread):
@@ -41,7 +41,7 @@ def LogExc(f):
         try:
             res = f(*largs, **kwargs)
             return res
-        except Exception, e:
+        except Exception as e:
             logging.getLogger().exception(e)
             sys.exit(1)
     return wrapper

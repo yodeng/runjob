@@ -29,11 +29,7 @@ setup(
     url="https://github.com/yodeng/runjob",
     license="BSD",
     install_requires=["psutil"],
-    classifiers=[
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-    ],
+    python_requires='>=2.7.10, <3.10',
     long_description=getdes(),
     long_description_content_type='text/markdown',
     entry_points={
