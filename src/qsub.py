@@ -3,9 +3,11 @@
 
 import os
 import time
+import signal
 import logging
+import threading
 
-from subprocess import Popen, call
+from subprocess import Popen, call, PIPE
 from collections import Counter
 from threading import Thread, Lock
 from Queue import Queue
@@ -14,6 +16,7 @@ from datetime import datetime
 from job import Jobfile
 from sge import RUNSTAT
 from dag import DAG
+from utils import cleanAll
 
 
 class QsubError(Exception):
@@ -62,11 +65,12 @@ class myQueue(object):
 
 
 class qsub(object):
-    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=0, end=None, mode=None, usestrict=False):
+    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=0, end=None, mode=None, usestrict=False, clear=False):
         self.pid = os.getpid()
         self.jfile = jobfile
         self.is_run = False
         self.usestrict = usestrict
+        self.clear = clear
 
         jf = Jobfile(self.jfile, mode=mode)
         self.has_sge = jf.has_sge
@@ -170,15 +174,16 @@ class qsub(object):
                     self.jobsgraph.delete_node_if_exists(jb.name)
                 elif js == "error":
                     self.jobqueue.get(jb)
-                    if jb.subtimes > self.times + 1:
+                    if jb.subtimes >= self.times + 1:
                         if self.usestrict:
-                            self.throw("Error jobs return(resubmit %d times, still error), exist!, %s" % (self.times+1, os.path.join(
+                            self.throw("Error jobs return(submit %d times, still error), exist!, %s" % (jb.subtimes-1, os.path.join(
                                 self.logdir, jb.name + ".log")))  # if error, exit program
                         self.jobsgraph.delete_node_if_exists(jb.name)
                     else:
                         self.submit(jb)
                 elif js == "exit":
-                    self.throw("Error when submit")
+                    if self.usestrict:
+                        self.throw("Error when submit, %s" % jb.name)
 
     def run(self, sec=2, times=3, resubivs=2):
         self.is_run = True
@@ -215,7 +220,7 @@ class qsub(object):
             if job.subtimes == 0:
                 logcmd.write(job.cmd+"\n")
                 job.status = "submit"
-            elif job.subtimes <= self.times + 1:
+            elif job.subtimes > 0:
                 logcmd.write("\n" + job.cmd+"\n")
                 job.status = "resubmit"
 
@@ -243,7 +248,12 @@ class qsub(object):
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
 
     def throw(self, msg):
-        raise QsubError(msg)
+        if threading.current_thread().__class__.__name__ == '_MainThread':
+            raise QsubError(msg)
+        else:
+            self.logger.info(msg)
+            cleanAll(self.clear, self)
+            os._exit(signal.SIGTERM)
 
     def writestates(self, outstat):
         summary = {j.name: j.status for j in self.jobs}

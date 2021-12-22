@@ -246,11 +246,17 @@ class SGEfile(object):
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
-
-        if self.has_sge:
-            self.mode = "sge" if mode is None else mode
+        self.mode = mode
+        if self.mode is None:  # self.mode is self.local
+            if self.has_sge:
+                self.mode = "sge"
+            else:
+                self.mode = "localhost"
         else:
-            self.mode = "localhost"
+            if self.mode:
+                self.mode = "localhost"
+            else:
+                self.mode = "sge"
         self.logdir = os.path.abspath(logdir)
         if not os.path.isdir(self.logdir):
             os.makedirs(self.logdir)

@@ -1,29 +1,32 @@
 #!/usr/bin/env python2
 # coding:utf-8
 
-import sys
-import argparse
-import time
-import logging
 import os
+import sys
+import time
+import signal
+import logging
+import argparse
+import threading
 
+from dag import DAG
 from job import SGEfile
 from qsub import myQueue
 from sge import ParseSingal
-from run import sumJobs, Mylog
-from dag import DAG
+from qsub import QsubError
 from version import __version__
+from utils import sumJobs, Mylog
 
 from datetime import datetime
 from threading import Thread
-from subprocess import Popen, call
+from subprocess import Popen, call, PIPE
 from collections import Counter
 
 
 class RunSge(object):
 
-    def __init__(self, sgefile, queue, cpu, mem, name, start, end, logdir, workdir, maxjob, block=False):
-        self.sgefile = SGEfile(sgefile, mode=None, name=name,
+    def __init__(self, sgefile, queue, cpu, mem, name, start, end, logdir, workdir, maxjob, strict=False, mode=None):
+        self.sgefile = SGEfile(sgefile, mode=mode, name=name,
                                logdir=logdir, workdir=workdir)
         self.jfile = self.sgefile._path
         self.jobs = self.sgefile.jobshells(start=start, end=end)
@@ -31,10 +34,10 @@ class RunSge(object):
         self.queue = queue
         self.mem = mem
         self.cpu = cpu
-        self.block = block
         self.maxjob = maxjob
         self.logdir = logdir
         self.is_run = False
+        self.strict = strict
 
         self.jobsgraph = DAG()
         pre_dep = []
@@ -118,12 +121,16 @@ class RunSge(object):
                     self.jobsgraph.delete_node_if_exists(jb.jobname)
                 elif js == "error":
                     self.jobqueue.get(jb)
-                    if jb.subtimes > self.times + 1:
+                    if jb.subtimes >= self.times + 1:
+                        if self.strict:
+                            self.throw("Error jobs return(submit %d times, still error), exist!, %s" % (jb.subtimes - 1, os.path.join(
+                                self.logdir, jb.logfile)))  # if error, exit program
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
                     else:
                         self.submit(jb)
                 elif js == "exit":
-                    self.throw("Error when submit")
+                    if self.strict:
+                        self.throw("Error when submit")
 
     def submit(self, job):
         if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
@@ -137,7 +144,7 @@ class RunSge(object):
             if job.subtimes == 0:
                 logcmd.write(job.rawstring+"\n")
                 job.status = "submit"
-            elif job.subtimes <= self.times + 1:
+            elif job.subtimes > 0:
                 logcmd.write("\n" + job.rawstring+"\n")
                 job.status = "resubmit"
 
@@ -189,7 +196,13 @@ class RunSge(object):
         return logging.getLogger()
 
     def throw(self, msg):
-        raise QsubError(msg)
+        if threading.current_thread().__class__.__name__ == '_MainThread':
+            raise QsubError(msg)
+        else:
+            self.logger.info(msg)
+            call('qdel "%s*"' % self.sgefile.name,
+                 shell=True, stderr=PIPE, stdout=PIPE)
+            os._exit(signal.SIGTERM)
 
     def writestates(self, outstat):
         summary = {j.name: j.status for j in self.jobs}
@@ -226,14 +239,16 @@ def parserArg():
                         help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
     parser.add_argument('-d', '--debug', action='store_true',
                         help='log debug info', default=False)
+    parser.add_argument("--local", default=False, action="store_true",
+                        help="submit your jobs in localhost instead of sge, if no sge installed, always localhost.")
     parser.add_argument("-l", "--log", type=str,
                         help='append log info to file, sys.stdout by default', metavar="<file>")
     parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 3 times by default",
                         type=int, default=3, metavar="<int>")
     parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
                         type=int, default=2, metavar="<int>")
-    # parser.add_argument("-b", "--block", action="store_true", default=False,
-    # help="if passed, block when submitted you job, default: off")
+    parser.add_argument("--strict", action="store_true", default=False,
+                        help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
     parser.add_argument('-v', '--version',
                         action='version', version="v" + __version__)
     parser.add_argument("jobfile", type=str,
@@ -257,8 +272,8 @@ def main():
     h.start()
     logger = Mylog(logfile=args.log, level="debug" if args.debug else "info")
     runsge = RunSge(args.jobfile, args.queue, args.cpu, args.memory, args.jobname,
-                    args.startline, args.endline, args.logdir, args.workdir, args.num)
-    runsge.run(times=args.resub - 1, resubivs=args.resubivs)
+                    args.startline, args.endline, args.logdir, args.workdir, args.num, args.strict, mode=args.local)
+    runsge.run(times=args.resub, resubivs=args.resubivs)
     sumJobs(runsge)
 
 
