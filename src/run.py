@@ -15,39 +15,23 @@ from datetime import datetime
 from collections import Counter
 
 from qsub import qsub
+from utils import *
 from version import __version__
 
 
 class ParseSingal(Thread):
-    def __init__(self):
+    def __init__(self, clear=False, qjobs=None):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+        self.clear = clear
+        self.qjobs = qjobs
 
     def run(self):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
-        stillrunjob = qjobs.jobqueue.queue
-        if clear:
-            pid = os.getpid()
-            gid = os.getpgid(pid)
-            for jn in stillrunjob:
-                if jn.status in ["error", "success"]:
-                    continue
-                jn.status = "killed"
-                qjobs.logger.info("job %s status killed", jn.name)
-            sumJobs(qjobs)
-            call('qdel "*_%d"' % os.getpid(),
-                 shell=True, stderr=PIPE, stdout=PIPE)
-            call("kill -9 -%d" % gid, shell=True, stderr=PIPE, stdout=PIPE)
-        else:
-            for jn in stillrunjob:
-                if jn.status in ["error", "success"]:
-                    continue
-                jn.status += "-but-exit"
-                qjobs.logger.info("job %s status %s", jn.name, jn.status)
-            sumJobs(qjobs)
+        cleanAll(clear=self.clear, qjobs=self.qjobs)
         sys.exit(signum)
 
 
@@ -95,55 +79,15 @@ def parseArgs():
     return parser.parse_args()
 
 
-def Mylog(logfile=None, level="info", name=None):
-    logger = logging.getLogger(name)
-    if level.lower() == "info":
-        logger.setLevel(logging.INFO)
-        f = logging.Formatter(
-            '[%(levelname)s %(asctime)s] %(message)s')
-    elif level.lower() == "debug":
-        logger.setLevel(logging.DEBUG)
-        f = logging.Formatter(
-            '[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s')
-    if logfile is None:
-        h = logging.StreamHandler(sys.stdout)  # default: sys.stderr
-    else:
-        h = logging.FileHandler(logfile, mode='w')
-    h.setFormatter(f)
-    logger.addHandler(h)
-    return logger
-
-
-def sumJobs(qjobs):
-    run_jobs = qjobs.jobs
-    has_success_jobs = qjobs.has_success
-    error_jobs = [j for j in run_jobs if j.status == "error"]
-    success_jobs = [j for j in run_jobs if j.status == 'success']
-
-    logger = logging.getLogger()
-    status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished" % (len(
-        run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs), os.path.abspath(qjobs.jfile))
-    if len(error_jobs) == len(run_jobs):
-        status += " successfully."
-    else:
-        status += ", but there are Unsuccessful tesks."
-    logger.info(status)
-
-    qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
-    logger.info(str(dict(Counter([j.status for j in run_jobs]))))
-
-
 @LogExc
 def main():
     args = parseArgs()
     logger = Mylog(logfile=args.log, level="debug" if args.debug else "info")
-    global clear, qjobs
-    clear = args.noclean
-    h = ParseSingal()
-    h.start()
     qjobs = qsub(args.jobfile, args.num, args.injname,
-                 args.start, args.end, mode=args.mode, usestrict=args.strict)
-    qjobs.run(times=args.resub - 1, resubivs=args.resubivs)
+                 args.start, args.end, mode=args.mode, usestrict=args.strict, clear=args.noclean)
+    h = ParseSingal(clear=args.noclean, qjobs=qjobs)
+    h.start()
+    qjobs.run(times=args.resub, resubivs=args.resubivs)
     sumJobs(qjobs)
 
 
