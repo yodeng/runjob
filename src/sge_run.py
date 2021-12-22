@@ -9,13 +9,13 @@ import logging
 import argparse
 import threading
 
-from dag import DAG
-from job import SGEfile
-from qsub import myQueue
-from sge import ParseSingal
-from qsub import QsubError
-from version import __version__
-from utils import sumJobs, Mylog
+from .dag import DAG
+from .job import SGEfile
+from .qsub import myQueue
+from .sge import ParseSingal
+from .qsub import QsubError
+from .version import __version__
+from .utils import sumJobs, Mylog
 
 from datetime import datetime
 from threading import Thread
@@ -38,6 +38,7 @@ class RunSge(object):
         self.logdir = logdir
         self.is_run = False
         self.strict = strict
+        self.localprocess = {}
 
         self.jobsgraph = DAG()
         pre_dep = []
@@ -100,8 +101,9 @@ class RunSge(object):
             elif sta == "Exiting.":
                 status = "exit"
             else:
-                if "RUNNING..." in os.popen("sed -n '3p' %s" % logfile).read():
-                    status = "run"
+                with os.popen("sed -n '3p' %s" % logfile) as fi:
+                    if "RUNNING..." in fi.read():
+                        status = "run"
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
             job.status = status
@@ -117,9 +119,13 @@ class RunSge(object):
                 except:
                     continue
                 if js == "success":
+                    if jb.jobname in self.localprocess:
+                        self.localprocess[jb.jobname].wait()
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(jb.jobname)
                 elif js == "error":
+                    if jb.jobname in self.localprocess:
+                        self.localprocess[jb.jobname].wait()
                     self.jobqueue.get(jb)
                     if jb.subtimes >= self.times + 1:
                         if self.strict:
@@ -157,7 +163,8 @@ class RunSge(object):
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
-                Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                self.localprocess[job.name] = p
             else:
                 cmd = 'echo "%s" | qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
                     job.cmd, " -q ".join(self.queue), self.sgefile.workdir, job.jobname, logfile, self.mem, self.cpu)

@@ -7,9 +7,10 @@ import os
 import time
 import argparse
 import signal
+
 from subprocess import call, PIPE
 from threading import Thread
-from Queue import Queue
+from queue import Queue
 from datetime import datetime
 from shutil import rmtree
 

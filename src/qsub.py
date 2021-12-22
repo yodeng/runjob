@@ -10,13 +10,13 @@ import threading
 from subprocess import Popen, call, PIPE
 from collections import Counter
 from threading import Thread, Lock
-from Queue import Queue
+from queue import Queue
 from datetime import datetime
 
-from job import Jobfile
-from sge import RUNSTAT
-from dag import DAG
-from utils import cleanAll
+from .job import Jobfile
+from .sge import RUNSTAT
+from .dag import DAG
+from .utils import cleanAll
 
 
 class QsubError(Exception):
@@ -80,6 +80,7 @@ class qsub(object):
         self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
 
         self.orders = jf.orders()
+        self.localprocess = {}
 
         # duplicate job names
         if len(jf.alljobnames) != len(set(jf.alljobnames)):
@@ -153,8 +154,9 @@ class qsub(object):
             elif sta == "Exiting.":
                 status = "exit"
             else:
-                if "RUNNING..." in os.popen("sed -n '3p' %s" % logfile).read():
-                    status = "run"
+                with os.popen("sed -n '3p' %s" % logfile) as fi:
+                    if "RUNNING..." in fi.read():
+                        status = "run"
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
             job.status = status
@@ -170,9 +172,13 @@ class qsub(object):
                 except:
                     continue
                 if js == "success":
+                    if jb.name in self.localprocess:
+                        self.localprocess[jb.name].wait()
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(jb.name)
                 elif js == "error":
+                    if jb.name in self.localprocess:
+                        self.localprocess[jb.name].wait()
                     self.jobqueue.get(jb)
                     if jb.subtimes >= self.times + 1:
                         if self.usestrict:
@@ -236,7 +242,8 @@ class qsub(object):
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
                     time.sleep(self.resubivs)
-                Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                self.localprocess[job.name] = p
             else:
                 cmd = 'echo "%s" | qsub %s -N %s_%d -o %s -j y' % (
                     qsubline, job.sched_options, job.name, self.pid, logfile)

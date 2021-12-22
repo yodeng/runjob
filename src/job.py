@@ -4,16 +4,19 @@
 import os
 import re
 import sys
-from commands import getstatusoutput
 
-from sge import RUNSTAT
+from subprocess import check_output
+
+from .sge import RUNSTAT
 
 
 class Jobfile(object):
     def __init__(self, jobfile, mode=None):
-        self.has_sge = True if getstatusoutput(
-            'command -v qstat')[0] == 0 else False
-
+        try:
+            p = check_output("command -v qstat", shell=True)
+            self.has_sge = True
+        except:
+            self.has_sge = False
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
@@ -240,8 +243,11 @@ class OrderError(Exception):
 
 class SGEfile(object):
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
-        self.has_sge = True if getstatusoutput(
-            'command -v qstat')[0] == 0 else False
+        try:
+            p = check_output("command -v qstat", shell=True)
+            self.has_sge = True
+        except:
+            self.has_sge = False
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)

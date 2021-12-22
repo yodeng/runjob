@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding:utf-8
 '''For summary all jobs
-
 Usage: runstate [jobfile|logdir|logfile]
 '''
 
@@ -11,9 +10,9 @@ import psutil
 import glob
 
 from collections import defaultdict
-from commands import getstatusoutput
+from subprocess import check_output
 
-from job import Jobfile
+from .job import Jobfile
 
 
 def style(string, mode='', fore='', back=''):
@@ -34,33 +33,37 @@ def style(string, mode='', fore='', back=''):
 
 def main():
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
-        print __doc__
+        print(__doc__)
         sys.exit(1)
-    has_qstat = True if getstatusoutput('command -v qstat')[0] == 0 else False
+    try:
+        p = check_output("command -v qstat", shell=True)
+        has_qstat = True
+    except:
+        has_qstat = False
     username = os.getenv("USER")
     if has_qstat:
-        alljobs = os.popen(
-            "qstat -u \* | grep -P '^[\d\s]'").readlines()
+        with os.popen("qstat -u \* | grep -P '^[\d\s]'") as fi:
+            alljobs = fi.readlines()
         jobs = {}
         for j in alljobs:
             j = j.split()
             jobs.setdefault(j[3], defaultdict(int))[j[4]] += 1
-        print style("-"*47, mode="bold")
-        print style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
-            "user", "jobs", "run", "queue"), mode="bold")
-        print style("-"*47, mode="bold")
+        print(style("-"*47, mode="bold"))
+        print(style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
+            "user", "jobs", "run", "queue"), mode="bold"))
+        print(style("-"*47, mode="bold"))
         for u in sorted(jobs.items(), key=lambda x: sum(x[1].values()), reverse=True):
             user = u[0]
             job = sum(u[1].values())
             run = u[1]["r"]
             qw = u[1]["qw"]
             if user == username:
-                print style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
-                    user, job, run, qw), fore="red", mode="bold")
+                print(style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
+                    user, job, run, qw), fore="red", mode="bold"))
             else:
-                print style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
-                    user, job, run, qw))
-        print style("-"*47, mode="bold")
+                print(style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
+                    user, job, run, qw)))
+        print(style("-"*47, mode="bold"))
     else:
         try:
             users = os.popen(
@@ -84,10 +87,10 @@ def main():
                 mem.setdefault(j.username(), defaultdict(int))["vms"] += VIRT
             except:
                 continue
-        print style("-"*70, mode="bold")
-        print style("{0:<20} {1:>7} {2:>5} {3:>5} {4:>5} {5:>5} {6:>8} {7:>8}".format(
-            "user", "process", "R", "S", "D", "Z", "RES(G)", "VIRT(G)"), mode="bold")
-        print style("-"*70, mode="bold")
+        print(style("-"*70, mode="bold"))
+        print(style("{0:<20} {1:>7} {2:>5} {3:>5} {4:>5} {5:>5} {6:>8} {7:>8}".format(
+            "user", "process", "R", "S", "D", "Z", "RES(G)", "VIRT(G)"), mode="bold"))
+        print(style("-"*70, mode="bold"))
         for u in sorted(jobs.items(), key=lambda x: sum(x[1].values()), reverse=True):
             user = u[0]
             job = sum(u[1].values())
@@ -96,10 +99,10 @@ def main():
             vms = int(
                 round(int(mem[user].get("vms", 0)/1024.0/1024.0/1024.0), 4))
             if user == username:
-                print style("{0:<20} {1:>7} {2:>5} {3:>5} {4:>5} {5:>5} {6:>8} {7:>8}".format(user, job, u[1].get("running", 0), u[1].get(
-                    "sleeping", 0), u[1].get("disk-sleep", 0), u[1].get("zombie", 0), res, vms), fore="red", mode="bold")
+                print(style("{0:<20} {1:>7} {2:>5} {3:>5} {4:>5} {5:>5} {6:>8} {7:>8}".format(user, job, u[1].get("running", 0), u[1].get(
+                    "sleeping", 0), u[1].get("disk-sleep", 0), u[1].get("zombie", 0), res, vms), fore="red", mode="bold"))
             else:
-                print style("{0:<20} {1:>7}".format(user, job)),
+                print(style("{0:<20} {1:>7}".format(user, job))),
                 nums = [u[1].get("running", 0), u[1].get("sleeping", 0), u[1].get(
                     "disk-sleep", 0), u[1].get("zombie", 0)]
                 printstr = ""
@@ -111,8 +114,8 @@ def main():
                         printstr += style("{:>5} ".format(i))
                 printstr += style("{:>8} ".format(res)) + \
                     style("{:>8} ".format(vms))
-                print printstr.rstrip()
-        print style("-"*70, mode="bold")
+                print(printstr.rstrip())
+        print(style("-"*70, mode="bold"))
 
     if len(sys.argv) == 2:
         jobfile = sys.argv[1]
@@ -143,8 +146,8 @@ def main():
                             else:
                                 stat[jobname] = line[-1]
                         elif "All tesks" in line:
-                            print style("Jobfile finish runing...",
-                                        mode="bold", fore="red")
+                            print(style("Jobfile finish runing...",
+                                        mode="bold", fore="red"))
                         elif "Total jobs to submit" in line:
                             alljobnames = line.split(
                                 "Total jobs to submit:")[1].split()
@@ -153,23 +156,23 @@ def main():
                     stat2.setdefault(v, []).append(k)
 
                 submit = sum([len(i) for i in stat2.values()])
-                print style("-"*47, mode="bold")
-                print style("{0:<20} {1:>5}".format("submitted:", submit))
+                print(style("-"*47, mode="bold"))
+                print(style("{0:<20} {1:>5}".format("submitted:", submit)))
                 for k, v in stat2.items():
                     num = len(v)
                     if k in ["success", "already success"]:
-                        print style("{0:<20} {1:>5}".format(
-                            k+":", num))
+                        print(style("{0:<20} {1:>5}".format(
+                            k+":", num)))
                     elif k == "error":
-                        print style("{0:<20} {1:>5} ".format(
-                            "error:", num), mode="bold", fore="red"), ", ".join(v)
+                        print(style("{0:<20} {1:>5} ".format(
+                            "error:", num), mode="bold", fore="red"), ", ".join(v))
                     else:
-                        print style("{0:<20} {1:>5} ".format(
-                            k + ":", num)), ", ".join(v)
+                        print(style("{0:<20} {1:>5} ".format(
+                            k + ":", num)), ", ".join(v))
                 wait = set(alljobnames) - set(stat.keys())
-                print style("{0:<20} {1:>5} ".format(
-                    "wait:", len(wait))), ", ".join(wait)
-                print style("-"*47, mode="bold")
+                print(style("{0:<20} {1:>5} ".format(
+                    "wait:", len(wait))), ", ".join(wait))
+                print(style("-"*47, mode="bold"))
                 return
 
         elif os.path.isdir(jobfile):
@@ -202,18 +205,18 @@ def main():
         error = filter(lambda x: x == "ERROR", stat)
         # running = jobs[username]["r"] + jobs[username]["qw"] if username in jobs else 0
         running = submit - len(success) - len(error)
-        print style("-"*47, mode="bold")
-        print style("{0:<20} {1:>5}".format("submitted:", submit))
-        print style("{0:<20} {1:>5}".format(
-            "runing/queue/exit:", running))
-        print style("{0:<20} {1:>5}".format("success:", len(success)))
-        print style("{0:<20} {1:>5}".format(
-            "error:", len(error)), mode="bold", fore="red")
+        print(style("-"*47, mode="bold"))
+        print(style("{0:<20} {1:>5}".format("submitted:", submit)))
+        print(style("{0:<20} {1:>5}".format(
+            "runing/queue/exit:", running)))
+        print(style("{0:<20} {1:>5}".format("success:", len(success))))
+        print(style("{0:<20} {1:>5}".format(
+            "error:", len(error)), mode="bold", fore="red"))
         if os.path.isfile(jobfile):
             if len(norun):
-                print style("{0:<20} {1:>5}".format(
-                    "wait:", len(norun))), ", ".join(norun)
-        print style("-"*47, mode="bold")
+                print(style("{0:<20} {1:>5}".format(
+                    "wait:", len(norun))), ", ".join(norun))
+        print(style("-"*47, mode="bold"))
         # if len(success) + len(error) + running < submit:
         #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
 
