@@ -293,13 +293,39 @@ class SGEJob(object):
             name = os.path.basename(self.sf._path) + "_" + str(os.getpid())
             if name[0].isdigit():
                 name = "job_" + name
-        self.rawstring = cmd
+        self.cpu = 0
+        self.mem = 0
+        if "//" in cmd:
+            self.rawstring = cmd.split("//")[0].strip()
+            try:
+                args = cmd.split("//")[1].strip().split()
+                if "-c" in args:
+                    cpuidx = args.index("-c")
+                elif "--cpu" in args:
+                    cpuidx = args.index("--cpu")
+                cpu = max(int(args[cpuidx+1]), 1)
+                self.cpu = cpu
+            except:
+                pass
+            try:
+                args = cmd.split("//")[1].strip().split()
+                if "-m" in args:
+                    memidx = args.index("-m")
+                elif "--memory" in args:
+                    memidx = args.index("--memory")
+                mem = max(int(args[memidx+1]), 1)
+                self.mem = mem
+            except:
+                pass
+        else:
+            self.rawstring = cmd.strip()
         self.jobname = name + "_%d" % linenum
         self.name = self.jobname
         self.linenum = linenum
         self.logfile = os.path.join(self.sf.logdir, os.path.basename(
             self.sf._path) + "_line%d.log" % self.linenum)
-        self.cmd = "echo [`date +'%F %T'`] RUNNING... && " + cmd + RUNSTAT
+        self.cmd = "echo [`date +'%F %T'`] RUNNING... && " + \
+            self.rawstring + RUNSTAT
         self.subtimes = 0
         self.status = None
         if self.sf.mode == "localhost":
