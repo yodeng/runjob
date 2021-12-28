@@ -2,19 +2,18 @@
 # coding:utf-8
 # 投递任务，将任务散播到集群SGE,并等待所有任务执行完成时退出。 杀掉本主进程时，由本进程投递的qsub任务也会被杀掉，不接受`kill -9`信号
 
-import sys
 import os
+import sys
 import time
-import argparse
 import signal
+import argparse
 
-from subprocess import call, PIPE
-from threading import Thread
-from queue import Queue
-from datetime import datetime
 from shutil import rmtree
+from threading import Thread
+from datetime import datetime
+from subprocess import call, PIPE
 
-RUNSTAT = " && echo [`date +'%F %T'`] SUCCESS || echo [`date +'%F %T'`] ERROR"
+from .utils import *
 
 
 class ParseSingal(Thread):
