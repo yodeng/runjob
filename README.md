@@ -1,8 +1,9 @@
-runjob
-========================
+# runjob
 
-Summary
-=======
+[![PyPI](https://img.shields.io/pypi/v/runjob.svg)](https://pypi.python.org/pypi/runjob)
+[![Downloads](https://pepy.tech/badge/runjob)](https://pepy.tech/project/runjob)
+
+## Summary
 
 runjob is a program for managing a group of related jobs running on a
 compute cluster.  It provides a convenient method for specifying
@@ -11,52 +12,45 @@ dependencies between jobs and the resource requirements for each job
 can tell when the whole group is done. Litter cpu or memory resource
 is used in the login compute node.
 
-Software Requirements
-=====================
+## Software Requirements
 
 python >=2.7.10, <3.10
 
-Installation
-============
+## Installation
 
 	git clone https://github.com/yodeng/runjob.git
-
+	
 	pip install ./runjob
-
+	
 	or:
+	
+	pip install --upgrade runjob
 
-	pip install runjob
+## User Guide
 
-User Guide
-======
-All manual instruction for runjob can be found in [PDF中文文档使用说明](https://github.com/yodeng/runjob/blob/master/doc/manual_instruction_for_runjob.pdf)
+All manual instruction for runjob can be found in [PDF中文文档使用说明](./doc/manual_instruction_for_runjob.pdf)
 
-Usage
-=====
+## Usage
 
 You can run a quick test like this:
 
 	$ runjob -j doc/example.job
-    
+	
 	$ qs doc/example.job
-
+	
 	$ runsge --help
-
+	
 	$ runsge0 --help
 
-License
-=======
+## License
 
 runjob is distributed under the BSD 3-clause licence.  
 
-Contact
-=======
+## Contact
 
 Please send comments, suggestions, bug reports and bug fixes to
 yodeng@tju.edu.cn.
 
-Todo
-=======
+## Todo
 
 More functions will be improved in the future.
-

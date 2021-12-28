@@ -155,7 +155,7 @@ class DAG(object):
         dependent_nodes = set(
             node for dependents in graph.values() for node in dependents
         )
-        return set([node for node in graph.keys() if node not in dependent_nodes])
+        return [node for node in graph.keys() if node not in dependent_nodes]
 
     def validate(self, graph=None):
         """ Returns (Boolean, message) of whether DAG is valid. """

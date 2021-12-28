@@ -15,7 +15,7 @@ from .qsub import myQueue
 from .sge import ParseSingal
 from .qsub import QsubError
 from .version import __version__
-from .utils import sumJobs, Mylog
+from .utils import *
 
 from datetime import datetime
 from threading import Thread
@@ -109,34 +109,36 @@ class RunSge(object):
             job.status = status
         return status
 
-    def jobcheck(self, sec=2):
+    def jobcheck(self, sec=1):
+        rate_limiter = RateLimiter(max_calls=3, period=sec)
         while True:
-            time.sleep(0.5)
-            for jb in self.jobqueue.queue:
-                time.sleep(sec/2)
-                try:
-                    js = self.jobstatus(jb)
-                except:
-                    continue
-                if js == "success":
-                    if jb.jobname in self.localprocess:
-                        self.localprocess[jb.jobname].wait()
-                    self.jobqueue.get(jb)
-                    self.jobsgraph.delete_node_if_exists(jb.jobname)
-                elif js == "error":
-                    if jb.jobname in self.localprocess:
-                        self.localprocess[jb.jobname].wait()
-                    self.jobqueue.get(jb)
-                    if jb.subtimes >= self.times + 1:
-                        if self.strict:
-                            self.throw("Error jobs return(submit %d times, still error), exist!, %s" % (jb.subtimes - 1, os.path.join(
-                                self.logdir, jb.logfile)))  # if error, exit program
-                        self.jobsgraph.delete_node_if_exists(jb.jobname)
-                    else:
-                        self.submit(jb)
-                elif js == "exit":
-                    if self.strict:
-                        self.throw("Error when submit")
+            with rate_limiter:
+                for jb in self.jobqueue.queue:
+                    with rate_limiter:
+                        try:
+                            js = self.jobstatus(jb)
+                        except:
+                            continue
+                        if js == "success":
+                            if jb.jobname in self.localprocess:
+                                self.localprocess[jb.jobname].wait()
+                            self.jobqueue.get(jb)
+                            self.jobsgraph.delete_node_if_exists(jb.jobname)
+                        elif js == "error":
+                            if jb.jobname in self.localprocess:
+                                self.localprocess[jb.jobname].wait()
+                            self.jobqueue.get(jb)
+                            if jb.subtimes >= self.times + 1:
+                                if self.strict:
+                                    self.throw("Error jobs return(submit %d times, error), exist!, %s" % (jb.subtimes, os.path.join(
+                                        self.logdir, jb.logfile)))  # if error, exit program
+                                self.jobsgraph.delete_node_if_exists(
+                                    jb.jobname)
+                            else:
+                                self.submit(jb)
+                        elif js == "exit":
+                            if self.strict:
+                                self.throw("Error when submit")
 
     def submit(self, job):
         if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
@@ -159,9 +161,9 @@ class RunSge(object):
             logcmd.flush()
 
             if job.host is not None and job.host == "localhost":
-                cmd = 'echo Your job \("%s"\) has been submitted in localhost && ' % job.name + job.cmd
+                cmd = "echo 'Your job (\"%s\") has been submitted in localhost' && " % job.name + job.cmd
                 if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
+                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
                 p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
                 self.localprocess[job.name] = p
@@ -171,7 +173,7 @@ class RunSge(object):
                 cmd = 'echo "%s" | qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
                     job.cmd, " -q ".join(self.queue), self.sgefile.workdir, job.jobname, logfile, jobmem, jobcpu)
                 if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
+                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
                 call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
@@ -220,8 +222,9 @@ class RunSge(object):
             sumout = {}
             for k, v in summary.items():
                 sumout.setdefault(v, []).append(k)
-            for k, v in sorted(sumout.items(), key=lambda x: len(x[1])):
-                fo.write(k + " : " + ", ".join(v) + "\n")
+            for k, v in sorted(sumout.items()):
+                fo.write(
+                    k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
 
 
 def parserArg():

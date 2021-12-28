@@ -7,7 +7,7 @@ import sys
 
 from subprocess import check_output
 
-from .sge import RUNSTAT
+from .utils import RUNSTAT
 
 
 class Jobfile(object):
@@ -326,7 +326,7 @@ class SGEJob(object):
         self.linenum = linenum
         self.logfile = os.path.join(self.sf.logdir, os.path.basename(
             self.sf._path) + "_line%d.log" % self.linenum)
-        self.cmd = "echo [`date +'%F %T'`] RUNNING... && " + \
+        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
             self.rawstring + RUNSTAT
         self.subtimes = 0
         self.status = None

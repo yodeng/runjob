@@ -2,66 +2,19 @@
 # coding:utf-8
 
 import os
+import sys
 import time
 import signal
 import logging
 import threading
 
-from subprocess import Popen, call, PIPE
-from collections import Counter
-from threading import Thread, Lock
-from queue import Queue
 from datetime import datetime
+from collections import Counter
+from subprocess import Popen, call, PIPE
 
 from .job import Jobfile
-from .sge import RUNSTAT
 from .dag import DAG
-from .utils import cleanAll
-
-
-class QsubError(Exception):
-    pass
-
-
-class myQueue(object):
-
-    def __init__(self, maxsize=0):
-        self._content = set()
-        self._queue = Queue(maxsize=maxsize)
-        self.lock = Lock()
-
-    @property
-    def length(self):
-        return self._queue.qsize()
-
-    def put(self, v, **kwargs):
-        if v not in self._content:
-            with self.lock:
-                self._queue.put(v, **kwargs)
-                self._content.add(v)
-
-    def get(self, v=None):
-        if v is None:
-            with self.lock:
-                self._queue.get()
-                o = self._content.pop()
-                return o
-        else:
-            if v in self._content:
-                with self.lock:
-                    self._queue.get()
-                    self._content.remove(v)
-                    return v
-
-    @property
-    def queue(self):
-        return self._content.copy()
-
-    def isEmpty(self):
-        return self._queue.empty()
-
-    def isFull(self):
-        return self._queue.full()
+from .utils import *
 
 
 class qsub(object):
@@ -162,34 +115,35 @@ class qsub(object):
             job.status = status
         return status
 
-    def jobcheck(self, sec=2):
+    def jobcheck(self, sec=1):
+        rate_limiter = RateLimiter(max_calls=3, period=sec)
         while True:
-            time.sleep(sec/2)
-            for jb in self.jobqueue.queue:
-                time.sleep(sec/2)
-                try:
-                    js = self.jobstatus(jb)
-                except:
-                    continue
-                if js == "success":
-                    if jb.name in self.localprocess:
-                        self.localprocess[jb.name].wait()
-                    self.jobqueue.get(jb)
-                    self.jobsgraph.delete_node_if_exists(jb.name)
-                elif js == "error":
-                    if jb.name in self.localprocess:
-                        self.localprocess[jb.name].wait()
-                    self.jobqueue.get(jb)
-                    if jb.subtimes >= self.times + 1:
-                        if self.usestrict:
-                            self.throw("Error jobs return(submit %d times, still error), exist!, %s" % (jb.subtimes-1, os.path.join(
-                                self.logdir, jb.name + ".log")))  # if error, exit program
-                        self.jobsgraph.delete_node_if_exists(jb.name)
-                    else:
-                        self.submit(jb)
-                elif js == "exit":
-                    if self.usestrict:
-                        self.throw("Error when submit, %s" % jb.name)
+            with rate_limiter:
+                for jb in self.jobqueue.queue:
+                    with rate_limiter:
+                        try:
+                            js = self.jobstatus(jb)
+                        except:
+                            continue
+                        if js == "success":
+                            if jb.name in self.localprocess:
+                                self.localprocess[jb.name].wait()
+                            self.jobqueue.get(jb)
+                            self.jobsgraph.delete_node_if_exists(jb.name)
+                        elif js == "error":
+                            if jb.name in self.localprocess:
+                                self.localprocess[jb.name].wait()
+                            self.jobqueue.get(jb)
+                            if jb.subtimes >= self.times + 1:
+                                if self.usestrict:
+                                    self.throw("Error jobs return(submit %d times, error), exist!, %s" % (jb.subtimes, os.path.join(
+                                        self.logdir, jb.name + ".log")))  # if error, exit program
+                                self.jobsgraph.delete_node_if_exists(jb.name)
+                            else:
+                                self.submit(jb)
+                        elif js == "exit":
+                            if self.usestrict:
+                                self.throw("Error when submit, %s" % jb.name)
 
     def run(self, sec=2, times=3, resubivs=2):
         self.is_run = True
@@ -199,7 +153,7 @@ class qsub(object):
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
 
-        p = Thread(target=self.jobcheck)
+        p = threading.Thread(target=self.jobcheck)
         p.setDaemon(True)
         p.start()
 
@@ -234,13 +188,13 @@ class qsub(object):
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
 
-            qsubline = "echo [`date +'%F %T'`] RUNNING... && " + \
+            qsubline = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
                 job.cmd + RUNSTAT
 
             if (job.host is not None and job.host == "localhost") or not self.has_sge:
-                cmd = 'echo Your job \("%s"\) has been submitted in localhost && ' % job.name + qsubline
+                cmd = "echo 'Your job (\"%s\") has been submitted in localhost' && " % job.name + qsubline
                 if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
+                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
                 p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
                 self.localprocess[job.name] = p
@@ -248,7 +202,7 @@ class qsub(object):
                 cmd = 'echo "%s" | qsub %s -N %s_%d -o %s -j y' % (
                     qsubline, job.sched_options, job.name, self.pid, logfile)
                 if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING \(re-submit\)")
+                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
                 call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
             job.subtimes += 1
@@ -269,8 +223,9 @@ class qsub(object):
             sumout = {}
             for k, v in summary.items():
                 sumout.setdefault(v, []).append(k)
-            for k, v in sorted(sumout.items(), key=lambda x: len(x[1])):
-                fo.write(k + " : " + ", ".join(v) + "\n")
+            for k, v in sorted(sumout.items()):
+                fo.write(
+                    k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
 
     @property
     def logger(self):

@@ -28,7 +28,7 @@ setup(
     author_email="yodeng@tju.edu.cn",
     url="https://github.com/yodeng/runjob",
     license="BSD",
-    install_requires=["psutil"],
+    install_requires=["psutil", "ratelimiter"],
     python_requires='>=2.7.10, <3.10',
     long_description=getdes(),
     long_description_content_type='text/markdown',
