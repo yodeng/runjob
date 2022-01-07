@@ -88,8 +88,12 @@ def main():
     h = ParseSingal(clear=args.noclean, qjobs=qjobs)
     h.start()
     qjobs.run(times=args.resub, resubivs=args.resubivs)
-    sumJobs(qjobs)
+    success = sumJobs(qjobs)
+    if success:
+        return 0
+    else:
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

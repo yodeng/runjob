@@ -115,11 +115,13 @@ def sumJobs(qjobs):
     logger = logging.getLogger()
     status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished" % (len(
         run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs), os.path.abspath(qjobs.jfile))
+    SUCCESS = True
     if len(success_jobs) == len(run_jobs):
         status += " successfully."
     else:
         status += ", but there are Unsuccessful tesks."
+        SUCCESS = False
     logger.info(status)
-
     qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
     logger.info(str(dict(Counter([j.status for j in run_jobs]))))
+    return SUCCESS
