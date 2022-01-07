@@ -286,8 +286,12 @@ def main():
     runsge = RunSge(args.jobfile, args.queue, args.cpu, args.memory, args.jobname,
                     args.startline, args.endline, args.logdir, args.workdir, args.num, args.strict, mode=args.local)
     runsge.run(times=args.resub, resubivs=args.resubivs)
-    sumJobs(runsge)
+    success = sumJobs(runsge)
+    if success:
+        return 0
+    else:
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
