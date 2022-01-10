@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import signal
+import getpass
 import argparse
 
 from shutil import rmtree
@@ -13,21 +14,47 @@ from threading import Thread
 from datetime import datetime
 from subprocess import call, PIPE
 
-from .utils import *
+from utils import *
+from cluster import *
 
 
 class ParseSingal(Thread):
-    def __init__(self, name=""):
+    def __init__(self, name="", mode="sge", conf=None):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
         self.name = name
+        self.mode = mode
+        self.conf = conf
 
     def run(self):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
-        call('qdel "%s*"' % self.name, shell=True, stderr=PIPE, stdout=PIPE)
+        user = getpass.getuser()
+        if self.mode == "sge":
+            call('qdel "%s*"' % self.name, shell=True, stderr=PIPE, stdout=PIPE)
+        elif self.mode == "batchcompute":
+            jobs = self.conf.jobqueue.queue
+            for jb in jobs:
+                jobname = jb.name
+                try:
+                    jobid = self.conf.cloudjob.get(jobname, "")
+                    j = self.conf.client.get_job(jobid)
+                except ClientError as e:
+                    if e.status == 404:
+                        self.conf.logger.info("Invalid JobId %s", jobid)
+                        continue
+                except:
+                    continue
+                if j.Name.startswith(user):
+                    if j.State not in ["Stopped", "Failed", "Finished"]:
+                        self.conf.client.stop_job(jobid)
+                    self.conf.client.delete_job(jobid)
+                    self.conf.logger.info("Delete job %s success", jobid)
+                else:
+                    self.conf.logger.info(
+                        "Delete job error, you have no assess with job %s", jobid)
         sys.exit(signum)
 
 

@@ -22,22 +22,25 @@ setup(
     name="runjob",
     version=__version__,
     packages=["runjob"],
+    package_data={"runjob": ["*.ini", "*.json"]},
     package_dir={"runjob": "src"},
     data_files=listdir("doc"),
     author="Deng Yong",
     author_email="yodeng@tju.edu.cn",
     url="https://github.com/yodeng/runjob",
     license="BSD",
-    install_requires=["psutil", "ratelimiter"],
+    install_requires=["psutil", "ratelimiter", "batchcompute_cli"],
     python_requires='>=2.7.10, <3.10',
     long_description=getdes(),
     long_description_content_type='text/markdown',
     entry_points={
         'console_scripts': [
             'runjob = runjob.run:main',
-            'qs = runjob.stat:main',
-            'runsge0 = runjob.sge:main',
+            'qs = runjob.jobstat:main',
+            'qcs = runjob.jobstat:batchStat',
             'runsge = runjob.sge_run:main',
+            'runbatch = runjob.sge_run:main',
+            'runsge0 = runjob.sge:main',
         ]
     }
 )

@@ -1,13 +1,14 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # coding:utf-8
 
 import os
 import re
 import sys
+import getpass
 
 from subprocess import check_output
 
-from .utils import RUNSTAT
+from utils import RUNSTAT
 
 
 class Jobfile(object):
@@ -132,6 +133,30 @@ class Job(object):
                 self.status = j.split()[-1]
             elif j.startswith("sched_options"):
                 self.sched_options = " ".join(j.split()[1:])
+                self.cpu, self.mem = 1, 1
+                args = self.sched_options.split()
+                if "-l" in args:
+                    resourceidx = args.index("-l")
+                    res = args[resourceidx+1].split(",")
+                    for r in res:
+                        k = r.split("=")[0].strip()
+                        v = r.split("=")[1].strip()
+                        if k == "vf":
+                            self.mem = int(re.sub("\D", "", v))
+                        elif k in ["p", "np", "nprc"]:
+                            self.cpu = int(v)
+                if "-c" in args:
+                    cpuidx = args.index("-c")
+                    self.cpu = max(int(args[cpuidx+1]), 1)
+                elif "--cpu" in args:
+                    cpuidx = args.index("--cpu")
+                    self.cpu = max(int(args[cpuidx+1]), 1)
+                if "-m" in args:
+                    memidx = args.index("-m")
+                    self.mem = max(int(args[memidx+1]), 1)
+                elif "--memory" in args:
+                    memidx = args.index("--memory")
+                    self.mem = max(int(args[memidx+1]), 1)
             elif j.startswith("host"):
                 self.host = j.split()[-1]
             elif j == "cmd_begin":
@@ -243,7 +268,7 @@ class OrderError(Exception):
     __repr__ = __str__
 
 
-class SGEfile(object):
+class ShellFile(object):
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
         try:
             p = check_output("command -v qstat", shell=True)
@@ -255,16 +280,17 @@ class SGEfile(object):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.mode = mode
-        if self.mode is None:  # self.mode is self.local
+        # "sge", "local", "localhost", "batchcompute"
+        if self.mode not in ["sge", "local", "localhost", "batchcompute"]:
             if self.has_sge:
                 self.mode = "sge"
             else:
                 self.mode = "localhost"
         else:
-            if self.mode:
+            if self.mode in ["local", "localhost"]:
                 self.mode = "localhost"
-            else:
-                self.mode = "sge"
+        if self.mode == "sge" and not self.has_sge:
+            self.mode = "localhost"
         self.logdir = os.path.abspath(logdir)
         if not os.path.isdir(self.logdir):
             os.makedirs(self.logdir)
@@ -283,11 +309,11 @@ class SGEfile(object):
                 line = line.strip().strip("&")
                 if line.startswith("#"):
                     continue
-                jobs.append(SGEJob(self, n, line))
+                jobs.append(ShellJob(self, n, line))
         return jobs
 
 
-class SGEJob(object):
+class ShellJob(object):
     def __init__(self, sgefile, linenum=None, cmd=None):
         self.sf = sgefile
         name = self.sf.name
@@ -295,8 +321,8 @@ class SGEJob(object):
             name = os.path.basename(self.sf._path) + "_" + str(os.getpid())
             if name[0].isdigit():
                 name = "job_" + name
-        self.cpu = 0
-        self.mem = 0
+        self.cpu = 1
+        self.mem = 1
         if "//" in cmd:
             self.rawstring = cmd.split("//")[0].strip()
             try:
@@ -326,11 +352,13 @@ class SGEJob(object):
         self.linenum = linenum
         self.logfile = os.path.join(self.sf.logdir, os.path.basename(
             self.sf._path) + "_line%d.log" % self.linenum)
-        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-            self.rawstring + RUNSTAT
         self.subtimes = 0
         self.status = None
-        if self.sf.mode == "localhost":
-            self.host = "localhost"
-        else:
-            self.host = "sge"
+        self.host = self.sf.mode
+        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
+            self.rawstring + RUNSTAT
+        if self.host == "batchcompute":
+            self.jobname = getpass.getuser() + "_" + \
+                re.sub("[^a-zA-Z0-9_-]", "-", name + "_%d" % linenum)
+            self.name = self.jobname
+            self.cmd = self.rawstring

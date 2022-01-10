@@ -1,18 +1,27 @@
 #!/usr/bin/env python
 # coding:utf-8
 '''For summary all jobs
-Usage: runstate [jobfile|logdir|logfile]
+Usage: qs [jobfile|logdir|logfile]
+       qcs --help
 '''
 
 import os
 import sys
 import psutil
 import glob
+import getpass
+import argparse
 
 from collections import defaultdict
 from subprocess import check_output
 
-from .job import Jobfile
+from job import Jobfile
+from config import load_config, print_config
+from version import __version__
+
+from bc_stat import *
+from utils import *
+from cluster import *
 
 
 def style(string, mode='', fore='', back=''):
@@ -34,7 +43,7 @@ def style(string, mode='', fore='', back=''):
 def main():
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
         print(__doc__)
-        sys.exit(1)
+        sys.exit(0)
     try:
         p = check_output("command -v qstat", shell=True)
         has_qstat = True
@@ -221,5 +230,98 @@ def main():
         #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
 
 
+def bcArgs():
+    parser = argparse.ArgumentParser(
+        description="For query job status in batch compute.")
+    parser.add_argument("-t", "--top", type=int, default=10,
+                        help="show top number job (default: 10)", metavar="<int>")
+    parser.add_argument("-n", "--name", type=str,
+                        help="show jobName contains the specific name", metavar="<str>")
+    parser.add_argument("-r", '--regin', type=str, default="BEIJING", choices=['BEIJING', 'HANGZHOU', 'HUHEHAOTE', 'SHANGHAI',
+                        'ZHANGJIAKOU', 'CHENGDU', 'HONGKONG', 'QINGDAO', 'SHENZHEN'], help="batch compute regin, BEIJING by default")
+    parser.add_argument("-d", "--delete", type=str, nargs="*",
+                        help="delete job with jobId", metavar="<jobId>")
+    parser.add_argument('--access-key-id', type=str,
+                        help="AccessKeyID while access oss", metavar="<str>")
+    parser.add_argument('--access-key-secret', type=str,
+                        help="AccessKeySecret while access oss", metavar="<str>")
+    parser.add_argument('-ini', '--ini',
+                        help="input configfile for configurations search.", metavar="<configfile>")
+    parser.add_argument("-config", '--config',   action='store_true',
+                        help="show configurations and exit.",  default=False)
+    # parser.add_argument("-l", "--logdir", type=str,
+    # help="summary job status in you job directory", metavar="<jobfile>")
+    parser.add_argument('-v', '--version',
+                        action='version', version="v" + __version__)
+    args = parser.parse_args()
+    return args
+
+
+def batchStat():
+    args = bcArgs()
+    conf = load_config()
+    if args.ini:
+        conf.update_config(args.ini)
+    conf.update_dict(**args.__dict__)
+    if args.config:
+        print_config(conf)
+        sys.exit()
+    region = REGION.get(args.regin, CN_BEIJING)
+    access_key_id = conf.get("args", "access_key_id")
+    access_key_secret = conf.get("args", "access_key_secret")
+    if access_key_id is None:
+        access_key_id = conf.get("OSS", "access_key_id")
+    if access_key_secret is None:
+        access_key_secret = conf.get("OSS", "access_key_secret")
+    client = Client(region, access_key_id, access_key_secret)
+    logger = Mylog(name=__name__)
+    user = getpass.getuser()
+    if args.delete:
+        for jobid in args.delete:
+            try:
+                j = client.get_job(jobid)
+            except ClientError as e:
+                if e.status == 404:
+                    logger.info("Invalid JobId %s", jobid)
+                    continue
+            except:
+                continue
+            if j.Name.startswith(user):
+                if j.State not in ["Stopped", "Failed", "Finished"]:
+                    client.stop_job(jobid)
+                client.delete_job(jobid)
+                logger.info("Delete job %s success", jobid)
+            else:
+                logger.info(
+                    "Delete job error, you have no assess with job %s", jobid)
+        return
+    jobs = list_jobs(client)
+    jobarr_owner = filter_list(items2arr(jobs['Items']), {
+                               'Name': {'like': getpass.getuser()}})
+    if args.name:
+        filter_job = filter_list(jobarr_owner, {'Name': {'like': args.name}})
+    else:
+        filter_job = jobarr_owner
+    if args.top:
+        filter_job = filter_job[:args.top]
+    print(style("-"*182, mode="bold"))
+    print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:>10}".format(
+        "user", "jobId", "jobName", "CreationTime", "StartTime", "EndTime", "jobState"), mode="bold"))
+    print(style("-"*182, mode="bold"))
+    for j in filter_job:
+        ct = j["CreationTime"].strftime(
+            "%F %X") if j["CreationTime"] is not None else "null"
+        st = j["StartTime"].strftime(
+            "%F %X") if j["StartTime"] is not None else "null"
+        et = j["EndTime"].strftime(
+            "%F %X") if j["EndTime"] is not None else "null"
+        jid = j["Id"]
+        jname = j["Name"].split(user+"_")[-1]
+        state = j["State"]
+        print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:>10}".format(
+                    user, jid, jname, ct, st, et, state)))
+    print(style("-"*182, mode="bold"))
+
+
 if __name__ == "__main__":
-    main()
+    batchStat()

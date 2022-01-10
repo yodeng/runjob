@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # coding:utf-8
 '''
 Summary runtime infomation
@@ -11,7 +11,7 @@ import os
 import sys
 import re
 
-from datetime import datetime
+from atetime import datetime
 
 
 def listdir(path):
