@@ -5,12 +5,7 @@
 
 ## Summary
 
-runjob is a program for managing a group of related jobs running on a
-compute cluster.  It provides a convenient method for specifying
-dependencies between jobs and the resource requirements for each job
-(e.g. memory, CPU cores). It monitors the status of the jobs so you
-can tell when the whole group is done. Litter cpu or memory resource
-is used in the login compute node.
+runjob is a program for managing a group of related jobs running on a compute cluster `localhot`, [Sun Grid Engine](http://star.mit.edu/cluster/docs/0.93.3/guides/sge.html), [BatchCompute](https://help.aliyun.com/product/27992.html) .  It provides a convenient method for specifying dependencies between jobs and the resource requirements for each job (e.g. memory, CPU cores). It monitors the status of the jobs so you can tell when the whole group is done. Litter cpu or memory resource is used in the login compute node.
 
 ## Software Requirements
 
@@ -38,7 +33,9 @@ You can run a quick test like this:
 	
 	$ qs doc/example.job
 	
-	$ runsge --help
+	$ qcs --help
+	
+	$ runsge/runbatch --help
 	
 	$ runsge0 --help
 

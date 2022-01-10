@@ -1,0 +1,602 @@
+{
+  "bcs.es.c.2xlarge": {
+    "name": "bcs.es.c.2xlarge",
+    "cpu": 8,
+    "memory": 16
+  },
+  "bcs.es.c.3xlarge": {
+    "name": "bcs.es.c.3xlarge",
+    "cpu": 12,
+    "memory": 24
+  },
+  "bcs.es.c.4xlarge": {
+    "name": "bcs.es.c.4xlarge",
+    "cpu": 16,
+    "memory": 32
+  },
+  "bcs.es.c.xlarge": {
+    "name": "bcs.es.c.xlarge",
+    "cpu": 4,
+    "memory": 8
+  },
+  "bcs.ps.c.2xlarge": {
+    "name": "bcs.ps.c.2xlarge",
+    "cpu": 8,
+    "memory": 16
+  },
+  "bcs.ps.c.3xlarge": {
+    "name": "bcs.ps.c.3xlarge",
+    "cpu": 12,
+    "memory": 24
+  },
+  "bcs.ps.c.4xlarge": {
+    "name": "bcs.ps.c.4xlarge",
+    "cpu": 16,
+    "memory": 32
+  },
+  "bcs.ps.c.xlarge": {
+    "name": "bcs.ps.c.xlarge",
+    "cpu": 4,
+    "memory": 8
+  },
+  "bcs.ps.g.2xlarge": {
+    "name": "bcs.ps.g.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "bcs.ps.g.3xlarge": {
+    "name": "bcs.ps.g.3xlarge",
+    "cpu": 12,
+    "memory": 48
+  },
+  "bcs.ps.g.4xlarge": {
+    "name": "bcs.ps.g.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "bcs.ps.g.xlarge": {
+    "name": "bcs.ps.g.xlarge",
+    "cpu": 4,
+    "memory": 16
+  },
+  "bcs.ps.r.2xlarge": {
+    "name": "bcs.ps.r.2xlarge",
+    "cpu": 8,
+    "memory": 64
+  },
+  "bcs.ps.r.3xlarge": {
+    "name": "bcs.ps.r.3xlarge",
+    "cpu": 12,
+    "memory": 96
+  },
+  "bcs.ps.r.4xlarge": {
+    "name": "bcs.ps.r.4xlarge",
+    "cpu": 16,
+    "memory": 128
+  },
+  "bcs.ps.r.xlarge": {
+    "name": "bcs.ps.r.xlarge",
+    "cpu": 4,
+    "memory": 32
+  },
+  "ecs.c5.16xlarge": {
+    "name": "ecs.c5.16xlarge",
+    "cpu": 64,
+    "memory": 128
+  },
+  "ecs.c5.2xlarge": {
+    "name": "ecs.c5.2xlarge",
+    "cpu": 8,
+    "memory": 16
+  },
+  "ecs.c5.3xlarge": {
+    "name": "ecs.c5.3xlarge",
+    "cpu": 12,
+    "memory": 24
+  },
+  "ecs.c5.4xlarge": {
+    "name": "ecs.c5.4xlarge",
+    "cpu": 16,
+    "memory": 32
+  },
+  "ecs.c5.6xlarge": {
+    "name": "ecs.c5.6xlarge",
+    "cpu": 24,
+    "memory": 48
+  },
+  "ecs.c5.8xlarge": {
+    "name": "ecs.c5.8xlarge",
+    "cpu": 32,
+    "memory": 64
+  },
+  "ecs.c5.large": {
+    "name": "ecs.c5.large",
+    "cpu": 2,
+    "memory": 4
+  },
+  "ecs.c5.xlarge": {
+    "name": "ecs.c5.xlarge",
+    "cpu": 4,
+    "memory": 8
+  },
+  "ecs.c6.13xlarge": {
+    "name": "ecs.c6.13xlarge",
+    "cpu": 52,
+    "memory": 96
+  },
+  "ecs.c6.2xlarge": {
+    "name": "ecs.c6.2xlarge",
+    "cpu": 8,
+    "memory": 16
+  },
+  "ecs.c6.3xlarge": {
+    "name": "ecs.c6.3xlarge",
+    "cpu": 12,
+    "memory": 24
+  },
+  "ecs.c6.4xlarge": {
+    "name": "ecs.c6.4xlarge",
+    "cpu": 16,
+    "memory": 32
+  },
+  "ecs.c6.6xlarge": {
+    "name": "ecs.c6.6xlarge",
+    "cpu": 24,
+    "memory": 48
+  },
+  "ecs.c6.8xlarge": {
+    "name": "ecs.c6.8xlarge",
+    "cpu": 32,
+    "memory": 64
+  },
+  "ecs.c6.large": {
+    "name": "ecs.c6.large",
+    "cpu": 2,
+    "memory": 4
+  },
+  "ecs.c6.xlarge": {
+    "name": "ecs.c6.xlarge",
+    "cpu": 4,
+    "memory": 8
+  },
+  "ecs.d1.14xlarge": {
+    "name": "ecs.d1.14xlarge",
+    "cpu": 56,
+    "memory": 224
+  },
+  "ecs.d1.2xlarge": {
+    "name": "ecs.d1.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.d1.4xlarge": {
+    "name": "ecs.d1.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.d1.6xlarge": {
+    "name": "ecs.d1.6xlarge",
+    "cpu": 24,
+    "memory": 96
+  },
+  "ecs.d1.8xlarge": {
+    "name": "ecs.d1.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.d1ne.14xlarge": {
+    "name": "ecs.d1ne.14xlarge",
+    "cpu": 56,
+    "memory": 224
+  },
+  "ecs.d1ne.2xlarge": {
+    "name": "ecs.d1ne.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.d1ne.4xlarge": {
+    "name": "ecs.d1ne.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.d1ne.6xlarge": {
+    "name": "ecs.d1ne.6xlarge",
+    "cpu": 24,
+    "memory": 96
+  },
+  "ecs.d1ne.8xlarge": {
+    "name": "ecs.d1ne.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.f3-c16f1.16xlarge": {
+    "name": "ecs.f3-c16f1.16xlarge",
+    "cpu": 64,
+    "memory": 256
+  },
+  "ecs.f3-c16f1.8xlarge": {
+    "name": "ecs.f3-c16f1.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.g5.16xlarge": {
+    "name": "ecs.g5.16xlarge",
+    "cpu": 64,
+    "memory": 256
+  },
+  "ecs.g5.2xlarge": {
+    "name": "ecs.g5.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.g5.4xlarge": {
+    "name": "ecs.g5.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.g5.6xlarge": {
+    "name": "ecs.g5.6xlarge",
+    "cpu": 24,
+    "memory": 96
+  },
+  "ecs.g5.8xlarge": {
+    "name": "ecs.g5.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.g5.large": {
+    "name": "ecs.g5.large",
+    "cpu": 2,
+    "memory": 8
+  },
+  "ecs.g5.xlarge": {
+    "name": "ecs.g5.xlarge",
+    "cpu": 4,
+    "memory": 16
+  },
+  "ecs.g6.2xlarge": {
+    "name": "ecs.g6.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.g6.3xlarge": {
+    "name": "ecs.g6.3xlarge",
+    "cpu": 12,
+    "memory": 48
+  },
+  "ecs.g6.4xlarge": {
+    "name": "ecs.g6.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.g6.6xlarge": {
+    "name": "ecs.g6.6xlarge",
+    "cpu": 24,
+    "memory": 96
+  },
+  "ecs.g6.8xlarge": {
+    "name": "ecs.g6.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.g6.large": {
+    "name": "ecs.g6.large",
+    "cpu": 2,
+    "memory": 8
+  },
+  "ecs.g6.xlarge": {
+    "name": "ecs.g6.xlarge",
+    "cpu": 4,
+    "memory": 16
+  },
+  "ecs.g6e.2xlarge": {
+    "name": "ecs.g6e.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.g7.16xlarge": {
+    "name": "ecs.g7.16xlarge",
+    "cpu": 64,
+    "memory": 256
+  },
+  "ecs.r5.16xlarge": {
+    "name": "ecs.r5.16xlarge",
+    "cpu": 64,
+    "memory": 512
+  },
+  "ecs.r5.2xlarge": {
+    "name": "ecs.r5.2xlarge",
+    "cpu": 8,
+    "memory": 64
+  },
+  "ecs.r5.3xlarge": {
+    "name": "ecs.r5.3xlarge",
+    "cpu": 12,
+    "memory": 96
+  },
+  "ecs.r5.4xlarge": {
+    "name": "ecs.r5.4xlarge",
+    "cpu": 16,
+    "memory": 128
+  },
+  "ecs.r5.6xlarge": {
+    "name": "ecs.r5.6xlarge",
+    "cpu": 24,
+    "memory": 192
+  },
+  "ecs.r5.8xlarge": {
+    "name": "ecs.r5.8xlarge",
+    "cpu": 32,
+    "memory": 256
+  },
+  "ecs.r5.large": {
+    "name": "ecs.r5.large",
+    "cpu": 2,
+    "memory": 16
+  },
+  "ecs.r5.xlarge": {
+    "name": "ecs.r5.xlarge",
+    "cpu": 4,
+    "memory": 32
+  },
+  "ecs.r6.2xlarge": {
+    "name": "ecs.r6.2xlarge",
+    "cpu": 8,
+    "memory": 64
+  },
+  "ecs.r6.3xlarge": {
+    "name": "ecs.r6.3xlarge",
+    "cpu": 12,
+    "memory": 96
+  },
+  "ecs.r6.4xlarge": {
+    "name": "ecs.r6.4xlarge",
+    "cpu": 16,
+    "memory": 128
+  },
+  "ecs.r6.6xlarge": {
+    "name": "ecs.r6.6xlarge",
+    "cpu": 24,
+    "memory": 192
+  },
+  "ecs.r6.8xlarge": {
+    "name": "ecs.r6.8xlarge",
+    "cpu": 32,
+    "memory": 256
+  },
+  "ecs.r6.large": {
+    "name": "ecs.r6.large",
+    "cpu": 2,
+    "memory": 16
+  },
+  "ecs.r6.xlarge": {
+    "name": "ecs.r6.xlarge",
+    "cpu": 4,
+    "memory": 32
+  },
+  "ecs.se1.14xlarge": {
+    "name": "ecs.se1.14xlarge",
+    "cpu": 56,
+    "memory": 480
+  },
+  "ecs.se1.2xlarge": {
+    "name": "ecs.se1.2xlarge",
+    "cpu": 8,
+    "memory": 64
+  },
+  "ecs.se1.4xlarge": {
+    "name": "ecs.se1.4xlarge",
+    "cpu": 16,
+    "memory": 128
+  },
+  "ecs.se1.8xlarge": {
+    "name": "ecs.se1.8xlarge",
+    "cpu": 32,
+    "memory": 256
+  },
+  "ecs.se1.large": {
+    "name": "ecs.se1.large",
+    "cpu": 2,
+    "memory": 16
+  },
+  "ecs.se1.xlarge": {
+    "name": "ecs.se1.xlarge",
+    "cpu": 4,
+    "memory": 32
+  },
+  "ecs.se1ne.14xlarge": {
+    "name": "ecs.se1ne.14xlarge",
+    "cpu": 56,
+    "memory": 480
+  },
+  "ecs.se1ne.2xlarge": {
+    "name": "ecs.se1ne.2xlarge",
+    "cpu": 8,
+    "memory": 64
+  },
+  "ecs.se1ne.4xlarge": {
+    "name": "ecs.se1ne.4xlarge",
+    "cpu": 16,
+    "memory": 128
+  },
+  "ecs.se1ne.8xlarge": {
+    "name": "ecs.se1ne.8xlarge",
+    "cpu": 32,
+    "memory": 256
+  },
+  "ecs.se1ne.large": {
+    "name": "ecs.se1ne.large",
+    "cpu": 2,
+    "memory": 16
+  },
+  "ecs.se1ne.xlarge": {
+    "name": "ecs.se1ne.xlarge",
+    "cpu": 4,
+    "memory": 32
+  },
+  "ecs.sn1.medium": {
+    "name": "ecs.sn1.medium",
+    "cpu": 2,
+    "memory": 4
+  },
+  "ecs.sn2ne.xlarge": {
+    "name": "ecs.sn2ne.xlarge",
+    "cpu": 4,
+    "memory": 16
+  },
+  "ecs.i1-c10d1.8xlarge": {
+    "name": "ecs.i1-c10d1.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.i1-c5d1.4xlarge": {
+    "name": "ecs.i1-c5d1.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.i1.2xlarge": {
+    "name": "ecs.i1.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.i1.4xlarge": {
+    "name": "ecs.i1.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.i1.8xlarge": {
+    "name": "ecs.i1.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.i1.xlarge": {
+    "name": "ecs.i1.xlarge",
+    "cpu": 4,
+    "memory": 16
+  },
+  "ecs.i2.16xlarge": {
+    "name": "ecs.i2.16xlarge",
+    "cpu": 64,
+    "memory": 512
+  },
+  "ecs.i2.2xlarge": {
+    "name": "ecs.i2.2xlarge",
+    "cpu": 8,
+    "memory": 64
+  },
+  "ecs.i2.4xlarge": {
+    "name": "ecs.i2.4xlarge",
+    "cpu": 16,
+    "memory": 128
+  },
+  "ecs.i2.8xlarge": {
+    "name": "ecs.i2.8xlarge",
+    "cpu": 32,
+    "memory": 256
+  },
+  "ecs.i2.xlarge": {
+    "name": "ecs.i2.xlarge",
+    "cpu": 4,
+    "memory": 32
+  },
+  "ecs.sn1.3xlarge": {
+    "name": "ecs.sn1.3xlarge",
+    "cpu": 16,
+    "memory": 32
+  },
+  "ecs.sn1.7xlarge": {
+    "name": "ecs.sn1.7xlarge",
+    "cpu": 32,
+    "memory": 64
+  },
+  "ecs.sn1.large": {
+    "name": "ecs.sn1.large",
+    "cpu": 4,
+    "memory": 8
+  },
+  "ecs.sn1.xlarge": {
+    "name": "ecs.sn1.xlarge",
+    "cpu": 8,
+    "memory": 16
+  },
+  "ecs.sn1ne.2xlarge": {
+    "name": "ecs.sn1ne.2xlarge",
+    "cpu": 8,
+    "memory": 16
+  },
+  "ecs.sn1ne.4xlarge": {
+    "name": "ecs.sn1ne.4xlarge",
+    "cpu": 16,
+    "memory": 32
+  },
+  "ecs.sn1ne.8xlarge": {
+    "name": "ecs.sn1ne.8xlarge",
+    "cpu": 32,
+    "memory": 64
+  },
+  "ecs.sn1ne.large": {
+    "name": "ecs.sn1ne.large",
+    "cpu": 2,
+    "memory": 4
+  },
+  "ecs.sn1ne.xlarge": {
+    "name": "ecs.sn1ne.xlarge",
+    "cpu": 4,
+    "memory": 8
+  },
+  "ecs.sn2.13xlarge": {
+    "name": "ecs.sn2.13xlarge",
+    "cpu": 56,
+    "memory": 224
+  },
+  "ecs.sn2.3xlarge": {
+    "name": "ecs.sn2.3xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.sn2.7xlarge": {
+    "name": "ecs.sn2.7xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.sn2.large": {
+    "name": "ecs.sn2.large",
+    "cpu": 4,
+    "memory": 16
+  },
+  "ecs.sn2.medium": {
+    "name": "ecs.sn2.medium",
+    "cpu": 2,
+    "memory": 8
+  },
+  "ecs.sn2.xlarge": {
+    "name": "ecs.sn2.xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.sn2ne.14xlarge": {
+    "name": "ecs.sn2ne.14xlarge",
+    "cpu": 56,
+    "memory": 224
+  },
+  "ecs.sn2ne.2xlarge": {
+    "name": "ecs.sn2ne.2xlarge",
+    "cpu": 8,
+    "memory": 32
+  },
+  "ecs.sn2ne.4xlarge": {
+    "name": "ecs.sn2ne.4xlarge",
+    "cpu": 16,
+    "memory": 64
+  },
+  "ecs.sn2ne.8xlarge": {
+    "name": "ecs.sn2ne.8xlarge",
+    "cpu": 32,
+    "memory": 128
+  },
+  "ecs.sn2ne.large": {
+    "name": "ecs.sn2ne.large",
+    "cpu": 2,
+    "memory": 8
+  }
+}

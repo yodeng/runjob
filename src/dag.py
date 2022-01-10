@@ -63,7 +63,7 @@ class DAG(object):
         graph[ind_node].add(dep_node)
 
     def delete_edge(self, ind_node, dep_node, graph=None):
-        """ Delete an edge from the graph. """
+        """ Delete an edge from he graph. """
         if not graph:
             graph = self.graph
         if dep_node not in graph.get(ind_node, []):
@@ -129,7 +129,7 @@ class DAG(object):
         return [key for key in graph if not graph[key]]
 
     def from_dict(self, graph_dict):
-        """ Reset the graph and build it from the passed dictionary.
+        """ Reset the graph and build it from he passed dictionary.
         The dictionary takes the form of {node_name: [directed edges]}
         """
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # coding:utf-8
 
 import os
@@ -12,9 +12,9 @@ from datetime import datetime
 from collections import Counter
 from subprocess import Popen, call, PIPE
 
-from .job import Jobfile
-from .dag import DAG
-from .utils import *
+from job import Jobfile
+from dag import DAG
+from utils import *
 
 
 class qsub(object):
