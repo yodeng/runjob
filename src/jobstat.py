@@ -7,6 +7,7 @@ Usage: qs [jobfile|logdir|logfile]
 
 import os
 import sys
+import pdb
 import psutil
 import glob
 import getpass
@@ -15,13 +16,13 @@ import argparse
 from collections import defaultdict
 from subprocess import check_output
 
-from job import Jobfile
-from config import load_config, print_config
-from version import __version__
+from .job import Jobfile
+from .config import load_config, print_config
+from .version import __version__
 
-from bc_stat import *
-from utils import *
-from cluster import *
+from .bc_stat import *
+from .utils import *
+from .cluster import *
 
 
 def style(string, mode='', fore='', back=''):
@@ -304,10 +305,10 @@ def batchStat():
         filter_job = jobarr_owner
     if args.top:
         filter_job = filter_job[:args.top]
-    print(style("-"*182, mode="bold"))
-    print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:>10}".format(
-        "user", "jobId", "jobName", "CreationTime", "StartTime", "EndTime", "jobState"), mode="bold"))
-    print(style("-"*182, mode="bold"))
+    print(style("-"*193, mode="bold"))
+    print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>10}".format(
+        "User", "JobId", "JobName", "CreationTime", "StartTime", "EndTime", "Elapsed", "JobState"), mode="bold"))
+    print(style("-"*193, mode="bold"))
     for j in filter_job:
         ct = j["CreationTime"].strftime(
             "%F %X") if j["CreationTime"] is not None else "null"
@@ -318,9 +319,15 @@ def batchStat():
         jid = j["Id"]
         jname = j["Name"].split(user+"_")[-1]
         state = j["State"]
-        print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:>10}".format(
-                    user, jid, jname, ct, st, et, state)))
-    print(style("-"*182, mode="bold"))
+        if j["StartTime"] is not None and j["EndTime"] is not None:
+            dt = j["EndTime"] - j["StartTime"]
+            m, s = divmod(dt.seconds, 60)
+            elapsed = "%dm%ds" % (m, s)
+        else:
+            elapsed = "null"
+        print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>10}".format(
+                    user, jid, jname, ct, st, et, elapsed, state)))
+    print(style("-"*193, mode="bold"))
 
 
 if __name__ == "__main__":

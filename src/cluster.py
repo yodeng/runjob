@@ -92,7 +92,6 @@ class Task(object):
         jobmem = job.mem if job.mem else self.cluster.conf.get(
             "args", "memory")
         insType = self.get_instance_type(int(jobcpu), int(jobmem))
-        # print("####", insType)
         self.cluster.cluster.InstanceType = insType
         task = TaskDescription()
         task.Parameters.Command.CommandLine = job.cmd

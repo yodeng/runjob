@@ -1,7 +1,7 @@
 import os
 import sys
 
-from cluster import *
+from .cluster import *
 
 PY2 = sys.version_info[0] == 2
 PY3 = sys.version_info[0] == 3

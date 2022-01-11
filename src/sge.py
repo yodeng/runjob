@@ -14,8 +14,8 @@ from threading import Thread
 from datetime import datetime
 from subprocess import call, PIPE
 
-from utils import *
-from cluster import *
+from .utils import *
+from .cluster import *
 
 
 class ParseSingal(Thread):
