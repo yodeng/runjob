@@ -8,7 +8,7 @@ import getpass
 
 from subprocess import check_output
 
-from utils import RUNSTAT
+from .utils import RUNSTAT
 
 
 class Jobfile(object):

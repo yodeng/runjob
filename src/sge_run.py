@@ -10,16 +10,15 @@ import logging
 import argparse
 import threading
 
-import dag
 
-from job import *
-from config import load_config, print_config
-from qsub import myQueue
-from sge import ParseSingal
-from qsub import QsubError
-from version import __version__
-from utils import *
-from cluster import *
+from . import dag
+from .job import *
+from .config import load_config, print_config
+from .qsub import myQueue, QsubError
+from .sge import ParseSingal
+from .version import __version__
+from .utils import *
+from .cluster import *
 
 from datetime import datetime
 from threading import Thread

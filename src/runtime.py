@@ -8,10 +8,10 @@ Usage: python runtime.py <pairfile> <logdir> <outfile>
 
 
 import os
-import sys
 import re
+import sys
 
-from atetime import datetime
+from datetime import datetime
 
 
 def listdir(path):
