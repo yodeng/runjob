@@ -66,18 +66,16 @@ class RunSge(object):
 
         if self.conf.get("args", "call_back"):
             cmd = self.conf.get("args", "call_back")
+            name = "call_back"
             call_back_job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
-            call_back_job.host = "localhost"
-            call_back_job.name = call_back_job.jobname = "call_back"
-            call_back_job.logfile = os.path.join(self.logdir, os.path.basename(
-                self.jfile) + "_%s.log" % "call_back")
+            call_back_job.forceToLocal(jobname=name, removelog=True)
             self.jobsgraph.add_node_if_not_exists(call_back_job.jobname)
             self.jobs.append(call_back_job)
             self.totaljobdict["call_back"] = call_back_job
             for i in self.jobsgraph.all_nodes:
-                if i == "call_back":
+                if i == name:
                     continue
-                self.jobsgraph.add_edge(i, "call_back")
+                self.jobsgraph.add_edge(i, name)
 
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
@@ -353,7 +351,7 @@ def parserArg():
     parser.add_argument("-lg", "--logdir", type=str,
                         help='the output log dir, default: "runjob_*_log_dir"', metavar="<logdir>")
     parser.add_argument("-o", "--outdir", type=str,
-                        help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME', metavar="<dir>")
+                        help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved', metavar="<dir>")
     parser.add_argument("-n", "--num", type=int,
                         help="the max job number runing at the same time. default: all in your job file", metavar="<int>")
     parser.add_argument("-s", "--startline", type=int,
@@ -366,7 +364,7 @@ def parserArg():
                         help='append log info to file, sys.stdout by default', metavar="<file>")
     parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 0 by default",
                         type=int, default=0, metavar="<int>")
-    parser.add_argument('--call_back', help="callback command if set",
+    parser.add_argument('--call_back', help="callback command if set, will be running in localhost",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--mode', type=str, default="sge", choices=[
                         "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, 'sge' by default")
