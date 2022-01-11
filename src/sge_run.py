@@ -75,7 +75,18 @@ class RunSge(object):
                 if i == name:
                     continue
                 self.jobsgraph.add_edge(i, name)
-
+        if self.conf.get("args", "init"):
+            cmd = self.conf.get("args", "init")
+            name = "init"
+            init_job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
+            init_job.forceToLocal(jobname=name, removelog=True)
+            self.jobsgraph.add_node_if_not_exists(init_job.jobname)
+            self.jobs.append(init_job)
+            self.totaljobdict[name] = init_job
+            for i in self.jobsgraph.all_nodes:
+                if i == name:
+                    continue
+                self.jobsgraph.add_edge(name, i)
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
@@ -363,7 +374,9 @@ def parserArg():
                         help='append log info to file, sys.stdout by default', metavar="<file>")
     parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 0 by default",
                         type=int, default=0, metavar="<int>")
-    parser.add_argument('--call_back', help="callback command if set, will be running in localhost",
+    parser.add_argument('--init', help="initial command before all task if set, will be running in localhost",
+                        type=str,  metavar="<cmd>")
+    parser.add_argument('--call-back', help="callback command if set, will be running in localhost",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--mode', type=str, default="sge", choices=[
                         "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, 'sge' by default")
