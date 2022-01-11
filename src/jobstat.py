@@ -236,6 +236,8 @@ def bcArgs():
         description="For query job status in batch compute.")
     parser.add_argument("-t", "--top", type=int, default=10,
                         help="show top number job (default: 10)", metavar="<int>")
+    parser.add_argument("-a", "--all", action="store_true", default=False,
+                        help="show all jobs")
     parser.add_argument("-n", "--name", type=str,
                         help="show jobName contains the specific name", metavar="<str>")
     parser.add_argument("-r", '--regin', type=str, default="BEIJING", choices=['BEIJING', 'HANGZHOU', 'HUHEHAOTE', 'SHANGHAI',
@@ -291,10 +293,10 @@ def batchStat():
                 if j.State not in ["Stopped", "Failed", "Finished"]:
                     client.stop_job(jobid)
                 client.delete_job(jobid)
-                logger.info("Delete job %s success", jobid)
+                logger.info("Delete job %s done", j.Name)
             else:
                 logger.info(
-                    "Delete job error, you have no assess with job %s", jobid)
+                    "Delete job error, you have no assess with job %s", j.Name)
         return
     jobs = list_jobs(client)
     jobarr_owner = filter_list(items2arr(jobs['Items']), {
@@ -305,11 +307,13 @@ def batchStat():
         filter_job = jobarr_owner
     if args.top:
         filter_job = filter_job[:args.top]
+    if args.all:
+        filter_job = jobarr_owner
     print(style("-"*193, mode="bold"))
     print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>10}".format(
         "User", "JobId", "JobName", "CreationTime", "StartTime", "EndTime", "Elapsed", "JobState"), mode="bold"))
     print(style("-"*193, mode="bold"))
-    for j in filter_job:
+    for j in filter_job[::-1]:
         ct = j["CreationTime"].strftime(
             "%F %X") if j["CreationTime"] is not None else "null"
         st = j["StartTime"].strftime(

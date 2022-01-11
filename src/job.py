@@ -321,8 +321,9 @@ class ShellJob(object):
             name = os.path.basename(self.sf._path) + "_" + str(os.getpid())
             if name[0].isdigit():
                 name = "job_" + name
-        self.cpu = 1
-        self.mem = 1
+        self.cpu = 0
+        self.mem = 0
+        self.cmd0 = cmd
         if "//" in cmd:
             self.rawstring = cmd.split("//")[0].strip()
             try:
@@ -370,5 +371,6 @@ class ShellJob(object):
             self.sf._path) + "_%s.log" % jobname)
         if removelog and os.path.isfile(self.logfile):
             os.remove(self.logfile)
+        self.rawstring = self.cmd0.strip()
         self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
             self.rawstring + RUNSTAT

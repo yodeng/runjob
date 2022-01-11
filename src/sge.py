@@ -51,10 +51,10 @@ class ParseSingal(Thread):
                     if j.State not in ["Stopped", "Failed", "Finished"]:
                         self.conf.client.stop_job(jobid)
                     self.conf.client.delete_job(jobid)
-                    self.conf.logger.info("Delete job %s success", jobid)
+                    self.conf.logger.info("Delete job %s done", j.Name)
                 else:
                     self.conf.logger.info(
-                        "Delete job error, you have no assess with job %s", jobid)
+                        "Delete job error, you have no assess with job %s", j.Name)
         sys.exit(signum)
 
 
