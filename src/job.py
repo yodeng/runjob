@@ -362,3 +362,13 @@ class ShellJob(object):
                 re.sub("[^a-zA-Z0-9_-]", "-", name + "_%d" % linenum)
             self.name = self.jobname
             self.cmd = self.rawstring
+
+    def forceToLocal(self, jobname="", removelog=False):
+        self.host = "localhost"
+        self.name = self.jobname = jobname
+        self.logfile = os.path.join(self.sf.logdir, os.path.basename(
+            self.sf._path) + "_%s.log" % jobname)
+        if removelog and os.path.isfile(self.logfile):
+            os.remove(self.logfile)
+        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
+            self.rawstring + RUNSTAT
