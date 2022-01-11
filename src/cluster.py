@@ -91,7 +91,14 @@ class Task(object):
         jobcpu = job.cpu if job.cpu else self.cluster.conf.get("args", "cpu")
         jobmem = job.mem if job.mem else self.cluster.conf.get(
             "args", "memory")
-        insType = self.get_instance_type(int(jobcpu), int(jobmem))
+        insType = self.cluster.conf.get("Cluster", "InstanceType")
+        if insType is not None:
+            if self.cluster.conf.it_conf[insType]["cpu"] < int(jobcpu) or self.cluster.conf.it_conf[insType]["memory"] < int(jobmem):
+                insType = self.get_instance_type(int(jobcpu), int(jobmem))
+                self.cluster.conf.logger.info("job %s %s InstanceType not match cpu or memory necessary, used %s insteaded",
+                                              job.name, self.cluster.conf.get("Cluster", "InstanceType"),  insType)
+        else:
+            insType = self.get_instance_type(int(jobcpu), int(jobmem))
         self.cluster.cluster.InstanceType = insType
         task = TaskDescription()
         task.Parameters.Command.CommandLine = job.cmd
@@ -107,6 +114,8 @@ class Task(object):
             task.Parameters.Command.EnvVars["BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH"] = self.cluster.conf.get(
                 "Task", "DOCKER_REGISTRY_OSS_PATH")
             task.Parameters.Command.CommandLine = "sh -c '%s'" % job.cmd
+            task.Mounts = self.cluster.cluster.Configs.Mounts
+            self.cluster.cluster.Configs.Mounts = Mounts()
         if outdir is not None and self.cluster.oss_mount_entry["Destination"] in outdir:
             if not outdir.endswith("/"):
                 outdir += "/"
@@ -114,7 +123,8 @@ class Task(object):
             src = self.cluster.oss_mount_entry["Source"]
             task.OutputMapping[outdir] = re.sub("^"+des, src, outdir)
         else:
-            self.loger.debug("Only oss path support(%s), %s", outdir, job.name)
+            self.cluster.conf.logger.debug(
+                "Only oss path support(%s), %s", outdir, job.name)
         self.task_dag.add_task(task_name=job.name, task=task)
         self.name = job.name
         self.client = self.cluster.client

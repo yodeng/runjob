@@ -326,11 +326,11 @@ class RunSge(object):
                         if j.State not in ["Stopped", "Failed", "Finished"]:
                             self.conf.client.stop_job(jobid)
                         self.conf.client.delete_job(jobid)
-                        self.logger.info("Delete job %s success", jobid)
+                        self.logger.info("Delete job %s done", j.Name)
                         self.jobqueue.get(jb)
                     else:
                         self.logger.info(
-                            "Delete job error, you have no assess with job %s", jobid)
+                            "Delete job error, you have no assess with job %s", j.Name)
 
     def writestates(self, outstat):
         summary = {j.name: j.status for j in self.jobs}
