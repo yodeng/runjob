@@ -7,11 +7,11 @@ import sys
 import json
 import string
 import logging
+
 from random import sample
 
-from batchcompute import Client, ClientError
 from batchcompute import CN_BEIJING
-
+from batchcompute import Client, ClientError
 from batchcompute.resources import (
     Configs, Networks, VPC, AutoCluster,
     JobDescription, TaskDescription, DAG, Mounts,
@@ -116,15 +116,16 @@ class Task(object):
             task.Parameters.Command.CommandLine = "sh -c '%s'" % job.cmd
             task.Mounts = self.cluster.cluster.Configs.Mounts
             self.cluster.cluster.Configs.Mounts = Mounts()
-        if outdir is not None and self.cluster.oss_mount_entry["Destination"] in outdir:
-            if not outdir.endswith("/"):
-                outdir += "/"
-            des = self.cluster.oss_mount_entry["Destination"]
-            src = self.cluster.oss_mount_entry["Source"]
-            task.OutputMapping[outdir] = re.sub("^"+des, src, outdir)
-        else:
-            self.cluster.conf.logger.debug(
-                "Only oss path support(%s), %s", outdir, job.name)
+        if outdir is not None:
+            if self.cluster.oss_mount_entry["Destination"] in outdir:
+                if not outdir.endswith("/"):
+                    outdir += "/"
+                des = self.cluster.oss_mount_entry["Destination"]
+                src = self.cluster.oss_mount_entry["Source"]
+                task.OutputMapping[outdir] = re.sub("^"+des, src, outdir)
+            else:
+                self.cluster.conf.logger.debug(
+                    "Only oss path support(%s), %s", outdir, job.name)
         self.task_dag.add_task(task_name=job.name, task=task)
         self.name = job.name
         self.client = self.cluster.client

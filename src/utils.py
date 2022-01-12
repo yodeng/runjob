@@ -125,3 +125,35 @@ def sumJobs(qjobs):
     qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
     logger.info(str(dict(Counter([j.status for j in run_jobs]))))
     return SUCCESS
+
+
+def style(string, mode='', fore='', back=''):
+    STYLE = {
+        'fore': {'black': 30, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'purple': 35, 'cyan': 36, 'white': 37},
+        'back': {'black': 40, 'red': 41, 'green': 42, 'yellow': 43, 'blue': 44, 'purple': 45, 'cyan': 46, 'white': 47},
+        'mode': {'mormal': 0, 'bold': 1, 'underline': 4, 'blink': 5, 'invert': 7, 'hide': 8},
+        'default': {'end': 0},
+    }
+    mode = '%s' % STYLE["mode"].get(mode, "")
+    fore = '%s' % STYLE['fore'].get(fore, "")
+    back = '%s' % STYLE['back'].get(back, "")
+    style = ';'.join([s for s in [mode, fore, back] if s])
+    style = '\033[%sm' % style if style else ''
+    end = '\033[%sm' % STYLE['default']['end'] if style else ''
+    return '%s%s%s' % (style, string, end)
+
+
+def get_job_state(state):
+    s = state.lower() if state else state
+    if s == 'running':
+        return style(state, fore="cyan")
+    if s == 'finished':
+        return style(state, fore="green")
+    elif s == 'waiting':
+        return style(state, fore="white")
+    elif s == 'failed':
+        return style(state, fore="red")
+    elif s == 'stopped':
+        return style(state, fore="yellow")
+    else:
+        return style(state, fore="white")
