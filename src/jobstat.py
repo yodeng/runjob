@@ -13,32 +13,15 @@ import glob
 import getpass
 import argparse
 
-from collections import defaultdict
 from subprocess import check_output
+from collections import defaultdict
 
-from .job import Jobfile
-from .config import load_config, print_config
-from .version import __version__
-
-from .bc_stat import *
 from .utils import *
+from .bc_stat import *
 from .cluster import *
-
-
-def style(string, mode='', fore='', back=''):
-    STYLE = {
-        'fore': {'black': 30, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'purple': 35, 'cyan': 36, 'white': 37},
-        'back': {'black': 40, 'red': 41, 'green': 42, 'yellow': 43, 'blue': 44, 'purple': 45, 'cyan': 46, 'white': 47},
-        'mode': {'mormal': 0, 'bold': 1, 'underline': 4, 'blink': 5, 'invert': 7, 'hide': 8},
-        'default': {'end': 0},
-    }
-    mode = '%s' % STYLE["mode"].get(mode, "")
-    fore = '%s' % STYLE['fore'].get(fore, "")
-    back = '%s' % STYLE['back'].get(back, "")
-    style = ';'.join([s for s in [mode, fore, back] if s])
-    style = '\033[%sm' % style if style else ''
-    end = '\033[%sm' % STYLE['default']['end'] if style else ''
-    return '%s%s%s' % (style, string, end)
+from .job import Jobfile
+from .version import __version__
+from .config import load_config, print_config
 
 
 def main():
@@ -244,6 +227,8 @@ def bcArgs():
                         'ZHANGJIAKOU', 'CHENGDU', 'HONGKONG', 'QINGDAO', 'SHENZHEN'], help="batch compute regin, BEIJING by default")
     parser.add_argument("-d", "--delete", type=str, nargs="*",
                         help="delete job with jobId", metavar="<jobId>")
+    parser.add_argument("-j", "--job", type=str,
+                        help="description of the job", metavar="<jobId>")
     parser.add_argument('--access-key-id', type=str,
                         help="AccessKeyID while access oss", metavar="<str>")
     parser.add_argument('--access-key-secret', type=str,
@@ -276,9 +261,19 @@ def batchStat():
         access_key_id = conf.get("OSS", "access_key_id")
     if access_key_secret is None:
         access_key_secret = conf.get("OSS", "access_key_secret")
+    if access_key_secret is None or access_key_id is None:
+        sys.exit("No access to connect OSS")
     client = Client(region, access_key_id, access_key_secret)
     logger = Mylog(name=__name__)
     user = getpass.getuser()
+    if args.job:
+        try:
+            jd = client.get_job_description(args.job)
+        except:
+            print("Job Description Error %s" % args.job)
+            sys.exit(1)
+        print(json.dumps(jd.content, indent=4))
+        return
     if args.delete:
         for jobid in args.delete:
             try:
@@ -309,10 +304,10 @@ def batchStat():
         filter_job = filter_job[:args.top]
     if args.all:
         filter_job = jobarr_owner
-    print(style("-"*193, mode="bold"))
-    print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>10}".format(
+    print(style("-"*191, mode="bold"))
+    print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>8}".format(
         "User", "JobId", "JobName", "CreationTime", "StartTime", "EndTime", "Elapsed", "JobState"), mode="bold"))
-    print(style("-"*193, mode="bold"))
+    print(style("-"*191, mode="bold"))
     for j in filter_job[::-1]:
         ct = j["CreationTime"].strftime(
             "%F %X") if j["CreationTime"] is not None else "null"
@@ -329,9 +324,9 @@ def batchStat():
             elapsed = "%dm%ds" % (m, s)
         else:
             elapsed = "null"
-        print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>10}".format(
-                    user, jid, jname, ct, st, et, elapsed, state)))
-    print(style("-"*193, mode="bold"))
+        print("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>10}".format(
+            user, jid, jname, ct, st, et, elapsed, get_job_state(state)))
+    print(style("-"*191, mode="bold"))
 
 
 if __name__ == "__main__":

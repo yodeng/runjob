@@ -10,20 +10,19 @@ import logging
 import argparse
 import threading
 
-
 from . import dag
 from .job import *
-from .config import load_config, print_config
-from .qsub import myQueue, QsubError
-from .sge import ParseSingal
-from .version import __version__
 from .utils import *
 from .cluster import *
+from .sge import ParseSingal
+from .version import __version__
+from .qsub import myQueue, QsubError
+from .config import load_config, print_config
 
-from datetime import datetime
 from threading import Thread
-from subprocess import Popen, call, PIPE
+from datetime import datetime
 from collections import Counter
+from subprocess import Popen, call, PIPE
 
 
 class RunSge(object):
@@ -169,10 +168,10 @@ class RunSge(object):
         return status
 
     def jobcheck(self):
+        m, p = 3, 1
         if self.sgefile.mode == "batchcompute":
-            rate_limiter = RateLimiter(max_calls=3, period=3)
-        else:
-            rate_limiter = RateLimiter(max_calls=3, period=2)
+            p = 3
+        rate_limiter = RateLimiter(max_calls=m, period=p)
         while True:
             with rate_limiter:
                 for jb in self.jobqueue.queue:

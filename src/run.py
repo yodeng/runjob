@@ -9,13 +9,13 @@ import argparse
 import logging
 import functools
 
-from subprocess import call, PIPE
 from threading import Thread
 from datetime import datetime
 from collections import Counter
+from subprocess import call, PIPE
 
-from .qsub import qsub
 from .utils import *
+from .qsub import qsub
 from .version import __version__
 
 

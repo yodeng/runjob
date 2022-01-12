@@ -325,9 +325,9 @@ class ShellJob(object):
         self.mem = 0
         self.cmd0 = cmd
         if "//" in cmd:
-            self.rawstring = cmd.split("//")[0].strip()
+            self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
-                args = cmd.split("//")[1].strip().split()
+                args = cmd.rsplit("//", 1)[1].strip().split()
                 if "-c" in args:
                     cpuidx = args.index("-c")
                 elif "--cpu" in args:
@@ -337,7 +337,7 @@ class ShellJob(object):
             except:
                 pass
             try:
-                args = cmd.split("//")[1].strip().split()
+                args = cmd.rsplit("//", 1)[1].strip().split()
                 if "-m" in args:
                     memidx = args.index("-m")
                 elif "--memory" in args:
