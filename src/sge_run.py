@@ -244,7 +244,7 @@ class RunSge(object):
                 c.AddClusterMount()
                 task = Task(c)
                 task.AddOneTask(
-                    job=job, outdir=self.conf.get("args", "outdir"))
+                    job=job, outdir=self.conf.get("args", "out_maping"))
                 task.Submit()
                 info = "Your job (%s) has been submitted in batchcompute (%s) %d times\n" % (
                     task.name, task.id, job.subtimes+1)
@@ -358,8 +358,8 @@ def parserArg():
     parser.add_argument("-N", "--jobname", type=str,
                         help="job name", metavar="<jobname>")
     parser.add_argument("-lg", "--logdir", type=str,
-                        help='the output log dir, default: "runjob_*_log_dir"', metavar="<logdir>")
-    parser.add_argument("-o", "--outdir", type=str,
+                        help='the output log dir, default: "%s/runjob_*_log_dir"' % os.getcwd(), metavar="<logdir>")
+    parser.add_argument("-om", "--out-maping", type=str,
                         help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved', metavar="<dir>")
     parser.add_argument("-n", "--num", type=int,
                         help="the max job number runing at the same time. default: all in your job file", metavar="<int>")
@@ -420,9 +420,12 @@ def main():
         if name[0].isdigit():
             name = "job_" + name
     args.jobname = name
+    if not os.path.isdir(args.workdir):
+        os.makedirs(args.workdir)
+    os.chdir(args.workdir)
     if args.logdir is None:
-        args.logdir = os.path.join(os.path.abspath(os.path.dirname(
-            args.jobfile)), "runjob_"+os.path.basename(args.jobfile) + "_log_dir")
+        args.logdir = "runjob_"+os.path.basename(args.jobfile) + "_log_dir"
+    args.logdir = os.path.join(args.workdir, args.logdir)
     conf.update_dict(**args.__dict__)
     h = ParseSingal(name=args.jobname, mode=args.mode, conf=conf)
     h.start()
