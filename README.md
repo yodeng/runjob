@@ -1,6 +1,6 @@
 # runjob
 
-[![PyPI](https://img.shields.io/pypi/v/runjob.svg)](https://pypi.python.org/pypi/runjob)
+[![PyPI version](https://img.shields.io/pypi/v/runjob.svg?logo=pypi&logoColor=FFE873)](https://pypi.python.org/pypi/runjob)
 [![Downloads](https://pepy.tech/badge/runjob)](https://pepy.tech/project/runjob)
 
 ## Summary
