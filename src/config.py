@@ -63,5 +63,19 @@ def print_config(conf):
     print("\nAvailable Config:")
     for k, info in conf.info.items():
         print("[%s]" % k)
-        for v, p in info.items():
+        for v, p in sorted(info.items()):
+            if "secret" in v:
+                try:
+                    p = hide_key(p)
+                except:
+                    pass
             print(" - %s : %s" % (v, p))
+
+
+def hide_key(s):
+    if len(s) > 6:
+        return "%s******%s" % (s[:3], s[-3:])
+    elif len(s) > 1:
+        return "%s*****" % s[:1]
+    else:
+        return "******"

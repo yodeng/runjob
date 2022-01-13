@@ -12,6 +12,7 @@ import psutil
 import glob
 import getpass
 import argparse
+import prettytable
 
 from subprocess import check_output
 from collections import defaultdict
@@ -304,10 +305,9 @@ def batchStat():
         filter_job = filter_job[:args.top]
     if args.all:
         filter_job = jobarr_owner
-    print(style("-"*191, mode="bold"))
-    print(style("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>8}".format(
-        "User", "JobId", "JobName", "CreationTime", "StartTime", "EndTime", "Elapsed", "JobState"), mode="bold"))
-    print(style("-"*191, mode="bold"))
+    out = []
+    out.append([style(i, mode="bold") for i in ["User", "JobId", "JobName",
+               "CreationTime", "StartTime", "EndTime", "Elapsed", "JobState"]])
     for j in filter_job[::-1]:
         ct = j["CreationTime"].strftime(
             "%F %X") if j["CreationTime"] is not None else "null"
@@ -324,9 +324,13 @@ def batchStat():
             elapsed = "%dm%ds" % (m, s)
         else:
             elapsed = "null"
-        print("{0:<20} {1:<40} {2:<40} {3:<22} {4:<22} {5:<22} {6:<10} {7:>10}".format(
-            user, jid, jname, ct, st, et, elapsed, get_job_state(state)))
-    print(style("-"*191, mode="bold"))
+        line = [user, jid, jname, ct, st, et, elapsed, get_job_state(state)]
+        out.append(line)
+    tb = prettytable.PrettyTable()
+    tb.field_names = out[0]
+    for line in out[1:]:
+        tb.add_row(line)
+    print(tb)
 
 
 if __name__ == "__main__":
