@@ -224,6 +224,8 @@ def bcArgs():
                         help="show all jobs")
     parser.add_argument("-n", "--name", type=str,
                         help="show jobName contains the specific name", metavar="<str>")
+    parser.add_argument("-u", "--user", type=str, default=getpass.getuser(),
+                        help="show jobs with a user name matching, defualt: %s" % getpass.getuser(), metavar="<str>")
     parser.add_argument("-r", '--regin', type=str, default="BEIJING", choices=['BEIJING', 'HANGZHOU', 'HUHEHAOTE', 'SHANGHAI',
                         'ZHANGJIAKOU', 'CHENGDU', 'HONGKONG', 'QINGDAO', 'SHENZHEN'], help="batch compute regin, BEIJING by default")
     parser.add_argument("-d", "--delete", type=str, nargs="*",
@@ -296,7 +298,7 @@ def batchStat():
         return
     jobs = list_jobs(client)
     jobarr_owner = filter_list(items2arr(jobs['Items']), {
-                               'Name': {'like': getpass.getuser()}})
+                               'Name': {'like': args.user}})
     if args.name:
         filter_job = filter_list(jobarr_owner, {'Name': {'like': args.name}})
     else:
