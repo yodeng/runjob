@@ -299,6 +299,8 @@ def batchStat():
     jobs = list_jobs(client)
     jobarr_owner = filter_list(items2arr(jobs['Items']), {
                                'Name': {'like': args.user}})
+    jobarr_owner = sorted(
+        jobarr_owner, key=lambda _x: _x["CreationTime"], reverse=True)
     if args.name:
         filter_job = filter_list(jobarr_owner, {'Name': {'like': args.name}})
     else:
@@ -310,7 +312,7 @@ def batchStat():
     out = []
     out.append([style(i, mode="bold") for i in ["User", "JobId", "JobName",
                "CreationTime", "StartTime", "EndTime", "Elapsed", "JobState"]])
-    for j in filter_job[::-1]:
+    for j in filter_job:
         ct = j["CreationTime"].strftime(
             "%F %X") if j["CreationTime"] is not None else "null"
         st = j["StartTime"].strftime(
