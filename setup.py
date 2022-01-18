@@ -22,7 +22,7 @@ setup(
     name="runjob",
     version=__version__,
     packages=["runjob"],
-    package_data={"runjob": ["*.ini", "*.json"]},
+    package_data={"runjob": ["*config", "*.json"]},
     package_dir={"runjob": "src"},
     data_files=listdir("doc"),
     author="Deng Yong",
