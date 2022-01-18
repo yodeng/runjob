@@ -44,10 +44,10 @@ class Config(object):
 
 
 def load_config():
-    configfile_home = os.path.join(os.path.expanduser("~"), ".runjob.ini")
+    configfile_home = os.path.join(os.path.expanduser("~"), ".runjobconfig")
 
     configfile_default = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), 'runjob.ini')
+        os.path.abspath(__file__)), 'runjobconfig')
 
     conf = Config(configfile_default)
 
