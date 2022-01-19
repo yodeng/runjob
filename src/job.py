@@ -8,7 +8,7 @@ import getpass
 
 from subprocess import check_output
 
-from .utils import RUNSTAT
+from .utils import *
 
 
 class Jobfile(object):
@@ -323,31 +323,8 @@ class ShellJob(object):
                 name = "job_" + name
         self.cpu = 0
         self.mem = 0
-        self.cmd0 = cmd
-        if "//" in cmd:
-            self.rawstring = cmd.rsplit("//", 1)[0].strip()
-            try:
-                args = cmd.rsplit("//", 1)[1].strip().split()
-                if "-c" in args:
-                    cpuidx = args.index("-c")
-                elif "--cpu" in args:
-                    cpuidx = args.index("--cpu")
-                cpu = max(int(args[cpuidx+1]), 1)
-                self.cpu = cpu
-            except:
-                pass
-            try:
-                args = cmd.rsplit("//", 1)[1].strip().split()
-                if "-m" in args:
-                    memidx = args.index("-m")
-                elif "--memory" in args:
-                    memidx = args.index("--memory")
-                mem = max(int(args[memidx+1]), 1)
-                self.mem = mem
-            except:
-                pass
-        else:
-            self.rawstring = cmd.strip()
+        self.queue = None
+        self.out_maping = None
         self.jobname = name + "_%d" % linenum
         self.name = self.jobname
         self.linenum = linenum
@@ -356,6 +333,24 @@ class ShellJob(object):
         self.subtimes = 0
         self.status = None
         self.host = self.sf.mode
+        self.cmd0 = cmd
+        if "//" in cmd:
+            self.rawstring = cmd.rsplit("//", 1)[0].strip()
+            try:
+                argstring = cmd.rsplit("//", 1)[1].strip().split()
+                # argsflag = ["queue", "memory", "cpu", "jobname", "out_maping", "mode"]
+                args = shellJobArgparser(argstring)
+                for i in ["queue", "memory", "cpu", "out_maping"]:
+                    if getattr(args, i):
+                        setattr(self, i, getattr(args, i))
+                if args.mode and args.mode in ["sge", "local", "localhost", "batchcompute"]:
+                    self.host = args.mode
+                if args.jobname:
+                    self.jobname = self.name = args.jobname
+            except:
+                pass
+        else:
+            self.rawstring = cmd.strip()
         self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
             self.rawstring + RUNSTAT
         if self.host == "batchcompute":

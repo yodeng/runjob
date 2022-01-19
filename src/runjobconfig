@@ -15,7 +15,7 @@ DOCKER_REGISTRY_OSS_PATH =
 
 
 [OSS]
-src = 
-des = 
+ossSrc = 
+mountPath = 
 access_key_id = 
 access_key_secret = 
