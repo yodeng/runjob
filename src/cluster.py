@@ -65,8 +65,8 @@ class Cluster(RClient):
 
     def AddClusterMount(self, writeable=True):
         self.oss_mount_entry = {
-            "Source": self.conf.get("OSS", "src"),
-            "Destination": self.conf.get("OSS", "des"),
+            "Source": self.conf.get("OSS", "ossSrc"),
+            "Destination": self.conf.get("OSS", "mountPath"),
             "WriteSupport": writeable,
         }
         self.cluster.Configs.Mounts.add_entry(self.oss_mount_entry)
@@ -125,11 +125,25 @@ class Task(object):
                 task.OutputMapping[outdir] = re.sub("^"+des, src, outdir)
             else:
                 self.cluster.conf.logger.debug(
-                    "Only oss path support(%s), %s", outdir, job.name)
+                    "Only oss mount path support(%s), %s", outdir, job.name)
         self.task_dag.add_task(task_name=job.name, task=task)
         self.name = job.name
         self.client = self.cluster.client
         job.client = self.client
+
+    def modifyTaskOutMapping(self, mapping=""):
+        if mapping:
+            if self.cluster.oss_mount_entry["Destination"] in mapping:
+                # if not mapping.endswith("/"):
+                # mapping += "/"
+                des = self.cluster.oss_mount_entry["Destination"]
+                src = self.cluster.oss_mount_entry["Source"]
+                self.task_dag.Tasks[self.name].OutputMapping.clear()
+                self.task_dag.Tasks[self.name].OutputMapping[mapping] = re.sub(
+                    "^"+des, src, mapping)
+            else:
+                self.cluster.conf.logger.debug(
+                    "Only oss mount path support(%s), %s", outdir, job.name)
 
     def get_instance_type(self, cpu=2, mem=4):
         e = []

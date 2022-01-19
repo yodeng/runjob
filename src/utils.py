@@ -1,11 +1,15 @@
 import os
 import sys
+import pdb
 import logging
+import argparse
 import threading
 
 from collections import Counter
 from subprocess import call, PIPE
 from ratelimiter import RateLimiter
+
+from .version import __version__
 
 if sys.version_info[0] < 3:
     from Queue import Queue
@@ -157,3 +161,72 @@ def get_job_state(state):
         return style(state, fore="yellow")
     else:
         return style(state, fore="white")
+
+
+def runsgeArgparser():
+    parser = argparse.ArgumentParser(
+        description="For multi-run your shell scripts localhost, qsub or BatchCompute.")
+    parser.add_argument("-q", "--queue", type=str, help="the queue your job running, default: all.q",
+                        default=["all.q", ], nargs="*", metavar="<queue>")
+    parser.add_argument("-m", "--memory", type=int,
+                        help="the memory used per command (GB), default: 1", default=1, metavar="<int>")
+    parser.add_argument("-c", "--cpu", type=int,
+                        help="the cpu numbers you job used, default: 1", default=1, metavar="<int>")
+    parser.add_argument("-wd", "--workdir", type=str, help="work dir, default: %s" %
+                        os.path.abspath(os.getcwd()), default=os.path.abspath(os.getcwd()), metavar="<workdir>")
+    parser.add_argument("-N", "--jobname", type=str,
+                        help="job name", metavar="<jobname>")
+    parser.add_argument("-lg", "--logdir", type=str,
+                        help='the output log dir, default: "%s/runjob_*_log_dir"' % os.getcwd(), metavar="<logdir>")
+    parser.add_argument("-om", "--out-maping", type=str,
+                        help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved', metavar="<dir>")
+    parser.add_argument("-n", "--num", type=int,
+                        help="the max job number runing at the same time. default: all in your job file", metavar="<int>")
+    parser.add_argument("-s", "--startline", type=int,
+                        help="which line number(0-base) be used for the first job tesk. default: 0", metavar="<int>", default=0)
+    parser.add_argument("-e", "--endline", type=int,
+                        help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='log debug info', default=False)
+    parser.add_argument("-l", "--log", type=str,
+                        help='append log info to file, sys.stdout by default', metavar="<file>")
+    parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 0 by default",
+                        type=int, default=0, metavar="<int>")
+    parser.add_argument('--init', help="initial command before all task if set, will be running in localhost",
+                        type=str,  metavar="<cmd>")
+    parser.add_argument('--call-back', help="callback command if set, will be running in localhost",
+                        type=str,  metavar="<cmd>")
+    parser.add_argument('--mode', type=str, default="sge", choices=[
+                        "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, 'sge' by default")
+    parser.add_argument('--access-key-id', type=str,
+                        help="AccessKeyID while access oss", metavar="<str>")
+    parser.add_argument('--access-key-secret', type=str,
+                        help="AccessKeySecret while access oss", metavar="<str>")
+    parser.add_argument('--regin', type=str, default="BEIJING", choices=['BEIJING', 'HANGZHOU', 'HUHEHAOTE', 'SHANGHAI',
+                        'ZHANGJIAKOU', 'CHENGDU', 'HONGKONG', 'QINGDAO', 'SHENZHEN'], help="batch compute regin, BEIJING by default")
+    parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
+                        type=int, default=2, metavar="<int>")
+    parser.add_argument('-ini', '--ini',
+                        help="input configfile for configurations search.", metavar="<configfile>")
+    parser.add_argument("-config", '--config',   action='store_true',
+                        help="show configurations and exit.",  default=False)
+    # parser.add_argument("--local", default=False, action="store_true",
+    # help="submit your jobs in localhost instead of sge, if no sge installed, always localhost.")
+    parser.add_argument("--strict", action="store_true", default=False,
+                        help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
+    parser.add_argument('-v', '--version',
+                        action='version', version="v" + __version__)
+    parser.add_argument("-j", "--jobfile", type=str,
+                        help="the input jobfile", metavar="<jobfile>")
+    return parser.parse_args()
+
+
+def shellJobArgparser(arglist):
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("-q", "--queue", type=str, nargs="*")
+    parser.add_argument("-m", "--memory", type=int)
+    parser.add_argument("-c", "--cpu", type=int)
+    parser.add_argument("-n", "--jobname", type=str)
+    parser.add_argument("-om", "--out-maping", type=str)
+    parser.add_argument('--mode', type=str)
+    return parser.parse_known_args(arglist)[0]

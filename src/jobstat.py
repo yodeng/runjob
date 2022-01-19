@@ -165,7 +165,7 @@ def main():
                             k + ":", num)), ", ".join(v))
                 wait = set(alljobnames) - set(stat.keys())
                 print(style("{0:<20} {1:>5} ".format(
-                    "wait:", len(wait))), ", ".join(wait))
+                    "wait:", len(wait)), ", ".join(wait)))
                 print(style("-"*47, mode="bold"))
                 return
 
