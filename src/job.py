@@ -351,13 +351,16 @@ class ShellJob(object):
                 pass
         else:
             self.rawstring = cmd.strip()
-        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-            self.rawstring + RUNSTAT
+        self.raw2cmd()
         if self.host == "batchcompute":
             self.jobname = getpass.getuser() + "_" + \
                 re.sub("[^a-zA-Z0-9_-]", "-", name + "_%d" % linenum)
             self.name = self.jobname
             self.cmd = self.rawstring
+
+    def raw2cmd(self):
+        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
+            self.rawstring + RUNSTAT
 
     def forceToLocal(self, jobname="", removelog=False):
         self.host = "localhost"
@@ -367,5 +370,4 @@ class ShellJob(object):
         if removelog and os.path.isfile(self.logfile):
             os.remove(self.logfile)
         self.rawstring = self.cmd0.strip()
-        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-            self.rawstring + RUNSTAT
+        self.raw2cmd()
