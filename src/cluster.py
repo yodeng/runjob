@@ -101,7 +101,7 @@ class Task(object):
             insType = self.get_instance_type(int(jobcpu), int(jobmem))
         self.cluster.cluster.InstanceType = insType
         task = TaskDescription()
-        task.Parameters.Command.CommandLine = job.cmd
+        task.Parameters.Command.CommandLine = "sh -c \"%s\"" % job.cmd
         task.Parameters.StdoutRedirectPath = self.stdout
         task.Parameters.StderrRedirectPath = self.stderr
         task.InstanceCount = 1
@@ -113,7 +113,6 @@ class Task(object):
                 "Task", "DOCKER_IMAGE")
             task.Parameters.Command.EnvVars["BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH"] = self.cluster.conf.get(
                 "Task", "DOCKER_REGISTRY_OSS_PATH")
-            task.Parameters.Command.CommandLine = "sh -c '%s'" % job.cmd
             task.Mounts = self.cluster.cluster.Configs.Mounts
             self.cluster.cluster.Configs.Mounts = Mounts()
         if outdir is not None:

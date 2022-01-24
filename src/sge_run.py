@@ -28,7 +28,20 @@ from subprocess import Popen, call, PIPE
 
 class RunSge(object):
 
-    def __init__(self, sgefile, queue, cpu, mem, name, start, end, logdir, workdir, maxjob, strict=False, mode=None, config=None):
+    def __init__(self, config=None):
+        sgefile = config.get("args", "jobfile")
+        queue = config.get("args", "queue")
+        cpu = config.get("args", "cpu")
+        mem = config.get("args", "memory")
+        name = config.get("args", "jobname")
+        start = config.get("args", "startline")
+        end = config.get("args", "endline")
+        logdir = config.get("args", "logdir")
+        workdir = config.get("args", "workdir")
+        maxjob = config.get("args", "num")
+        groups = config.get("args", "groups")
+        strict = config.get("args", "strict")
+        mode = config.get("args", "mode")
         self.sgefile = ShellFile(sgefile, mode=mode, name=name,
                                  logdir=logdir, workdir=workdir)
         self.jfile = self.sgefile._path
@@ -44,24 +57,12 @@ class RunSge(object):
         self.localprocess = {}
         self.cloudjob = {}
         self.conf = config
+        self.groups = groups
 
         self.jobsgraph = dag.DAG()
         pre_dep = []
         dep = []
         for jb in self.jobs[:]:
-            # if jb.rawstring == "wait" and len(dep):
-                # self.jobs.remove(jb)
-                # pre_dep = dep
-                # dep = []
-            # else:
-                # if jb.rawstring == "wait":  # dup "wait" line
-                    # self.jobs.remove(jb)
-                    # continue
-                # self.jobsgraph.add_node_if_not_exists(jb.jobname)
-                # dep.append(jb)
-                # for i in pre_dep:
-                    # self.jobsgraph.add_node_if_not_exists(i.jobname)
-                    # self.jobsgraph.add_edge(i.jobname, jb.jobname)
             if jb.rawstring == "wait":
                 self.jobs.remove(jb)
                 if dep:
@@ -71,40 +72,24 @@ class RunSge(object):
                 self.jobsgraph.add_node_if_not_exists(jb.jobname)
                 dep.append(jb)
                 if pre_dep:
-                    for i in pre_dep:
+                    new_pre_dep = []
+                    tmpj = None
+                    for n, i in enumerate(pre_dep):
+                        if n % self.groups == 0:
+                            if tmpj:
+                                tmpj.raw2cmd()
+                                new_pre_dep.append(tmpj)
+                            tmpj = i
+                        else:
+                            tmpj.rawstring += "\n" + i.rawstring
+                            self.jobs.remove(i)
+                            self.jobsgraph.delete_node_if_exists(i.name)
+                    tmpj.raw2cmd()
+                    new_pre_dep.append(tmpj)
+                    for i in new_pre_dep:
+                        self.totaljobdict[i.jobname] = i
                         self.jobsgraph.add_node_if_not_exists(i.jobname)
                         self.jobsgraph.add_edge(i.jobname, jb.jobname)
-
-        # if True:
-            # jobs = ["c1","c2", "wait", "c3"]
-            # pre_dep, dep = [], []
-            # nodes = []
-            # for j in jobs[:]:
-                # if j =="wait":
-                    # jobs.remove(j)
-                    # if dep:
-                        # pre_dep = dep
-                        # dep = []
-                # else:
-                    # if pre_dep:
-                        # npre = []
-                        # jj = ""
-                        # for n,i in enumerate(pre_dep):
-                            # if n % num == 0:
-                                # if jj:
-                                    # npre.append(jj)
-                                # jj = i
-                            # else:
-                                # jj.rawstring += i.rawstring + "\n"
-                                # jobs.remove(j)
-                        # npre.append(jj)
-                        # for i in npre:
-                            # print(i,"->", j)
-                    # nodes.append(j)
-                    # dep.append(j)
-            # print(nodes)   
-        
-                    
 
         if self.conf.get("args", "call_back"):
             cmd = self.conf.get("args", "call_back")
@@ -157,8 +142,6 @@ class RunSge(object):
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
-        print(self.jobsgraph.graph)
-        sys.exit()
 
     def jobstatus(self, job):
         jobname = job.jobname
@@ -420,8 +403,7 @@ def main():
     h.start()
     logger = Mylog(logfile=args.log,
                    level="debug" if args.debug else "info", name=__name__)
-    runsge = RunSge(args.jobfile, args.queue, args.cpu, args.memory, args.jobname,
-                    args.startline, args.endline, args.logdir, args.workdir, args.num, args.strict, mode=args.mode, config=conf)
+    runsge = RunSge(config=conf)
     runsge.run(times=args.resub, resubivs=args.resubivs)
     success = sumJobs(runsge)
     if success:

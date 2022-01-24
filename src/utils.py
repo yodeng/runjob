@@ -186,6 +186,8 @@ def runsgeArgparser():
                         help="which line number(0-base) be used for the first job tesk. default: 0", metavar="<int>", default=0)
     parser.add_argument("-e", "--endline", type=int,
                         help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
+    parser.add_argument("-g", "--groups", type=int, default=1,
+                        help="groups number of lines to a new jobs, will consider first line args as the group job args.", metavar="<int>")
     parser.add_argument('-d', '--debug', action='store_true',
                         help='log debug info', default=False)
     parser.add_argument("-l", "--log", type=str,
