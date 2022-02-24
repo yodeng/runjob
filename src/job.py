@@ -334,7 +334,7 @@ class ShellJob(object):
         self.status = None
         self.host = self.sf.mode
         self.cmd0 = cmd
-        if "//" in cmd:
+        if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
                 argstring = cmd.rsplit("//", 1)[1].strip().split()
