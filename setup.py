@@ -24,7 +24,6 @@ setup(
     packages=["runjob"],
     package_data={"runjob": ["*config", "*.json"]},
     package_dir={"runjob": "src"},
-    data_files=listdir("doc"),
     author="Deng Yong",
     author_email="yodeng@tju.edu.cn",
     url="https://github.com/yodeng/runjob",
