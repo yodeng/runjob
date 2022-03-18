@@ -187,6 +187,7 @@ class RunSge(object):
                     with os.popen("sed -n '3p' %s" % logfile) as fi:
                         if "RUNNING..." in fi.read():
                             status = "run"
+        self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
             job.status = status
@@ -250,7 +251,7 @@ class RunSge(object):
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
 
-            if job.host is not None and job.host == "localhost":
+            if job.host is not None and job.host in ["localhost", "local"]:
                 cmd = "echo 'Your job (\"%s\") has been submitted in localhost' && " % job.name + job.cmd
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")

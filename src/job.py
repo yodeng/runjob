@@ -347,6 +347,8 @@ class ShellJob(object):
                     self.host = args.mode
                 if args.jobname:
                     self.jobname = self.name = args.jobname
+                if self.host == "local":
+                    self.host = "localhost"
             except:
                 pass
         else:
