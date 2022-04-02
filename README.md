@@ -23,7 +23,7 @@ python >=2.7.10, <3.10
 
 ## User Guide
 
-All manual instruction for runjob can be found in [PDF中文文档使用说明](./doc/manual_instruction_for_runjob.pdf)
+All manual instruction for runjob can be found in [here](https://runjob.readthedocs.io/en/latest/).
 
 ## Usage
 

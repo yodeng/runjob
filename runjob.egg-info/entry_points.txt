@@ -1,6 +1,0 @@
-[console_scripts]
-runjob = runjob.run:main
-runsge = runjob.sge_run:main
-runsge0 = runjob.sge:main
-runstate = runjob.stat:main
-

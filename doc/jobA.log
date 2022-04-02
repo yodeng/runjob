@@ -1,5 +1,0 @@
-echo hello from job jobA
-[2021-08-17 11:26:23] Your job 4374726 ("jobA_6877") has been submitted
-[2021-08-17 11:26:23] RUNNING...
-hello from job jobA
-[2021-08-17 11:26:23] SUCCESS
