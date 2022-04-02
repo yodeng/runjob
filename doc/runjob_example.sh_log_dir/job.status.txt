@@ -1,3 +1,0 @@
-{'success': 2}
-
-success : example.sh_17313_0, example.sh_17313_1
