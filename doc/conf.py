@@ -24,7 +24,7 @@ copyright = '2021-2022, yodeng'
 author = 'yodeng'
 
 # The full version, including alpha/beta/rc tags
-release = 'v%s'%runjob.__version__
+release = 'v%s' % runjob.__version__
 
 
 # -- General configuration ---------------------------------------------------

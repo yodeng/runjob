@@ -1,0 +1,27 @@
+{% set data = load_setup_py_data() %}
+
+package:
+    name: runjob
+    version: {{ data.get('version') }}
+
+build:
+    number: 0
+    string: py39
+    script: python setup.py install --single-version-externally-managed --record=record.txt
+
+source:
+    path: ..
+
+requirements:
+    host:
+        - python
+        - pip
+    run:
+        - psutil >=5.7.0
+        - ratelimiter >=1.2.0
+        - prettytable >=3.2.0
+        - configparser >=5.0.2
+
+about:
+    home: https://github.com/yodeng/runjob
+    license: BSD

@@ -47,7 +47,7 @@ shell脚本格式如下：
 ```shell
 echo hello // -c 1 -m 1 --mode sge -q all.q
 echo word
-wait`
+wait
 echo end
 ```
 
@@ -55,7 +55,7 @@ echo end
 
 + `wait`会阻塞当前任务投递过程，同时参数`--num`也会限定当前最大运行的任务数。
 
-+ 需要注释的行可在开通添加`"#"`。
++ 需要注释的行可使用`"#"`。
 
 
 
