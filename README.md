@@ -20,6 +20,10 @@ python >=2.7.10, <3.10
 	or:
 	
 	pip install --upgrade runjob
+	
+	or:
+	
+	conda install -c yodeng runjob
 
 ## User Guide
 
