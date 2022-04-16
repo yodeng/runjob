@@ -217,7 +217,7 @@ class qsub(object):
             os._exit(signal.SIGTERM)
 
     def writestates(self, outstat):
-        summary = {j.name: j.status for j in self.jobs}
+        summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
         with open(outstat, "w") as fo:
             fo.write(str(dict(Counter(summary.values()))) + "\n\n")
             sumout = {}

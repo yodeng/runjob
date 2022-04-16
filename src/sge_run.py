@@ -20,6 +20,7 @@ from .version import __version__
 from .qsub import myQueue, QsubError
 from .config import load_config, print_config
 
+from copy import deepcopy
 from threading import Thread
 from datetime import datetime
 from collections import Counter
@@ -60,17 +61,29 @@ class RunSge(object):
         self.groups = groups
 
         self.jobsgraph = dag.DAG()
+        new_pre_dep = []
         pre_dep = []
         dep = []
+        while True:
+            if not len(self.jobs) or self.jobs[-1].rawstring.strip() != "wait":
+                break
+            self.jobs.pop()
         for jb in self.jobs[:]:
             if jb.rawstring == "wait":
                 self.jobs.remove(jb)
                 if dep:
+                    new_pre_dep = []
                     pre_dep = dep
                     dep = []
             else:
                 self.jobsgraph.add_node_if_not_exists(jb.jobname)
                 dep.append(jb)
+                if new_pre_dep:
+                    for i in new_pre_dep:
+                        self.totaljobdict[i.jobname] = i
+                        self.jobsgraph.add_node_if_not_exists(i.jobname)
+                        self.jobsgraph.add_edge(i.jobname, jb.jobname)
+                    continue
                 if pre_dep:
                     new_pre_dep = []
                     tmpj = None
@@ -79,18 +92,37 @@ class RunSge(object):
                             if tmpj:
                                 tmpj.raw2cmd()
                                 new_pre_dep.append(tmpj)
-                            tmpj = i
+                            tmpj = deepcopy(i)
                         else:
                             tmpj.rawstring += "\n" + i.rawstring
-                            self.jobs.remove(i)
+                            if i in self.jobs:
+                                self.jobs.remove(i)
                             self.jobsgraph.delete_node_if_exists(i.name)
-                    tmpj.raw2cmd()
-                    new_pre_dep.append(tmpj)
+                    if tmpj:
+                        tmpj.raw2cmd()
+                        new_pre_dep.append(tmpj)
                     for i in new_pre_dep:
                         self.totaljobdict[i.jobname] = i
                         self.jobsgraph.add_node_if_not_exists(i.jobname)
                         self.jobsgraph.add_edge(i.jobname, jb.jobname)
-
+        if dep:
+            pre_dep = dep
+            new_pre_dep = []
+            tmpj = None
+            for n, i in enumerate(pre_dep):
+                if n % self.groups == 0:
+                    if tmpj:
+                        tmpj.raw2cmd()
+                        self.totaljobdict[tmpj.jobname] = tmpj
+                    tmpj = deepcopy(i)
+                else:
+                    tmpj.rawstring += "\n" + i.rawstring
+                    if i in self.jobs:
+                        self.jobs.remove(i)
+                    self.jobsgraph.delete_node_if_exists(i.name)
+            if tmpj:
+                tmpj.raw2cmd()
+                self.totaljobdict[tmpj.jobname] = tmpj
         if self.conf.get("args", "call_back"):
             cmd = self.conf.get("args", "call_back")
             name = "call_back"
@@ -365,7 +397,7 @@ class RunSge(object):
                             "Delete job error, you have no assess with job %s", j.Name)
 
     def writestates(self, outstat):
-        summary = {j.name: j.status for j in self.jobs}
+        summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
         with open(outstat, "w") as fo:
             fo.write(str(dict(Counter(summary.values()))) + "\n\n")
             sumout = {}
