@@ -24,7 +24,7 @@ pytz==2021.3
 ratelimiter==1.2.0.post0
 recommonmark==0.7.1
 requests==2.27.1
-runjob==2.10.0
+runjob==2.10.1
 six==1.16.0
 snowballstemmer==2.2.0
 Sphinx==4.4.0
