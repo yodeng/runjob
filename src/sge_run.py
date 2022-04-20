@@ -59,94 +59,56 @@ class RunSge(object):
         self.cloudjob = {}
         self.conf = config
         self.groups = groups
-
         self.jobsgraph = dag.DAG()
-        new_pre_dep = []
-        pre_dep = []
-        dep = []
-        while True:
-            if not len(self.jobs) or self.jobs[-1].rawstring.strip() != "wait":
-                break
-            self.jobs.pop()
-        for jb in self.jobs[:]:
-            if jb.rawstring == "wait":
-                self.jobs.remove(jb)
-                if dep:
-                    new_pre_dep = []
-                    pre_dep = dep
-                    dep = []
+        j_groups = []
+        tmp = []
+        for j in self.jobs[:]:
+            if j.rawstring == "wait":
+                self.jobs.remove(j)
+                if tmp:
+                    j_groups.append(tmp)
+                    tmp = []
             else:
-                self.jobsgraph.add_node_if_not_exists(jb.jobname)
-                dep.append(jb)
-                if new_pre_dep:
-                    for i in new_pre_dep:
-                        self.totaljobdict[i.jobname] = i
-                        self.jobsgraph.add_node_if_not_exists(i.jobname)
-                        self.jobsgraph.add_edge(i.jobname, jb.jobname)
-                    continue
-                if pre_dep:
-                    new_pre_dep = []
-                    tmpj = None
-                    for n, i in enumerate(pre_dep):
-                        if n % self.groups == 0:
-                            if tmpj:
-                                tmpj.raw2cmd()
-                                new_pre_dep.append(tmpj)
-                            tmpj = deepcopy(i)
-                        else:
-                            tmpj.rawstring += "\n" + i.rawstring
-                            if i in self.jobs:
-                                self.jobs.remove(i)
-                            self.jobsgraph.delete_node_if_exists(i.name)
-                    if tmpj:
-                        tmpj.raw2cmd()
-                        new_pre_dep.append(tmpj)
-                    for i in new_pre_dep:
-                        self.totaljobdict[i.jobname] = i
-                        self.jobsgraph.add_node_if_not_exists(i.jobname)
-                        self.jobsgraph.add_edge(i.jobname, jb.jobname)
-        if dep:
-            pre_dep = dep
-            new_pre_dep = []
-            tmpj = None
-            for n, i in enumerate(pre_dep):
-                if n % self.groups == 0:
-                    if tmpj:
-                        tmpj.raw2cmd()
-                        self.totaljobdict[tmpj.jobname] = tmpj
-                    tmpj = deepcopy(i)
-                else:
-                    tmpj.rawstring += "\n" + i.rawstring
-                    if i in self.jobs:
-                        self.jobs.remove(i)
-                    self.jobsgraph.delete_node_if_exists(i.name)
-            if tmpj:
-                tmpj.raw2cmd()
-                self.totaljobdict[tmpj.jobname] = tmpj
-        if self.conf.get("args", "call_back"):
-            cmd = self.conf.get("args", "call_back")
-            name = "call_back"
-            call_back_job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
-            call_back_job.forceToLocal(jobname=name, removelog=True)
-            self.jobsgraph.add_node_if_not_exists(call_back_job.jobname)
-            self.jobs.append(call_back_job)
-            self.totaljobdict["call_back"] = call_back_job
-            for i in self.jobsgraph.all_nodes:
-                if i == name:
-                    continue
-                self.jobsgraph.add_edge(i, name)
-        if self.conf.get("args", "init"):
-            cmd = self.conf.get("args", "init")
-            name = "init"
-            init_job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
-            init_job.forceToLocal(jobname=name, removelog=True)
-            self.jobsgraph.add_node_if_not_exists(init_job.jobname)
-            self.jobs.append(init_job)
-            self.totaljobdict[name] = init_job
-            for i in self.jobsgraph.all_nodes:
-                if i == name:
-                    continue
-                self.jobsgraph.add_edge(name, i)
+                tmp.append(j)
+        if tmp:
+            j_groups.append(tmp)
+        j_pre = []
+        for j_group in j_groups:
+            j_dep = []
+            for one_group in [j_group[i:i+self.groups] for i in range(0, len(j_group), self.groups)]:
+                j0 = one_group[0]
+                for ji in one_group[1:]:
+                    j0.rawstring += "\n" + ji.rawstring
+                    self.jobs.remove(ji)
+                j0.raw2cmd()
+                self.totaljobdict[j0.jobname] = j0
+                self.jobsgraph.add_node_if_not_exists(j0.jobname)
+                if j_pre:
+                    for j in j_pre:
+                        self.jobsgraph.add_edge(j.jobname, j0.jobname)
+                j_dep.append(j0)
+            j_pre = j_dep
+
+        for name in ["init", "call_back"]:
+            cmd = self.conf.get("args", name)
+            if not cmd:
+                continue
+            job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
+            job.forceToLocal(jobname=name, removelog=True)
+            self.totaljobdict[name] = job
+            if name == "init":
+                self.jobs.insert(0, job)
+                f = self.jobsgraph.ind_nodes()
+                self.jobsgraph.add_node_if_not_exists(job.jobname)
+                for j in f:
+                    self.jobsgraph.add_edge(name, j)
+            else:
+                self.jobs.append(job)
+                f = [i for i, j in self.jobsgraph.graph.items() if not len(j)]
+                self.jobsgraph.add_node_if_not_exists(job.jobname)
+                for j in f:
+                    self.jobsgraph.add_edge(j, name)
+
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)

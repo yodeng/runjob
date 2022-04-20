@@ -13,11 +13,7 @@ from .utils import *
 
 class Jobfile(object):
     def __init__(self, jobfile, mode=None):
-        try:
-            p = check_output("command -v qstat", shell=True)
-            self.has_sge = True
-        except:
-            self.has_sge = False
+        self.has_sge = os.getenv("SGE_ROOT")
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
@@ -270,11 +266,7 @@ class OrderError(Exception):
 
 class ShellFile(object):
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
-        try:
-            p = check_output("command -v qstat", shell=True)
-            self.has_sge = True
-        except:
-            self.has_sge = False
+        self.has_sge = os.getenv("SGE_ROOT")
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
@@ -299,7 +291,6 @@ class ShellFile(object):
 
     def jobshells(self, start=0, end=None):
         jobs = []
-        job = ""
         with open(self._path) as fi:
             for n, line in enumerate(fi):
                 if n < start:
@@ -325,11 +316,11 @@ class ShellJob(object):
         self.mem = 0
         self.queue = None
         self.out_maping = None
-        self.jobname = name + "_%d" % linenum
+        self.linenum = linenum + 1
+        self.jobname = name + "_%05d" % self.linenum
         self.name = self.jobname
-        self.linenum = linenum
         self.logfile = os.path.join(self.sf.logdir, os.path.basename(
-            self.sf._path) + "_line%d.log" % self.linenum)
+            self.sf._path) + "_line%05d.log" % self.linenum)
         self.subtimes = 0
         self.status = None
         self.host = self.sf.mode
@@ -356,7 +347,7 @@ class ShellJob(object):
         self.raw2cmd()
         if self.host == "batchcompute":
             self.jobname = getpass.getuser() + "_" + \
-                re.sub("[^a-zA-Z0-9_-]", "-", name + "_%d" % linenum)
+                re.sub("[^a-zA-Z0-9_-]", "-", name + "_%05d" % self.linenum)
             self.name = self.jobname
             self.cmd = self.rawstring
 
