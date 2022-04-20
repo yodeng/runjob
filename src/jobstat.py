@@ -29,11 +29,7 @@ def main():
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
         print(__doc__)
         sys.exit(0)
-    try:
-        p = check_output("command -v qstat", shell=True)
-        has_qstat = True
-    except:
-        has_qstat = False
+    has_qstat = os.getenv("SGE_ROOT")
     username = os.getenv("USER")
     if has_qstat:
         with os.popen("qstat -u \* | grep -P '^[\d\s]'") as fi:
