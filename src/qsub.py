@@ -94,22 +94,28 @@ class qsub(object):
         status = job.status
         logfile = os.path.join(self.logdir, jobname + ".log")
         if os.path.isfile(logfile):
-            try:
-                with os.popen('tail -n 1 %s' % logfile) as fi:
-                    sta = fi.read().split()[-1]
-            except IndexError:
-                if status not in ["submit", "resubmit"]:
+            with os.popen('tail -n 1 %s' % logfile) as fi:
+                sta = fi.read().strip()
+                stal = sta.split()
+            if sta:
+                if stal[-1] == "SUCCESS":
+                    status = "success"
+                elif stal[-1] == "ERROR":
+                    status = "error"
+                elif stal[-1] == "Exiting.":
+                    status = "exit"
+                elif "RUNNING..." in sta:
                     status = "run"
-            if sta == "SUCCESS":
-                status = "success"
-            elif sta == "ERROR":
-                status = "error"
-            elif sta == "Exiting.":
-                status = "exit"
+                # sge submit, but not running
+                elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
+                    with os.popen("qstat -j %s | tail -n 1" % jobname) as fi:
+                        info = fi.read()
+                        if info.startswith("error") or ("error" in info and "Job is in error" in info):
+                            status = "error"
+                else:
+                    status = "run"
             else:
-                with os.popen("sed -n '3p' %s" % logfile) as fi:
-                    if "RUNNING..." in fi.read():
-                        status = "run"
+                status = "run"
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
             job.status = status
@@ -133,6 +139,9 @@ class qsub(object):
                         elif js == "error":
                             if jb.name in self.localprocess:
                                 self.localprocess[jb.name].wait()
+                            if jb.host == "sge":
+                                call(["qdel", jb.jobname],
+                                     stderr=PIPE, stdout=PIPE)
                             self.jobqueue.get(jb)
                             if jb.subtimes >= self.times + 1:
                                 if self.usestrict:
@@ -142,6 +151,9 @@ class qsub(object):
                             else:
                                 self.submit(jb)
                         elif js == "exit":
+                            if jb.host == "sge":
+                                call(["qdel", jb.jobname],
+                                     stderr=PIPE, stdout=PIPE)
                             if self.usestrict:
                                 self.throw("Error when submit, %s" % jb.name)
 

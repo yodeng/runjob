@@ -164,23 +164,28 @@ class RunSge(object):
                 self.logger.debug("job %s status %s", jobid, status)
         else:
             if os.path.isfile(logfile):
-                try:
-                    with os.popen('tail -n 1 %s' % logfile) as fi:
-                        sta = fi.read().split()[-1]
-                except IndexError:
-                    if status not in ["submit", "resubmit"]:
+                with os.popen('tail -n 1 %s' % logfile) as fi:
+                    sta = fi.read().strip()
+                    stal = sta.split()
+                if sta:
+                    if stal[-1] == "SUCCESS":
+                        status = "success"
+                    elif stal[-1] == "ERROR":
+                        status = "error"
+                    elif stal[-1] == "Exiting.":
+                        status = "exit"
+                    elif "RUNNING..." in sta:
                         status = "run"
-                        sta = status
-                if sta == "SUCCESS":
-                    status = "success"
-                elif sta == "ERROR":
-                    status = "error"
-                elif sta == "Exiting.":
-                    status = "exit"
+                    # sge submit, but not running
+                    elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
+                        with os.popen("qstat -j %s | tail -n 1" % jobname) as fi:
+                            info = fi.read()
+                            if info.startswith("error") or ("error" in info and "Job is in error" in info):
+                                status = "error"
+                    else:
+                        status = "run"
                 else:
-                    with os.popen("sed -n '3p' %s" % logfile) as fi:
-                        if "RUNNING..." in fi.read():
-                            status = "run"
+                    status = "run"
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
@@ -212,6 +217,9 @@ class RunSge(object):
                         elif js == "error":
                             if jb.jobname in self.localprocess:
                                 self.localprocess[jb.jobname].wait()
+                            if jb.host == "sge":
+                                call(["qdel", jb.jobname],
+                                     stderr=PIPE, stdout=PIPE)
                             self.jobqueue.get(jb)
                             if jb.subtimes >= self.times + 1:
                                 if self.strict:
@@ -222,6 +230,9 @@ class RunSge(object):
                             else:
                                 self.submit(jb)
                         elif js == "exit":
+                            if jb.host == "sge":
+                                call(["qdel", jb.jobname],
+                                     stderr=PIPE, stdout=PIPE)
                             if self.strict:
                                 self.throw("Error when submit")
 
@@ -250,14 +261,21 @@ class RunSge(object):
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
-                p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                if job.workdir != self.sgefile.workdir:
+                    if not os.path.isdir(job.workdir):
+                        os.makedirs(job.workdir)
+                    os.chdir(job.workdir)
+                    p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                    os.chdir(self.sgefile.workdir)
+                else:
+                    p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
                 jobcpu = job.cpu if job.cpu else self.cpu
                 jobmem = job.mem if job.mem else self.mem
                 self.queue = job.queue if job.queue else self.queue
                 cmd = 'echo "%s" | qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
-                    job.cmd, " -q ".join(self.queue), self.sgefile.workdir, job.jobname, logfile, jobmem, jobcpu)
+                    job.cmd, " -q ".join(self.queue), job.workdir, job.jobname, logfile, jobmem, jobcpu)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
@@ -333,7 +351,7 @@ class RunSge(object):
         else:
             if self.sgefile.mode == "sge":
                 self.logger.info(msg)
-                call('qdel "%s*"' % self.sgefile.name,
+                call(['qdel', "%s*" % self.sgefile.name],
                      shell=True, stderr=PIPE, stdout=PIPE)
                 os._exit(signal.SIGTERM)
             elif self.sgefile.mode == "batchcompute":
@@ -400,11 +418,8 @@ def main():
                    level="debug" if args.debug else "info", name=__name__)
     runsge = RunSge(config=conf)
     runsge.run(times=args.resub, resubivs=args.resubivs)
-    success = sumJobs(runsge)
-    if success:
-        return 0
-    else:
-        return 1
+    if not sumJobs(runsge):
+        os.kill(os.getpid(), signal.SIGTERM)
 
 
 if __name__ == "__main__":
