@@ -24,6 +24,7 @@ class ParseSingal(Thread):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGUSR1, self.signal_handler_u1)
         self.clear = clear
         self.qjobs = qjobs
 
@@ -31,7 +32,11 @@ class ParseSingal(Thread):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
-        cleanAll(clear=self.clear, qjobs=self.qjobs)
+        cleanAll(clear=self.clear, qjobs=self.qjobs, sumj=True)
+        sys.exit(signum)
+
+    def signal_handler_u1(self, signum, frame):
+        cleanAll(clear=self.clear, qjobs=self.qjobs, sumj=False)
         sys.exit(signum)
 
 
@@ -88,11 +93,8 @@ def main():
     h = ParseSingal(clear=args.noclean, qjobs=qjobs)
     h.start()
     qjobs.run(times=args.resub, resubivs=args.resubivs)
-    success = sumJobs(qjobs)
-    if success:
-        return 0
-    else:
-        return 1
+    if not sumJobs(qjobs):
+        os.kill(os.getpid(), signal.SIGUSR1)
 
 
 if __name__ == "__main__":

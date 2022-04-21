@@ -86,7 +86,7 @@ def Mylog(logfile=None, level="info", name=None):
     return logger
 
 
-def cleanAll(clear=False, qjobs=None):
+def cleanAll(clear=False, qjobs=None, sumj=True):
     if qjobs is None:
         return
     stillrunjob = qjobs.jobqueue.queue
@@ -98,7 +98,6 @@ def cleanAll(clear=False, qjobs=None):
                 continue
             jn.status = "killed"
             qjobs.logger.info("job %s status killed", jn.name)
-        sumJobs(qjobs)
         call('qdel "*_%d"' % os.getpid(),
              shell=True, stderr=PIPE, stdout=PIPE)
     else:
@@ -107,6 +106,7 @@ def cleanAll(clear=False, qjobs=None):
                 continue
             jn.status += "-but-exit"
             qjobs.logger.info("job %s status %s", jn.name, jn.status)
+    if sumj:
         sumJobs(qjobs)
 
 
@@ -230,5 +230,6 @@ def shellJobArgparser(arglist):
     parser.add_argument("-c", "--cpu", type=int)
     parser.add_argument("-n", "--jobname", type=str)
     parser.add_argument("-om", "--out-maping", type=str)
+    parser.add_argument("-wd", "--workdir", type=str)
     parser.add_argument('--mode', type=str)
     return parser.parse_known_args(arglist)[0]

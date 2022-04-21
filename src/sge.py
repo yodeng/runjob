@@ -33,7 +33,8 @@ class ParseSingal(Thread):
     def signal_handler(self, signum, frame):
         user = getpass.getuser()
         if self.mode == "sge":
-            call('qdel "%s*"' % self.name, shell=True, stderr=PIPE, stdout=PIPE)
+            call(['qdel', "%s*" % self.name],
+                 shell=True, stderr=PIPE, stdout=PIPE)
         elif self.mode == "batchcompute":
             jobs = self.conf.jobqueue.queue
             for jb in jobs:
