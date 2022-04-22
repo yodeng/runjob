@@ -279,7 +279,8 @@ class RunSge(object):
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
-                call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                call(cmd.replace("`", "\`"), shell=True,
+                     stdout=logcmd, stderr=logcmd)
             elif job.host == "batchcompute":
                 jobcpu = job.cpu if job.cpu else self.cpu
                 jobmem = job.mem if job.mem else self.mem
@@ -333,7 +334,7 @@ class RunSge(object):
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
                 break
-            for j in subjobs:
+            for j in sorted(subjobs):
                 jb = self.totaljobdict[j]
                 if jb in self.jobqueue.queue:
                     continue
@@ -352,7 +353,7 @@ class RunSge(object):
             if self.sgefile.mode == "sge":
                 self.logger.info(msg)
                 call(['qdel', "%s*" % self.sgefile.name],
-                     shell=True, stderr=PIPE, stdout=PIPE)
+                     stderr=PIPE, stdout=PIPE)
                 os._exit(signal.SIGTERM)
             elif self.sgefile.mode == "batchcompute":
                 for jb in self.jobqueue.queue:
