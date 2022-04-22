@@ -98,8 +98,7 @@ def cleanAll(clear=False, qjobs=None, sumj=True):
                 continue
             jn.status = "killed"
             qjobs.logger.info("job %s status killed", jn.name)
-        call('qdel "*_%d"' % os.getpid(),
-             shell=True, stderr=PIPE, stdout=PIPE)
+        call(['qdel,  "*_%d"' % os.getpid()], stderr=PIPE, stdout=PIPE)
     else:
         for jn in stillrunjob:
             if jn.status in ["error", "success"]:

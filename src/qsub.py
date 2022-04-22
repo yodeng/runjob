@@ -216,7 +216,8 @@ class qsub(object):
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
-                call(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                call(cmd.replace("`", "\`"), shell=True,
+                     stdout=logcmd, stderr=logcmd)
             job.subtimes += 1
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
 
