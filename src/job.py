@@ -326,6 +326,7 @@ class ShellJob(object):
         self.host = self.sf.mode
         self.cmd0 = cmd
         self.workdir = self.sf.workdir
+        self.remote = False
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:

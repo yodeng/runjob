@@ -3,3 +3,4 @@ ratelimiter
 batchcompute
 prettytable
 configparser
+paramiko
