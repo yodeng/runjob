@@ -59,13 +59,13 @@ class qsub(object):
                          " ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
 
-        self.has_success = set()
+        self.has_success = []
         for job in self.jobs[:]:
             lf = os.path.join(self.logdir, job.name + ".log")
             job.subtimes = 0
             if job.status is not None and job.status in ["done", "success"]:
                 self.jobsgraph.delete_node_if_exists(job.name)
-                self.has_success.add(job.name)
+                self.has_success.append(job.name)
                 self.jobs.remove(job)
                 continue
             if os.path.isfile(lf):
@@ -73,9 +73,14 @@ class qsub(object):
                 if js != "success":
                     os.remove(lf)
                     job.status = "wait"
+                elif hasattr(job, "logcmd") and job.logcmd.strip() != job.cmd.strip():
+                    self.logger.info(
+                        "job %s status already success, but raw command changed, will re-runing", job.name)
+                    os.remove(lf)
+                    job.status = "wait"
                 else:
                     self.jobsgraph.delete_node_if_exists(job.name)
-                    self.has_success.add(job.name)
+                    self.has_success.append(job.name)
                     self.jobs.remove(job)
             else:
                 job.status = "wait"
@@ -116,6 +121,16 @@ class qsub(object):
                     status = "run"
             else:
                 status = "run"
+            if not self.is_run and status == "success":
+                job.logcmd = ""
+                with open(logfile) as fi:
+                    for line in fi:
+                        if not line.strip():
+                            continue
+                        if line.startswith("["):
+                            break
+                        job.logcmd += line
+                job.logcmd = job.logcmd.strip()
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
             job.status = status

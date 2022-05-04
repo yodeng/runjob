@@ -2,6 +2,8 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/runjob.svg?logo=pypi&logoColor=FFE873)](https://pypi.python.org/pypi/runjob)
 [![Downloads](https://pepy.tech/badge/runjob)](https://pepy.tech/project/runjob)
+[![Anaconda-Server Badge](https://anaconda.org/yodeng/runjob/badges/version.svg)](https://anaconda.org/yodeng/runjob)
+[![Anaconda-Server Badge](https://anaconda.org/yodeng/runjob/badges/installer/conda.svg)](https://conda.anaconda.org/yodeng)
 
 ## Summary
 
@@ -9,21 +11,29 @@ runjob is a program for managing a group of related jobs running on a compute cl
 
 ## Software Requirements
 
-python >=2.7.10, <3.10
+python >=2.7.10, <=3.10
 
 ## Installation
 
-	git clone https://github.com/yodeng/runjob.git
-	
-	pip install ./runjob
-	
-	or:
-	
-	pip install --upgrade runjob
-	
-	or:
-	
-	conda install -c yodeng runjob
+The latest release can be installed with
+
+> pypi:
+
+```
+pip install runjob
+```
+
+> conda:
+
+```
+conda install -c yodeng runjob
+```
+
+The development version can be installed with
+
+```
+pip install git+https://github.com/yodeng/runjob.git
+```
 
 ## User Guide
 
@@ -55,3 +65,4 @@ yodeng@tju.edu.cn.
 ## Todo
 
 More functions will be improved in the future.
+
