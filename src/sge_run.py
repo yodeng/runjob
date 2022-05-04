@@ -94,7 +94,7 @@ class RunSge(object):
             if not cmd:
                 continue
             job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
-            job.forceToLocal(jobname=name, removelog=True)
+            job.forceToLocal(jobname=name, removelog=False)
             self.totaljobdict[name] = job
             if name == "init":
                 self.jobs.insert(0, job)
@@ -113,7 +113,7 @@ class RunSge(object):
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
 
-        self.has_success = set()
+        self.has_success = []
         for job in self.jobs[:]:
             lf = job.logfile
             job.subtimes = 0
@@ -122,9 +122,14 @@ class RunSge(object):
                 if js != "success":
                     os.remove(lf)
                     job.status = "wait"
+                elif hasattr(job, "logcmd") and job.logcmd.strip() != job.rawstring.strip():
+                    self.logger.info(
+                        "job %s status already success, but raw command changed, will re-runing", job.jobname)
+                    os.remove(lf)
+                    job.status = "wait"
                 else:
                     self.jobsgraph.delete_node_if_exists(job.jobname)
-                    self.has_success.add(job.jobname)
+                    self.has_success.append(job.jobname)
                     self.jobs.remove(job)
             else:
                 job.status = "wait"
@@ -186,6 +191,16 @@ class RunSge(object):
                         status = "run"
                 else:
                     status = "run"
+                if not self.is_run and status == "success":
+                    job.logcmd = ""
+                    with open(logfile) as fi:
+                        for line in fi:
+                            if not line.strip():
+                                continue
+                            if line.startswith("["):
+                                break
+                            job.logcmd += line
+                    job.logcmd = job.logcmd.strip()
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
