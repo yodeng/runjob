@@ -29,7 +29,7 @@ setup(
     url="https://github.com/yodeng/runjob",
     license="BSD",
     install_requires=["psutil", "ratelimiter",
-                      "batchcompute", "prettytable", "configparser"],
+                      "batchcompute", "prettytable", "configparser", "paramiko"],
     python_requires='>=2.7.10, <3.10',
     long_description=getdes(),
     long_description_content_type='text/markdown',

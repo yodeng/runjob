@@ -43,6 +43,21 @@ class RunSge(object):
         groups = config.get("args", "groups")
         strict = config.get("args", "strict")
         mode = config.get("args", "mode")
+        self.ssh = None
+        if mode == "sge" and config.get("args", "user"):
+            self.ssh = SshRemoteHost(host="localhost", port=22)
+            if config.get("args", "rsa_key_file"):
+                self.ssh.login(username=config.get("args", "user"),
+                               pkeyfile=config.get("args", "rsa_key_file"))
+            elif config.get("args", "passwd"):
+                self.ssh.login(username=config.get("args", "user"),
+                               password=config.get("args", "passwd"))
+            else:
+                rsa_key_file = os.path.join(
+                    os.getenv("HOME"), ".ssh", "id_rsa.%s" % config.get("args", "user"))
+                if os.path.isfile(rsa_key_file):
+                    self.ssh.login(username=config.get("args", "user"),
+                                   pkeyfile=rsa_key_file)
         self.sgefile = ShellFile(sgefile, mode=mode, name=name,
                                  logdir=logdir, workdir=workdir)
         self.jfile = self.sgefile._path
@@ -246,14 +261,20 @@ class RunSge(object):
 
     def deletejob(self, jb=None, name=""):
         if name:
-            call(['qdel', "%s*" % name],
-                 stderr=PIPE, stdout=PIPE)
+            if self.ssh:
+                self.ssh.run("qdel %s*" % name)
+            else:
+                call(['qdel', "%s*" % name],
+                     stderr=PIPE, stdout=PIPE)
         else:
             if jb.jobname in self.localprocess:
                 self.localprocess[jb.jobname].wait()
             if jb.host == "sge":
-                call(["qdel", jb.jobname],
-                     stderr=PIPE, stdout=PIPE)
+                if jb.remote:
+                    self.ssh.run("qdel " + jb.jobname)
+                else:
+                    call(["qdel", jb.jobname],
+                         stderr=PIPE, stdout=PIPE)
 
     def submit(self, job):
         if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
@@ -298,8 +319,19 @@ class RunSge(object):
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
-                call(cmd.replace("`", "\`"), shell=True,
-                     stdout=logcmd, stderr=logcmd)
+                if not self.ssh:
+                    call(cmd.replace("`", "\`"), shell=True,
+                         stdout=logcmd, stderr=logcmd)
+                else:
+                    job.remote = True
+                    if oct(os.stat(job.workdir).st_mode)[-3:] != "777":
+                        call(['chmod', "-R", "777", job.workdir],
+                             stdout=PIPE, stderr=PIPE)
+                    os.chmod(logfile, 0o666)
+                    stdin, stdout, stderr = self.ssh.run(
+                        cmd.replace("`", "\`"))
+                    logcmd.write(stdout.read().decode()+stderr.read().decode())
+                    logcmd.flush()
             elif job.host == "batchcompute":
                 jobcpu = job.cpu if job.cpu else self.cpu
                 jobmem = job.mem if job.mem else self.mem

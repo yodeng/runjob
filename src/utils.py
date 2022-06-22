@@ -4,6 +4,7 @@ import pdb
 import logging
 import argparse
 import threading
+import paramiko
 
 from collections import Counter
 from subprocess import call, PIPE
@@ -199,6 +200,12 @@ def runsgeArgparser():
                         type=str,  metavar="<cmd>")
     parser.add_argument('--mode', type=str, default="sge", choices=[
                         "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, 'sge' by default")
+    parser.add_argument('--user', help="username to run jobs in 'sge' mode",
+                        type=str, metavar="<str>")
+    parser.add_argument('--passwd', help="passwd for --user, only work in 'sge' mode",
+                        type=str, metavar="<str>")
+    parser.add_argument('--rsa-key-file', help="rsa key file if no passwd for user, only work in 'sge' mode",
+                        type=str, metavar="<file>")
     parser.add_argument('--access-key-id', type=str,
                         help="AccessKeyID while access oss", metavar="<str>")
     parser.add_argument('--access-key-secret', type=str,
@@ -232,3 +239,46 @@ def shellJobArgparser(arglist):
     parser.add_argument("-wd", "--workdir", type=str)
     parser.add_argument('--mode', type=str)
     return parser.parse_known_args(arglist)[0]
+
+
+class SshRemoteHost(object):
+    def __init__(self, host="", port=None):
+        self.host = host
+        self.port = port
+        self.client = paramiko.SSHClient()
+        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self.sftp = None
+
+    def login(self, username="", password="", pkeyfile=""):
+        self.username = username
+        self.password = password
+        if pkeyfile:
+            private_key = paramiko.RSAKey.from_private_key_file(pkeyfile)
+            self.client.connect(hostname=self.host,
+                                port=self.port,
+                                username=self.username,
+                                pkey=private_key)
+
+        else:
+            self.client.connect(hostname=self.host,
+                                port=self.port,
+                                username=self.username,
+                                password=self.password)
+        self.sftp = paramiko.SFTPClient.from_transport(
+            self.client.get_transport())
+
+    def run(self, cmd):
+        return self.client.exec_command(cmd)
+
+    def close(self):
+        self.client.close()
+        if self.sftp:
+            self.sftp.close()
+
+    def get(self, romotepath="", localpath=""):
+        if self.sftp:
+            self.sftp.get(romotepath, localpath)
+
+    def put(self, localpath, romotepath):
+        if self.sftp:
+            self.sftp.put(localpath, romotepath)
