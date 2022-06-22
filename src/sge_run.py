@@ -225,16 +225,11 @@ class RunSge(object):
                         except:
                             continue
                         if js == "success":
-                            if jb.jobname in self.localprocess:
-                                self.localprocess[jb.jobname].wait()
+                            self.deletejob(jb)
                             self.jobqueue.get(jb)
                             self.jobsgraph.delete_node_if_exists(jb.jobname)
                         elif js == "error":
-                            if jb.jobname in self.localprocess:
-                                self.localprocess[jb.jobname].wait()
-                            if jb.host == "sge":
-                                call(["qdel", jb.jobname],
-                                     stderr=PIPE, stdout=PIPE)
+                            self.deletejob(jb)
                             self.jobqueue.get(jb)
                             if jb.subtimes >= self.times + 1:
                                 if self.strict:
@@ -245,11 +240,20 @@ class RunSge(object):
                             else:
                                 self.submit(jb)
                         elif js == "exit":
-                            if jb.host == "sge":
-                                call(["qdel", jb.jobname],
-                                     stderr=PIPE, stdout=PIPE)
+                            self.deletejob(jb)
                             if self.strict:
                                 self.throw("Error when submit")
+
+    def deletejob(self, jb=None, name=""):
+        if name:
+            call(['qdel', "%s*" % name],
+                 stderr=PIPE, stdout=PIPE)
+        else:
+            if jb.jobname in self.localprocess:
+                self.localprocess[jb.jobname].wait()
+            if jb.host == "sge":
+                call(["qdel", jb.jobname],
+                     stderr=PIPE, stdout=PIPE)
 
     def submit(self, job):
         if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
@@ -367,8 +371,7 @@ class RunSge(object):
         else:
             if self.sgefile.mode == "sge":
                 self.logger.info(msg)
-                call(['qdel', "%s*" % self.sgefile.name],
-                     stderr=PIPE, stdout=PIPE)
+                self.deletejob(name=self.sgefile.name)
                 os._exit(signal.SIGTERM)
             elif self.sgefile.mode == "batchcompute":
                 for jb in self.jobqueue.queue:
@@ -428,11 +431,11 @@ def main():
         args.logdir = "runjob_"+os.path.basename(args.jobfile) + "_log_dir"
     args.logdir = os.path.join(args.workdir, args.logdir)
     conf.update_dict(**args.__dict__)
-    h = ParseSingal(name=args.jobname, mode=args.mode, conf=conf)
-    h.start()
     logger = Mylog(logfile=args.log,
                    level="debug" if args.debug else "info", name=__name__)
     runsge = RunSge(config=conf)
+    h = ParseSingal(obj=runsge, name=args.jobname, mode=args.mode, conf=conf)
+    h.start()
     runsge.run(times=args.resub, resubivs=args.resubivs)
     if not sumJobs(runsge):
         os.kill(os.getpid(), signal.SIGTERM)
