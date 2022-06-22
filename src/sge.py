@@ -19,10 +19,11 @@ from .cluster import *
 
 
 class ParseSingal(Thread):
-    def __init__(self, name="", mode="sge", conf=None):
+    def __init__(self, obj=None, name="", mode="sge", conf=None):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+        self.obj = obj
         self.name = name
         self.mode = mode
         self.conf = conf
@@ -33,7 +34,10 @@ class ParseSingal(Thread):
     def signal_handler(self, signum, frame):
         user = getpass.getuser()
         if self.mode == "sge":
-            call(['qdel', "%s*" % self.name], stderr=PIPE, stdout=PIPE)
+            try:
+                self.obj.deletejob(name=self.name)
+            except:
+                call(['qdel', "%s*" % self.name], stderr=PIPE, stdout=PIPE)
         elif self.mode == "batchcompute":
             jobs = self.conf.jobqueue.queue
             for jb in jobs:
