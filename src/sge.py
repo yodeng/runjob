@@ -32,13 +32,13 @@ class ParseSingal(Thread):
         time.sleep(1)
 
     def signal_handler(self, signum, frame):
-        user = getpass.getuser()
         if self.mode == "sge":
             try:
                 self.obj.deletejob(name=self.name)
             except:
                 call(['qdel', "%s*" % self.name], stderr=PIPE, stdout=PIPE)
         elif self.mode == "batchcompute":
+            user = getpass.getuser()
             jobs = self.conf.jobqueue.queue
             for jb in jobs:
                 jobname = jb.name
@@ -59,6 +59,8 @@ class ParseSingal(Thread):
                 else:
                     self.conf.logger.info(
                         "Delete job error, you have no assess with job %s", j.Name)
+        for j, p in self.obj.localprocess.items():
+            p.terminate()
         sys.exit(signum)
 
 
