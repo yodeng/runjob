@@ -24,7 +24,7 @@ from copy import deepcopy
 from threading import Thread
 from datetime import datetime
 from collections import Counter
-from subprocess import Popen, call, PIPE
+from subprocess import Popen, call, PIPE, check_output
 
 
 class RunSge(object):
@@ -183,10 +183,13 @@ class RunSge(object):
                         status = "run"
                     # sge submit, but not running
                     elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
-                        with os.popen("qstat -j %s | tail -n 1" % jobname) as fi:
-                            info = fi.read()
+                        try:
+                            info = check_output(
+                                "qstat -j %s | tail -n 1" % jobname, shell=True)
                             if info.startswith("error") or ("error" in info and "Job is in error" in info):
                                 status = "error"
+                        except:
+                            status = "error"
                     else:
                         status = "run"
                 else:
