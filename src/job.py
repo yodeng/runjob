@@ -293,9 +293,9 @@ class ShellFile(object):
         jobs = []
         with open(self._path) as fi:
             for n, line in enumerate(fi):
-                if n < start:
+                if n < start-1:
                     continue
-                elif end is not None and n > end:
+                elif end is not None and n > end-1:
                     continue
                 line = line.strip().strip("&")
                 if line.startswith("#"):
