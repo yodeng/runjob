@@ -182,7 +182,7 @@ def runsgeArgparser():
     parser.add_argument("-n", "--num", type=int,
                         help="the max job number runing at the same time. default: all in your job file", metavar="<int>")
     parser.add_argument("-s", "--startline", type=int,
-                        help="which line number(0-base) be used for the first job tesk. default: 0", metavar="<int>", default=0)
+                        help="which line number(1-base) be used for the first job tesk. default: 1", metavar="<int>", default=1)
     parser.add_argument("-e", "--endline", type=int,
                         help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
     parser.add_argument("-g", "--groups", type=int, default=1,
