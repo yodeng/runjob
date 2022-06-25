@@ -335,6 +335,8 @@ class ShellJob(object):
                 for i in ["queue", "memory", "cpu", "out_maping", "workdir"]:
                     if getattr(args, i):
                         setattr(self, i, getattr(args, i))
+                if getattr(args, "memory"):
+                    self.mem = getattr(args, "memory")
                 if args.mode and args.mode in ["sge", "local", "localhost", "batchcompute"]:
                     self.host = args.mode
                 if args.jobname:
