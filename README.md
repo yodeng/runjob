@@ -1,5 +1,6 @@
 # runjob
 
+[![OSCS Status](https://www.oscs1024.com/platform/badge/yodeng/runjob.svg?size=small)](https://www.oscs1024.com/project/yodeng/runjob?ref=badge_small)
 [![PyPI version](https://img.shields.io/pypi/v/runjob.svg?logo=pypi&logoColor=FFE873)](https://pypi.python.org/pypi/runjob)
 [![Downloads](https://pepy.tech/badge/runjob)](https://pepy.tech/project/runjob)
 [![Anaconda-Server Badge](https://anaconda.org/yodeng/runjob/badges/version.svg)](https://anaconda.org/yodeng/runjob)
@@ -8,6 +9,10 @@
 ## Summary
 
 runjob is a program for managing a group of related jobs running on a compute cluster `localhost`, [Sun Grid Engine](http://star.mit.edu/cluster/docs/0.93.3/guides/sge.html), [BatchCompute](https://help.aliyun.com/product/27992.html) .  It provides a convenient method for specifying dependencies between jobs and the resource requirements for each job (e.g. memory, CPU cores). It monitors the status of the jobs so you can tell when the whole group is done. Litter cpu or memory resource is used in the login compute node.
+
+## OSCS
+
+[![OSCS Status](https://www.oscs1024.com/platform/badge/yodeng/runjob.svg?size=large)](https://www.oscs1024.com/project/yodeng/runjob?ref=badge_large)
 
 ## Software Requirements
 
@@ -65,4 +70,3 @@ yodeng@tju.edu.cn.
 ## Todo
 
 More functions will be improved in the future.
-

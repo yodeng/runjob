@@ -1,13 +1,18 @@
-{% set data = load_setup_py_data() %}
+{% set data = load_setup_py_data(setup_file='../setup.py', from_recipe_dir=True) %}
+{% set bc = "batchcompute" %}
+{% set bcv = "2.1.7" %}
+
 
 package:
-    name: runjob
+    name: {{ data.get('name') }}
     version: {{ data.get('version') }}
 
 build:
     number: 0
     string: py39
-    script: python setup.py install --single-version-externally-managed --record=record.txt
+    script:
+        - {{ PYTHON }} -m pip install https://pypi.io/packages/source/{{ bc[0] }}/{{ bc }}/{{ bc }}-{{ bcv }}.tar.gz
+        - {{ PYTHON }} -m pip install -vv .
 
 source:
     path: ..
