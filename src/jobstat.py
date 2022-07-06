@@ -5,6 +5,7 @@ Usage: qs [jobfile|logdir|logfile]
        qcs --help
 '''
 
+from __future__ import print_function
 import os
 import sys
 import pdb
@@ -141,6 +142,7 @@ def main():
                         elif "Total jobs to submit" in line:
                             alljobnames = line.split(
                                 "Total jobs to submit:")[1].split()
+                            alljobnames = [j.strip(",") for j in alljobnames]
                 stat2 = {}
                 for k, v in stat.items():
                     stat2.setdefault(v, []).append(k)
@@ -159,7 +161,7 @@ def main():
                     else:
                         print(style("{0:<20} {1:>5} ".format(
                             k + ":", num)), ", ".join(v))
-                wait = set(alljobnames) - set(stat.keys())
+                wait = sorted(set(alljobnames) - set(stat.keys()))
                 print(style("{0:<20} {1:>5} ".format(
                     "wait:", len(wait)), ", ".join(wait)))
                 print(style("-"*47, mode="bold"))
@@ -171,7 +173,8 @@ def main():
             raise IOError("No such file or directory %s." % jobfile)
 
         if not os.path.isdir(logdir):
-            raise IOError("No such log_dir %s" % logdir)
+            return
+            #raise IOError("No such log_dir %s" % logdir)
         if submit == 0:
             submit = len([i for i in os.listdir(
                 logdir) if i.endswith(".log")])
