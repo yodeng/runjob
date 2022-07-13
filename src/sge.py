@@ -59,8 +59,9 @@ class ParseSingal(Thread):
                 else:
                     self.conf.logger.info(
                         "Delete job error, you have no assess with job %s", j.Name)
-        for j, p in self.obj.localprocess.items():
-            p.terminate()
+        for _, p in self.obj.localprocess.items():
+            terminate_process(p.pid)
+            p.wait()
         sys.exit(signum)
 
 

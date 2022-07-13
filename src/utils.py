@@ -1,6 +1,7 @@
 import os
 import sys
 import pdb
+import psutil
 import logging
 import argparse
 import threading
@@ -160,6 +161,18 @@ def get_job_state(state):
         return style(state, fore="yellow")
     else:
         return style(state, fore="white")
+
+
+def terminate_process(pid):
+    try:
+        pproc = psutil.Process(pid)
+        for cproc in pproc.children(recursive=True):
+            # cproc.terminate() # SIGTERM
+            cproc.kill()  # SIGKILL
+        # pproc.terminate()
+        pproc.kill()
+    except:
+        pass
 
 
 def runsgeArgparser():
