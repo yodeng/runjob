@@ -6,6 +6,7 @@ import sys
 import pdb
 import time
 import signal
+import psutil
 import getpass
 import logging
 import argparse
@@ -233,14 +234,15 @@ class RunSge(object):
                             self.jobsgraph.delete_node_if_exists(jb.jobname)
                         elif js == "error":
                             self.deletejob(jb)
-                            self.jobqueue.get(jb)
                             if jb.subtimes >= self.times + 1:
                                 if self.strict:
                                     self.throw("Error jobs return(submit %d times, error), exist!, %s" % (jb.subtimes, os.path.join(
                                         self.logdir, jb.logfile)))  # if error, exit program
+                                self.jobqueue.get(jb)
                                 self.jobsgraph.delete_node_if_exists(
                                     jb.jobname)
                             else:
+                                self.jobqueue.get(jb)
                                 self.submit(jb)
                         elif js == "exit":
                             self.deletejob(jb)
@@ -253,7 +255,9 @@ class RunSge(object):
                  stderr=PIPE, stdout=PIPE)
         else:
             if jb.jobname in self.localprocess:
-                self.localprocess[jb.jobname].wait()
+                p = self.localprocess[jb.jobname]
+                terminate_process(p.pid)
+                p.wait()
             if jb.host == "sge":
                 call(["qdel", jb.jobname],
                      stderr=PIPE, stdout=PIPE)
@@ -375,7 +379,6 @@ class RunSge(object):
             if self.sgefile.mode == "sge":
                 self.logger.info(msg)
                 self.deletejob(name=self.sgefile.name)
-                os._exit(signal.SIGTERM)
             elif self.sgefile.mode == "batchcompute":
                 for jb in self.jobqueue.queue:
                     jobname = jb.name
@@ -397,6 +400,11 @@ class RunSge(object):
                     else:
                         self.logger.info(
                             "Delete job error, you have no assess with job %s", j.Name)
+            else:
+                for _, p in self.localprocess.items():
+                    terminate_process(p.pid)
+                    p.wait()
+            os._exit(signal.SIGTERM)
 
     def writestates(self, outstat):
         summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
