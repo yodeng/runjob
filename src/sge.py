@@ -31,6 +31,9 @@ class ParseSingal(Thread):
     def run(self):
         time.sleep(1)
 
+    def singal_handler_us(self, signum, fram):
+        pass
+
     def signal_handler(self, signum, frame):
         if self.mode == "sge":
             try:
@@ -59,9 +62,12 @@ class ParseSingal(Thread):
                 else:
                     self.conf.logger.info(
                         "Delete job error, you have no assess with job %s", j.Name)
-        for _, p in self.obj.localprocess.items():
-            terminate_process(p.pid)
+        for j, p in self.obj.localprocess.items():
+            if p.poll() is None:  # still running
+                terminate_process(p.pid)
+                self.obj.totaljobdict[j].status = "kill"
             p.wait()
+        self.obj.sumstatus(verbose=True)
         sys.exit(signum)
 
 
