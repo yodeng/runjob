@@ -6,7 +6,6 @@ import sys
 import pdb
 import time
 import signal
-import psutil
 import getpass
 import logging
 import argparse
@@ -255,7 +254,7 @@ class RunSge(object):
                  stderr=PIPE, stdout=PIPE)
         else:
             if jb.jobname in self.localprocess:
-                p = self.localprocess[jb.jobname]
+                p = self.localprocess.pop(jb.jobname)
                 terminate_process(p.pid)
                 p.wait()
             if jb.host == "sge":
@@ -374,6 +373,7 @@ class RunSge(object):
     def throw(self, msg):
         user = getpass.getuser()
         if threading.current_thread().__class__.__name__ == '_MainThread':
+            self.sumstatus()
             raise QsubError(msg)
         else:
             if self.sgefile.mode == "sge":
@@ -401,9 +401,12 @@ class RunSge(object):
                         self.logger.info(
                             "Delete job error, you have no assess with job %s", j.Name)
             else:
-                for _, p in self.localprocess.items():
-                    terminate_process(p.pid)
+                for j, p in self.localprocess.items():
+                    if p.poll() is None:
+                        terminate_process(p.pid)
+                        self.totaljobdict[j].status = "kill"
                     p.wait()
+            self.sumstatus(verbose=True)
             os._exit(signal.SIGTERM)
 
     def writestates(self, outstat):
@@ -416,6 +419,26 @@ class RunSge(object):
             for k, v in sorted(sumout.items()):
                 fo.write(
                     k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
+
+    def sumstatus(self, verbose=False):
+        run_jobs = self.jobs
+        has_success_jobs = self.has_success
+        error_jobs = [j for j in run_jobs if j.status == "error"]
+        success_jobs = [j for j in run_jobs if j.status == 'success']
+        if not verbose:
+            if len(success_jobs) == len(run_jobs):
+                return True
+            else:
+                return False
+        status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished" % (len(
+            run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs), os.path.abspath(self.jfile))
+        if len(success_jobs) == len(run_jobs):
+            status += " successfully."
+        else:
+            status += ", but there are Unsuccessful tesks."
+        self.logger.info(status)
+        self.writestates(os.path.join(self.logdir, "job.status.txt"))
+        self.logger.info(str(dict(Counter([j.status for j in run_jobs]))))
 
 
 def main():
@@ -448,7 +471,7 @@ def main():
     h = ParseSingal(obj=runsge, name=args.jobname, mode=args.mode, conf=conf)
     h.start()
     runsge.run(times=args.resub, resubivs=args.resubivs)
-    if not sumJobs(runsge):
+    if not runsge.sumstatus():
         os.kill(os.getpid(), signal.SIGTERM)
 
 
