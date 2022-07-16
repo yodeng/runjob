@@ -224,15 +224,17 @@ def runsgeArgparser():
                         help="input configfile for configurations search.", metavar="<configfile>")
     parser.add_argument("-config", '--config',   action='store_true',
                         help="show configurations and exit.",  default=False)
-    # parser.add_argument("--local", default=False, action="store_true",
-    # help="submit your jobs in localhost instead of sge, if no sge installed, always localhost.")
+    parser.add_argument("-f", "--force", default=False, action="store_true",
+                        help="force to submit jobs ingore already successed jobs, skip by default")
+    parser.add_argument("--local", default=False, action="store_true",
+                        help="submit your jobs in localhost, same as '--mode local'")
     parser.add_argument("--strict", action="store_true", default=False,
                         help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
     parser.add_argument('-v', '--version',
                         action='version', version="v" + __version__)
     parser.add_argument("-j", "--jobfile", type=str,
                         help="the input jobfile", metavar="<jobfile>")
-    return parser.parse_args()
+    return parser
 
 
 def shellJobArgparser(arglist):

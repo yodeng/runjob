@@ -124,13 +124,19 @@ class RunSge(object):
                     job.status = "wait"
                 elif hasattr(job, "logcmd") and job.logcmd.strip() != job.rawstring.strip():
                     self.logger.info(
-                        "job %s status already success, but raw command changed, will re-runing", job.jobname)
+                        "job %s status already success, but raw command changed, will re-running", job.jobname)
                     os.remove(lf)
                     job.status = "wait"
                 else:
-                    self.jobsgraph.delete_node_if_exists(job.jobname)
-                    self.has_success.append(job.jobname)
-                    self.jobs.remove(job)
+                    if config.get("args", "force"):
+                        self.logger.info(
+                            "job %s status already success, but force to re-running", job.jobname)
+                        os.remove(lf)
+                        job.status = "wait"
+                    else:
+                        self.jobsgraph.delete_node_if_exists(job.jobname)
+                        self.has_success.append(job.jobname)
+                        self.jobs.remove(job)
             else:
                 job.status = "wait"
 
@@ -442,17 +448,20 @@ class RunSge(object):
 
 
 def main():
-    args = runsgeArgparser()
+    parser = runsgeArgparser()
+    args = parser.parse_args()
     conf = load_config()
     if args.ini:
         conf.update_config(args.ini)
     conf.update_dict(**args.__dict__)
     if args.config:
         print_config(conf)
-        sys.exit()
+        parser.exit()
     if args.jobfile is None:
-        raise IOError("-j/--jobfile must be required")
+        parser.error("argument -j/--jobfile is required")
     name = args.jobname
+    if args.local:
+        args.mode = "local"
     if name is None:
         name = os.path.basename(args.jobfile) + "_" + str(os.getpid())
         if name[0].isdigit():
