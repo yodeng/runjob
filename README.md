@@ -3,8 +3,7 @@
 [![OSCS Status](https://www.oscs1024.com/platform/badge/yodeng/runjob.svg?size=small)](https://www.oscs1024.com/project/yodeng/runjob?ref=badge_small)
 [![PyPI version](https://img.shields.io/pypi/v/runjob.svg?logo=pypi&logoColor=FFE873)](https://pypi.python.org/pypi/runjob)
 [![Downloads](https://pepy.tech/badge/runjob)](https://pepy.tech/project/runjob)
-[![Anaconda-Server Badge](https://anaconda.org/yodeng/runjob/badges/version.svg)](https://anaconda.org/yodeng/runjob)
-[![Anaconda-Server Badge](https://anaconda.org/yodeng/runjob/badges/installer/conda.svg)](https://conda.anaconda.org/yodeng)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/runjob/README.html)
 
 ## Summary
 
@@ -31,7 +30,7 @@ pip install runjob
 > conda:
 
 ```
-conda install -c yodeng runjob
+conda install -c bioconda runjob
 ```
 
 The development version can be installed with
