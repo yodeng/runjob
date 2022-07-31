@@ -246,4 +246,5 @@ def shellJobArgparser(arglist):
     parser.add_argument("-om", "--out-maping", type=str)
     parser.add_argument("-wd", "--workdir", type=str)
     parser.add_argument('--mode', type=str)
+    parser.add_argument("--local", default=False, action="store_true")
     return parser.parse_known_args(arglist)[0]

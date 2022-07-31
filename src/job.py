@@ -337,6 +337,8 @@ class ShellJob(object):
                         setattr(self, i, getattr(args, i))
                 if getattr(args, "memory"):
                     self.mem = getattr(args, "memory")
+                if args.local:
+                    args.mode = "local"
                 if args.mode and args.mode in ["sge", "local", "localhost", "batchcompute"]:
                     self.host = args.mode
                 if args.jobname:
