@@ -92,7 +92,7 @@ class qsub(object):
         self.max_jobs = len(self.jobs) if max_jobs is None else min(
             max_jobs, len(self.jobs))
 
-        self.jobqueue = myQueue(maxsize=max(self.max_jobs, 1))
+        self.jobqueue = myQueue(maxsize=min(max(self.max_jobs, 1), 1000))
 
     def jobstatus(self, job):
         jobname = job.name
