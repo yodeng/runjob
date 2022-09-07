@@ -192,6 +192,7 @@ class RunSge(object):
                         try:
                             info = check_output(
                                 "qstat -j %s | tail -n 1" % jobname, shell=True)
+                            info = info.decode()
                             if info.startswith("error") or ("error" in info and "Job is in error" in info):
                                 status = "error"
                         except:
