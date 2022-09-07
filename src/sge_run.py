@@ -143,7 +143,7 @@ class RunSge(object):
         if self.maxjob is None:
             self.maxjob = len(self.jobs)
 
-        self.jobqueue = myQueue(maxsize=max(self.maxjob, 1))
+        self.jobqueue = myQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob

@@ -193,7 +193,7 @@ def runsgeArgparser():
     parser.add_argument("-om", "--out-maping", type=str,
                         help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved', metavar="<dir>")
     parser.add_argument("-n", "--num", type=int,
-                        help="the max job number runing at the same time. default: all in your job file", metavar="<int>")
+                        help="the max job number runing at the same time. default: all in your job file, max 1000", metavar="<int>")
     parser.add_argument("-s", "--startline", type=int,
                         help="which line number(1-base) be used for the first job tesk. default: 1", metavar="<int>", default=1)
     parser.add_argument("-e", "--endline", type=int,
