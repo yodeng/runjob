@@ -194,8 +194,8 @@ def main():
                 stat.append("")
         # stat = [os.popen("sed -n '$p' " + i).read().strip().split()[-1] for i in fs]
         # stat = [int(os.popen("grep -i ERROR %s | wc -l"%i).read().strip()) for i in fs]
-        success = filter(lambda x: x == "SUCCESS", stat)
-        error = filter(lambda x: x == "ERROR", stat)
+        success = list(filter(lambda x: x == "SUCCESS", stat))
+        error = list(filter(lambda x: x == "ERROR", stat))
         # running = jobs[username]["r"] + jobs[username]["qw"] if username in jobs else 0
         running = submit - len(success) - len(error)
         print(style("-"*47, mode="bold"))
