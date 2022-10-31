@@ -93,10 +93,9 @@ def main():
                 print(style("{0:<20} {1:>7} {2:>5} {3:>5} {4:>5} {5:>5} {6:>8} {7:>8}".format(user, job, u[1].get("running", 0), u[1].get(
                     "sleeping", 0), u[1].get("disk-sleep", 0), u[1].get("zombie", 0), res, vms), fore="red", mode="bold"))
             else:
-                print(style("{0:<20} {1:>7}".format(user, job))),
+                printstr = style("{0:<20} {1:>7} ".format(user, job))
                 nums = [u[1].get("running", 0), u[1].get("sleeping", 0), u[1].get(
                     "disk-sleep", 0), u[1].get("zombie", 0)]
-                printstr = ""
                 for i in nums:
                     if i >= 10:
                         printstr += style("{:>5} ".format(i),
