@@ -237,7 +237,7 @@ class qsub(object):
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
 
     def throw(self, msg):
-        if threading.current_thread().__class__.__name__ == '_MainThread':
+        if threading.current_thread().name == 'MainThread':
             raise QsubError(msg)
         else:
             self.logger.info(msg)

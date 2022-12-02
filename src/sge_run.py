@@ -379,7 +379,7 @@ class RunSge(object):
 
     def throw(self, msg):
         user = getpass.getuser()
-        if threading.current_thread().__class__.__name__ == '_MainThread':
+        if threading.current_thread().name == 'MainThread':
             self.sumstatus()
             raise QsubError(msg)
         else:

@@ -17,6 +17,12 @@ class Dict(dict):
     def __setattr__(self, name, value):
         self[name] = value
 
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, data):
+        return self.__init__(data)
+
 
 class Config(object):
 
