@@ -221,10 +221,9 @@ class RunSge(object):
                         datetime.today().strftime("%F %X"), job.status.upper()))
         return status
 
-    def jobcheck(self):
-        m, p = 3, 1
+    def jobcheck(self, m=3, p=1):
         if self.sgefile.mode == "batchcompute":
-            p = 3
+            m = p = 1
         rate_limiter = RateLimiter(max_calls=m, period=p)
         while True:
             with rate_limiter:
