@@ -261,7 +261,9 @@ class RunSge(object):
         else:
             if jb.jobname in self.localprocess:
                 p = self.localprocess.pop(jb.jobname)
-                terminate_process(p.pid)
+                if p.poll() is None:
+                    terminate_process(p.pid)
+                    jb.status = "kill"
                 p.wait()
             if jb.host == "sge":
                 call(["qdel", jb.jobname],
