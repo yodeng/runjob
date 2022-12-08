@@ -1,5 +1,8 @@
 import os
+import sys
 import configparser
+
+from collections import defaultdict
 
 
 class Conf(configparser.ConfigParser):
@@ -11,10 +14,11 @@ class Conf(configparser.ConfigParser):
 
 
 class Dict(dict):
-    def __getattr__(self, name):
-        return self[name]
 
-    def __setattr__(self, name, value):
+    def __getattr__(self, name):
+        return self.get(name)
+
+    def __setattr__(self, name, value=None):
         self[name] = value
 
     def __getstate__(self):
@@ -24,11 +28,30 @@ class Dict(dict):
         return self.__init__(data)
 
 
-class Config(object):
+class Defaultdict(defaultdict, Dict):
+
+    def __getattr__(self, name):
+        return defaultdict.__getitem__(self, name)
+
+
+class ConfigType(type):
+
+    _instance = None
+
+    def __init__(self, *args, **kwargs):
+        super(ConfigType, self).__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        if self._instance is None:
+            self._instance = super(ConfigType, self).__call__(*args, **kwargs)
+        return self._instance
+
+
+class Config(metaclass=ConfigType):
 
     def __init__(self, config_file=None):
         self.cf = []
-        self.info = Dict()
+        self.info = Defaultdict(Dict)
         if config_file is None:
             return
         self._path = os.path.join(os.getcwd(), config_file)
@@ -38,10 +61,12 @@ class Config(object):
         self._config = Conf()
         self._config.read(self._path)
         for s in self._config.sections():
-            self.info[s] = Dict(dict(self._config[s].items()))
+            for k, v in self._config[s].items():
+                self.info[s][k] = v
+        self.update_executable_bin()
 
     def get(self, section, name):
-        return self.info.get(section, Dict()).get(name, None)
+        return self.info[section].get(name, None)
 
     def update_config(self, config):
         self.cf.append(config)
@@ -50,10 +75,11 @@ class Config(object):
         c = Conf()
         c.read(config)
         for s in c.sections():
-            self.info.setdefault(s, Dict()).update(dict(c[s].items()))
+            self.info[s].update(dict(c[s].items()))
+        self.info.bin = self.info.software
 
     def update_dict(self, **kwargs):
-        self.info.setdefault("args", Dict()).update(kwargs)
+        self.info["args"].update(kwargs)
 
     def write_config(self, configile):
         with open(configile, "w") as fo:
@@ -62,6 +88,15 @@ class Config(object):
                 for k, v in info.items():
                     fo.write("%s = %s\n" % (k, v))
                 fo.write("\n")
+
+    def update_executable_bin(self):
+        bindir = os.path.abspath(os.path.dirname(sys.executable))
+        for bin_path in os.listdir(bindir):
+            exe_path = os.path.join(bindir, bin_path)
+            if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
+                bin_key = bin_path.replace("-", "").replace("_", "")
+                if not self.get("software", bin_key):
+                    self.info["software"][bin_key] = exe_path
 
     def __str__(self):
         return self.info
