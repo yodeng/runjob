@@ -65,7 +65,7 @@ class ParseSingal(Thread):
         for j, p in self.obj.localprocess.items():
             if p.poll() is None:  # still running
                 terminate_process(p.pid)
-                self.obj.totaljobdict[j].status = "kill"
+                self.obj.totaljobdict[j].set_status("kill")
             p.wait()
         self.obj.sumstatus(verbose=True)
         sys.exit(signum)

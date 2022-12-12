@@ -193,6 +193,11 @@ class Job(object):
         else:
             self.throw("No cmd in %s job" % self.name)
 
+    def set_status(self, status=None):
+        if self.status == "success":
+            return
+        self.status = status
+
     def checkrule(self):
         rules = self.rules[:]
         if len(rules) <= 4:
@@ -369,3 +374,8 @@ class ShellJob(object):
             os.remove(self.logfile)
         self.rawstring = self.cmd0.strip()
         self.raw2cmd()
+
+    def set_status(self, status=None):
+        if self.status == "success":
+            return
+        self.status = status

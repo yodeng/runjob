@@ -214,7 +214,7 @@ class RunSge(object):
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
-            job.status = status
+            job.set_status(status)
             if job.host == "batchcompute":
                 with open(logfile, "a") as fo:
                     fo.write("[%s] %s\n" % (
@@ -263,7 +263,7 @@ class RunSge(object):
                 p = self.localprocess.pop(jb.jobname)
                 if p.poll() is None:
                     terminate_process(p.pid)
-                    jb.status = "kill"
+                    jb.set_status("kill")
                 p.wait()
             if jb.host == "sge":
                 call(["qdel", jb.jobname],
@@ -280,10 +280,10 @@ class RunSge(object):
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
                 logcmd.write(job.rawstring+"\n")
-                job.status = "submit"
+                job.set_status("submit")
             elif job.subtimes > 0:
                 logcmd.write("\n" + job.rawstring+"\n")
-                job.status = "resubmit"
+                job.set_status("resubmit")
 
             self.logger.info("job %s status %s", job.name, job.status)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
@@ -412,7 +412,7 @@ class RunSge(object):
                 for j, p in self.localprocess.items():
                     if p.poll() is None:
                         terminate_process(p.pid)
-                        self.totaljobdict[j].status = "kill"
+                        self.totaljobdict[j].set_status("kill")
                     p.wait()
             self.sumstatus(verbose=True)
             os._exit(signal.SIGTERM)

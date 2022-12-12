@@ -133,7 +133,7 @@ class qsub(object):
                 job.logcmd = job.logcmd.strip()
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
-            job.status = status
+            job.set_status(status)
         return status
 
     def jobcheck(self, sec=1):
@@ -206,10 +206,10 @@ class qsub(object):
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
                 logcmd.write(job.cmd+"\n")
-                job.status = "submit"
+                job.set_status("submit")
             elif job.subtimes > 0:
                 logcmd.write("\n" + job.cmd+"\n")
-                job.status = "resubmit"
+                job.set_status("resubmit")
 
             self.logger.info("job %s status %s", job.name, job.status)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
