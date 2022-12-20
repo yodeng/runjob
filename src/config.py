@@ -16,7 +16,7 @@ class Conf(configparser.ConfigParser):
 class Dict(dict):
 
     def __getattr__(self, name):
-        return self.get(name)
+        return self.get(name) or which(name)
 
     def __setattr__(self, name, value=None):
         self[name] = value
@@ -93,7 +93,7 @@ class Config(metaclass=ConfigType):
         bindir = os.path.abspath(os.path.dirname(sys.executable))
         for bin_path in os.listdir(bindir):
             exe_path = os.path.join(bindir, bin_path)
-            if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK):
+            if is_exe(exe_path):
                 bin_key = bin_path.replace("-", "").replace("_", "")
                 if not self.get("software", bin_key):
                     self.info["software"][bin_key] = exe_path
@@ -101,8 +101,57 @@ class Config(metaclass=ConfigType):
     def __str__(self):
         return self.info
 
-    def __call__(self):
-        return self.info
+    __call__ = __repr__ = __str__
+
+    def __getattr__(self, name):
+        if self.info.get(name):
+            return self.info.get(name)
+        values = Dict()
+        for k, v in self.info.items():
+            if v.get(name):
+                values[k] = v.get(name)
+        if not len(values):
+            return which(name)
+        if len(values) == 1 or len(set(values.values())) == 1:
+            return list(values.values())[0]
+        return values
+
+
+def which(program, paths=None):
+    ex = os.path.dirname(sys.executable)
+    found_path = None
+    fpath, fname = os.path.split(program)
+    if fpath:
+        program = canonicalize(program)
+        if is_exe(program):
+            found_path = program
+    else:
+        if is_exe(os.path.join(ex, program)):
+            return os.path.join(ex, program)
+        paths_to_search = []
+        if isinstance(paths, (tuple, list)):
+            paths_to_search.extend(paths)
+        else:
+            env_paths = os.environ.get("PATH", "").split(os.pathsep)
+            paths_to_search.extend(env_paths)
+        for path in paths_to_search:
+            exe_file = os.path.join(canonicalize(path), program)
+            if is_exe(exe_file):
+                found_path = exe_file
+                break
+    return found_path
+
+
+def is_exe(file_path):
+    return (
+        os.path.exists(file_path)
+        and os.access(file_path, os.X_OK)
+        and os.path.isfile(os.path.realpath(file_path))
+    )
+
+
+def canonicalize(path):
+    return os.path.abspath(os.path.expanduser(path))
 
 
 def load_config():
