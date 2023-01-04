@@ -47,7 +47,7 @@ class ConfigType(type):
         return self._instance
 
 
-class Config(metaclass=ConfigType):
+class Config(object):
 
     def __init__(self, config_file=None):
         self.cf = []
@@ -102,6 +102,8 @@ class Config(metaclass=ConfigType):
         return self.info
 
     __call__ = __repr__ = __str__
+
+    __metaclass__ = ConfigType
 
     def __getattr__(self, name):
         if self.info.get(name):

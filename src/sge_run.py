@@ -147,6 +147,7 @@ class RunSge(object):
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
+        self.ncall, self.period = 3, 1
 
     def jobstatus(self, job):
         jobname = job.jobname
@@ -221,10 +222,14 @@ class RunSge(object):
                         datetime.today().strftime("%F %X"), job.status.upper()))
         return status
 
-    def jobcheck(self, m=3, p=1):
+    def set_rate(self, ncall=3, period=1):
+        self.ncall = ncall
+        self.period = period
+
+    def jobcheck(self):
         if self.sgefile.mode == "batchcompute":
-            m = p = 1
-        rate_limiter = RateLimiter(max_calls=m, period=p)
+            self.set_rate(1, 1)
+        rate_limiter = RateLimiter(max_calls=self.ncall, period=self.period)
         while True:
             with rate_limiter:
                 for jb in self.jobqueue.queue:
@@ -251,8 +256,10 @@ class RunSge(object):
                                 self.submit(jb)
                         elif js == "exit":
                             self.deletejob(jb)
+                            self.jobqueue.get(jb)
+                            self.jobsgraph.delete_node_if_exists(jb.jobname)
                             if self.strict:
-                                self.throw("Error when submit")
+                                self.throw("Error job: %s, exit" % jb.jobname)
 
     def deletejob(self, jb=None, name=""):
         if name:
@@ -307,7 +314,7 @@ class RunSge(object):
                 jobcpu = job.cpu if job.cpu else self.cpu
                 jobmem = job.mem if job.mem else self.mem
                 self.queue = job.queue if job.queue else self.queue
-                cmd = 'echo "%s" | qsub -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
+                cmd = 'echo "%s" | qsub -V -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
                     job.cmd, " -q ".join(self.queue), job.workdir, job.jobname, logfile, jobmem, jobcpu)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
