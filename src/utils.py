@@ -219,8 +219,8 @@ def runsgeArgparser():
     parser.add_argument('-v', '--version',
                         action='version', version="v" + __version__)
     sge = parser.add_argument_group("sge arguments")
-    sge.add_argument("-q", "--queue", type=str, help="the queue your job running, default: all.q",
-                     default=["all.q", ], nargs="*", metavar="<queue>")
+    sge.add_argument("-q", "--queue", type=str, help="the queue your job running, multi queue can be sepreated by whitespace, all access queue by default",
+                     nargs="*", metavar="<queue>")
     sge.add_argument("-m", "--memory", type=int,
                      help="the memory used per command (GB), default: 1", default=1, metavar="<int>")
     sge.add_argument("-c", "--cpu", type=int,

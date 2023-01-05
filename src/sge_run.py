@@ -305,22 +305,26 @@ class RunSge(object):
                     if not os.path.isdir(job.workdir):
                         os.makedirs(job.workdir)
                     os.chdir(job.workdir)
-                    p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                    p = Popen(cmd, shell=True, stdout=logcmd,
+                              stderr=logcmd, env=os.environ)
                     os.chdir(self.sgefile.workdir)
                 else:
-                    p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
+                    p = Popen(cmd, shell=True, stdout=logcmd,
+                              stderr=logcmd, env=os.environ)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
-                jobcpu = job.cpu if job.cpu else self.cpu
-                jobmem = job.mem if job.mem else self.mem
-                self.queue = job.queue if job.queue else self.queue
-                cmd = 'echo "%s" | qsub -V -q %s -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
-                    job.cmd, " -q ".join(self.queue), job.workdir, job.jobname, logfile, jobmem, jobcpu)
+                jobcpu = job.cpu or self.cpu
+                jobmem = job.mem or self.mem
+                self.queue = job.queue or self.queue
+                cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
+                    job.cmd, job.workdir, job.jobname, logfile, jobmem, jobcpu)
+                if self.queue:
+                    cmd += " -q " + " -q ".join(self.queue)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
                 call(cmd.replace("`", "\`"), shell=True,
-                     stdout=logcmd, stderr=logcmd)
+                     stdout=logcmd, stderr=logcmd, env=os.environ)
             elif job.host == "batchcompute":
                 jobcpu = job.cpu if job.cpu else self.cpu
                 jobmem = job.mem if job.mem else self.mem
