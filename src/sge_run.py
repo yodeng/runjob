@@ -43,6 +43,8 @@ class RunSge(object):
         groups = config.get("args", "groups")
         strict = config.get("args", "strict")
         mode = config.get("args", "mode")
+        self.mode = mode
+        self.name = name
         self.sgefile = ShellFile(sgefile, mode=mode, name=name,
                                  logdir=logdir, workdir=workdir)
         self.jfile = self.sgefile._path
@@ -192,8 +194,8 @@ class RunSge(object):
                     elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
                         try:
                             info = check_output(
-                                "qstat -j %s | tail -n 1" % jobname, shell=True)
-                            info = info.decode()
+                                "qstat -j %s" % jobname, shell=True)
+                            info = info.decode().strip().split("\n")[-1]
                             if info.startswith("error") or ("error" in info and "Job is in error" in info):
                                 status = "error"
                         except:
@@ -263,8 +265,7 @@ class RunSge(object):
 
     def deletejob(self, jb=None, name=""):
         if name:
-            call(['qdel', "%s*" % name],
-                 stderr=PIPE, stdout=PIPE)
+            call_cmd(['qdel', "%s*" % name])
         else:
             if jb.jobname in self.localprocess:
                 p = self.localprocess.pop(jb.jobname)
@@ -273,17 +274,13 @@ class RunSge(object):
                     jb.set_status("kill")
                 p.wait()
             if jb.host == "sge":
-                call(["qdel", jb.jobname],
-                     stderr=PIPE, stdout=PIPE)
+                call_cmd(["qdel", jb.jobname])
 
     def submit(self, job):
         if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
             return
-
         logfile = job.logfile
-
         self.jobqueue.put(job, block=True, timeout=1080000)
-
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
                 logcmd.write(job.rawstring+"\n")
@@ -291,11 +288,9 @@ class RunSge(object):
             elif job.subtimes > 0:
                 logcmd.write("\n" + job.rawstring+"\n")
                 job.set_status("resubmit")
-
             self.logger.info("job %s status %s", job.name, job.status)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
-
             if job.host is not None and job.host in ["localhost", "local"]:
                 cmd = "echo 'Your job (\"%s\") has been submitted in localhost' && " % job.name + job.cmd
                 if job.subtimes > 0:
@@ -347,15 +342,14 @@ class RunSge(object):
         self.is_run = True
         self.times = max(0, times)
         self.resubivs = max(resubivs, 0)
-
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
         if len(self.jobsgraph.graph) == 0:
             return
+        self.clean_resource()
         p = Thread(target=self.jobcheck)
         p.setDaemon(True)
         p.start()
-
         if self.sgefile.mode == "batchcompute":
             access_key_id = self.conf.get("args", "access_key_id")
             access_key_secret = self.conf.get("args", "access_key_secret")
@@ -438,6 +432,13 @@ class RunSge(object):
             for k, v in sorted(sumout.items()):
                 fo.write(
                     k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
+
+    def clean_resource(self):
+        name = self.name
+        conf = self.conf
+        mode = self.mode
+        h = ParseSingal(obj=self, name=name, mode=mode, conf=conf)
+        h.start()
 
     def sumstatus(self, verbose=False):
         run_jobs = self.jobs

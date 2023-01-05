@@ -155,8 +155,7 @@ class qsub(object):
                             if jb.name in self.localprocess:
                                 self.localprocess[jb.name].wait()
                             if jb.host == "sge":
-                                call(["qdel", jb.jobname],
-                                     stderr=PIPE, stdout=PIPE)
+                                call_cmd(["qdel", jb.jobname])
                             self.jobqueue.get(jb)
                             if jb.subtimes >= self.times + 1:
                                 if self.usestrict:
@@ -167,8 +166,7 @@ class qsub(object):
                                 self.submit(jb)
                         elif js == "exit":
                             if jb.host == "sge":
-                                call(["qdel", jb.jobname],
-                                     stderr=PIPE, stdout=PIPE)
+                                call_cmd(["qdel", jb.jobname])
                             if self.usestrict:
                                 self.throw("Error when submit, %s" % jb.name)
 

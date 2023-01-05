@@ -99,7 +99,7 @@ def cleanAll(clear=False, qjobs=None, sumj=True):
                 continue
             jn.status = "killed"
             qjobs.logger.info("job %s status killed", jn.name)
-        call(['qdel,  "*_%d"' % os.getpid()], stderr=PIPE, stdout=PIPE)
+        call_cmd(['qdel,  "*_%d"' % os.getpid()])
     else:
         for jn in stillrunjob:
             if jn.status in ["error", "success"]:
@@ -173,6 +173,18 @@ def terminate_process(pid):
         pproc.kill()
     except:
         pass
+
+
+def call_cmd(cmd, verbose=False):
+    shell = True
+    if isinstance(cmd, list):
+        shell = False
+    if verbose:
+        print(cmd)
+        call(cmd, shell=shell, stdout=PIPE, stderr=PIPE)
+    else:
+        with open(os.devnull, "w") as fo:
+            call(cmd, shell=shell, stdout=fo, stderr=fo)
 
 
 def runsgeArgparser():

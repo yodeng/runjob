@@ -20,7 +20,7 @@ from .cluster import *
 
 class ParseSingal(Thread):
     def __init__(self, obj=None, name="", mode="sge", conf=None):
-        super(ParseSingal, self).__init__()
+        super(ParseSingal, self).__init__(daemon=True)
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
         self.obj = obj
@@ -39,7 +39,7 @@ class ParseSingal(Thread):
             try:
                 self.obj.deletejob(name=self.name)
             except:
-                call(['qdel', "%s*" % self.name], stderr=PIPE, stdout=PIPE)
+                call_cmd(['qdel', "%s*" % self.name])
         elif self.mode == "batchcompute":
             user = getpass.getuser()
             jobs = self.conf.jobqueue.queue
