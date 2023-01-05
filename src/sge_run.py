@@ -119,6 +119,7 @@ class RunSge(object):
         for job in self.jobs[:]:
             lf = job.logfile
             job.subtimes = 0
+            self.remove_job_stat_files(job)
             if os.path.isfile(lf):
                 js = self.jobstatus(job)
                 if js != "success":
@@ -177,43 +178,51 @@ class RunSge(object):
                     status = "wait"
                 self.logger.debug("job %s status %s", jobid, status)
         else:
-            if os.path.isfile(logfile):
-                with os.popen('tail -n 1 %s' % logfile) as fi:
-                    sta = fi.read().strip()
-                    stal = sta.split()
-                if sta:
-                    if stal[-1] == "SUCCESS":
-                        status = "success"
-                    elif stal[-1] == "ERROR":
-                        status = "error"
-                    elif stal[-1] == "Exiting.":
-                        status = "exit"
-                    elif "RUNNING..." in sta:
-                        status = "run"
-                    # sge submit, but not running
-                    elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
-                        try:
-                            info = check_output(
-                                "qstat -j %s" % jobname, shell=True)
-                            info = info.decode().strip().split("\n")[-1]
-                            if info.startswith("error") or ("error" in info and "Job is in error" in info):
-                                status = "error"
-                        except:
+            if job.host and job.host == "sge" and self.is_run and not os.path.isfile(job.stat_file+".submit"):
+                if os.path.isfile(job.stat_file+".success"):
+                    status = "success"
+                elif os.path.isfile(job.stat_file+".error"):
+                    status = "error"
+                elif os.path.isfile(job.stat_file+".run"):
+                    status = "run"
+            else:
+                if os.path.isfile(logfile):
+                    with os.popen('tail -n 1 %s' % logfile) as fi:
+                        sta = fi.read().strip()
+                        stal = sta.split()
+                    if sta:
+                        if stal[-1] == "SUCCESS":
+                            status = "success"
+                        elif stal[-1] == "ERROR":
                             status = "error"
+                        elif stal[-1] == "Exiting.":
+                            status = "exit"
+                        elif "RUNNING..." in sta:
+                            status = "run"
+                        # sge submit, but not running
+                        elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
+                            try:
+                                info = check_output(
+                                    "qstat -j %s" % jobname, shell=True)
+                                info = info.decode().strip().split("\n")[-1]
+                                if info.startswith("error") or ("error" in info and "Job is in error" in info):
+                                    status = "error"
+                            except:
+                                status = "error"
+                        else:
+                            status = "run"
                     else:
                         status = "run"
-                else:
-                    status = "run"
-                if not self.is_run and status == "success":
-                    job.logcmd = ""
-                    with open(logfile) as fi:
-                        for line in fi:
-                            if not line.strip():
-                                continue
-                            if line.startswith("["):
-                                break
-                            job.logcmd += line
-                    job.logcmd = job.logcmd.strip()
+                    if not self.is_run and status == "success":
+                        job.logcmd = ""
+                        with open(logfile) as fi:
+                            for line in fi:
+                                if not line.strip():
+                                    continue
+                                if line.startswith("["):
+                                    break
+                                job.logcmd += line
+                        job.logcmd = job.logcmd.strip()
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run:
             self.logger.info("job %s status %s", jobname, status)
@@ -275,6 +284,17 @@ class RunSge(object):
                 p.wait()
             if jb.host == "sge":
                 call_cmd(["qdel", jb.jobname])
+            if self.is_run:
+                if jb.status in ["error", "success", "exit"]:
+                    call_cmd(["rm", "-fr", jb.stat_file + ".success", jb.stat_file +
+                             ".run", jb.stat_file+".error", jb.stat_file+".submit"])
+                elif jb.status == "run":
+                    call_cmd(["rm", "-fr", jb.stat_file + ".success",
+                             jb.stat_file+".error", jb.stat_file+".submit"])
+
+    def remove_job_stat_files(self, jb):
+        call_cmd(["rm", "-fr", jb.stat_file + ".success", jb.stat_file +
+                 ".run", jb.stat_file+".error", jb.stat_file+".submit"])
 
     def submit(self, job):
         if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
@@ -308,6 +328,7 @@ class RunSge(object):
                               stderr=logcmd, env=os.environ)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
+                call_cmd(["touch", job.stat_file + ".submit"])
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 self.queue = job.queue or self.queue

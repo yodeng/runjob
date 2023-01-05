@@ -303,7 +303,7 @@ class ShellFile(object):
                 elif end is not None and n > end-1:
                     continue
                 line = line.strip().strip("&")
-                if line.startswith("#"):
+                if line.startswith("#") or not line.strip():
                     continue
                 jobs.append(ShellJob(self, n, line))
         return jobs
@@ -362,8 +362,16 @@ class ShellJob(object):
             self.cmd = self.rawstring
 
     def raw2cmd(self):
-        self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-            self.rawstring + RUNSTAT
+        self.stat_file = os.path.join(
+            self.sf.logdir, "."+os.path.basename(self.logfile))
+        if self.host == "sge":
+            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && ".format(self.stat_file) + \
+                self.rawstring + \
+                " && (echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || (echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
+                    self.stat_file)
+        else:
+            self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
+                self.rawstring + RUNSTAT
 
     def forceToLocal(self, jobname="", removelog=False):
         self.host = "localhost"
