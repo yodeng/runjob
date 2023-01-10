@@ -52,6 +52,9 @@ class Config(object):
     def __init__(self, config_file=None):
         self.cf = []
         self.info = Defaultdict(Dict)
+        self.info.bin = self.info.software
+        self.info.database = self.info.db = self.info.data
+        self.update_executable_bin()
         if config_file is None:
             return
         self._path = os.path.join(os.getcwd(), config_file)
@@ -63,9 +66,6 @@ class Config(object):
         for s in self._config.sections():
             for k, v in self._config[s].items():
                 self.info[s][k] = v
-        self.info.bin = self.info.software
-        self.info.database = self.info.db = self.info.data
-        self.update_executable_bin()
 
     def get(self, section, name):
         return self.info[section].get(name, None)
@@ -157,7 +157,7 @@ def canonicalize(path):
     return os.path.abspath(os.path.expanduser(path))
 
 
-def load_config(configfile_home=None, configfile_default=None):
+def load_config(configfile_default=None, configfile_home=None):
     configfile_home = configfile_home or os.path.join(
         os.path.expanduser("~"), ".runjobconfig")
     configfile_default = configfile_default or os.path.join(os.path.dirname(

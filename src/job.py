@@ -5,6 +5,7 @@ import os
 import re
 import sys
 import getpass
+import tempfile
 
 from subprocess import check_output
 
@@ -272,6 +273,17 @@ class OrderError(Exception):
 class ShellFile(object):
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
         self.has_sge = os.getenv("SGE_ROOT")
+        self.workdir = workdir or os.getcwd()
+        self.temp = None
+        if isinstance(jobfile, (tuple, list)):
+            self.temp = os.path.basename(tempfile.mktemp(prefix="runjob_"))
+            tmp_jobfile = os.path.join(self.workdir, self.temp)
+            if not os.path.isdir(self.workdir):
+                os.makedirs(self.workdir)
+            with open(tmp_jobfile, "w") as fo:
+                for line in jobfile:
+                    fo.write(line+"\n")
+            jobfile = tmp_jobfile
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
@@ -291,7 +303,6 @@ class ShellFile(object):
         self.logdir = os.path.abspath(logdir)
         if not os.path.isdir(self.logdir):
             os.makedirs(self.logdir)
-        self.workdir = workdir
         self.name = name
 
     def jobshells(self, start=0, end=None):
@@ -306,6 +317,8 @@ class ShellFile(object):
                 if line.startswith("#") or not line.strip():
                     continue
                 jobs.append(ShellJob(self, n, line))
+        if self.temp and os.path.isfile(self._path):
+            os.remove(self._path)
         return jobs
 
 
