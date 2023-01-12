@@ -337,8 +337,12 @@ class ShellJob(object):
         self.linenum = linenum + 1
         self.jobname = name + "_%05d" % self.linenum
         self.name = self.jobname
-        self.logfile = os.path.join(self.sf.logdir, os.path.basename(
-            self.sf._path) + "_line%05d.log" % self.linenum)
+        if self.sf.temp and self.sf.name is not None:
+            self.logfile = os.path.join(
+                self.sf.logdir, name+"_%d_line%05d.log" % (os.getpid(), self.linenum))
+        else:
+            self.logfile = os.path.join(self.sf.logdir, os.path.basename(
+                self.sf._path) + "_line%05d.log" % self.linenum)
         self.subtimes = 0
         self.status = None
         self.host = self.sf.mode
