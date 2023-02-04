@@ -471,12 +471,14 @@ class RunSge(object):
                 return True
             else:
                 return False
-        status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished" % (len(
-            run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs), os.path.abspath(self.jfile))
+        status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) " % (len(
+            run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs))
+        if not self.sgefile.temp:
+            status += "in file (%s) " % os.path.abspath(self.jfile)
         if len(success_jobs) == len(run_jobs):
-            status += " successfully."
+            status += "finished successfully."
         else:
-            status += ", but there are Unsuccessful tesks."
+            status += "finished, but there are Unsuccessful tesks."
         self.logger.info(status)
         self.writestates(os.path.join(self.logdir, "job.status.txt"))
         self.logger.info(str(dict(Counter([j.status for j in run_jobs]))))
