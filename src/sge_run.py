@@ -93,23 +93,27 @@ class RunSge(object):
         if jgs:
             jobs_groups.append(jgs)
         for wait_groups in jobs_groups:
-            group_idx, i = [], 0
+            i = 0
             for n, jb in enumerate(wait_groups):
                 if jb.groups:
-                    group_idx.append((n, n+jb.groups))
-                    i = jb.groups+n
+                    if n >= i:
+                        self._make_groups(wait_groups[n:n+jb.groups])
+                        i = jb.groups+n
+                    else:
+                        self.throw('groups conflict in "%s" line number %d: "%s"' % (self.jfile,
+                                                                                     jb.linenum, jb.cmd0))
                 elif n >= i and (n-i) % self.groups == 0:
-                    group_idx.append((n, n+self.groups))
-            for idx in group_idx:
-                jobs = wait_groups[idx[0]:idx[1]]
-                if len(jobs) > 1:
-                    j_header = jobs[0]
-                    for j in jobs[1:]:
-                        j_header.rawstring += "\n" + j.rawstring
-                        self.jobs.remove(j)
-                        self.jobsgraph.delete_node_if_exists(j.jobname)
-                    j_header.raw2cmd()
-                    self.totaljobdict[j_header.jobname] = j_header
+                    self._make_groups(wait_groups[n:n+self.groups])
+
+    def _make_groups(self, jobs=None):
+        if len(jobs) > 1:
+            j_header = jobs[0]
+            for j in jobs[1:]:
+                j_header.rawstring += "\n" + j.rawstring
+                self.jobs.remove(j)
+                self.jobsgraph.delete_node_if_exists(j.jobname)
+            j_header.raw2cmd()
+            self.totaljobdict[j_header.jobname] = j_header
 
     def check_already_success(self):
         for job in self.jobs[:]:
