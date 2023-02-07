@@ -19,7 +19,13 @@ python >=2.7.10, <=3.10
 
 ## Installation
 
-The latest release can be installed with
+The development version can be installed with (for recommend)
+
+```
+pip install git+https://github.com/yodeng/runjob.git
+```
+
+The stable release (maybe not latest) can be installed with
 
 > pypi:
 
@@ -31,12 +37,6 @@ pip install runjob
 
 ```
 conda install -c bioconda runjob
-```
-
-The development version can be installed with
-
-```
-pip install git+https://github.com/yodeng/runjob.git
 ```
 
 ## User Guide
