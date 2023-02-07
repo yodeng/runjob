@@ -347,6 +347,7 @@ class ShellJob(object):
         self.status = None
         self.host = self.sf.mode
         self.cmd0 = cmd
+        self.groups = None
         self.workdir = self.sf.workdir
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
@@ -354,7 +355,7 @@ class ShellJob(object):
                 argstring = cmd.rsplit("//", 1)[1].strip().split()
                 # argsflag = ["queue", "memory", "cpu", "jobname", "out_maping", "mode"]
                 args = shellJobArgparser(argstring)
-                for i in ["queue", "memory", "cpu", "out_maping", "workdir"]:
+                for i in ["queue", "memory", "cpu", "out_maping", "workdir", "groups"]:
                     if getattr(args, i):
                         setattr(self, i, getattr(args, i))
                 if getattr(args, "memory"):

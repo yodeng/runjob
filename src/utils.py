@@ -203,7 +203,7 @@ def runsgeArgparser():
     parser.add_argument("-e", "--endline", type=int,
                         help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
     parser.add_argument("-g", "--groups", type=int, default=1,
-                        help="groups number of lines to a new jobs, will consider first line args as the group job args.", metavar="<int>")
+                        help="groups number of lines to a new jobs", metavar="<int>")
     parser.add_argument('-d', '--debug', action='store_true',
                         help='log debug info', default=False)
     parser.add_argument("-l", "--log", type=str,
@@ -256,6 +256,7 @@ def shellJobArgparser(arglist):
     parser.add_argument("-q", "--queue", type=str, nargs="*")
     parser.add_argument("-m", "--memory", type=int)
     parser.add_argument("-c", "--cpu", type=int)
+    parser.add_argument("-g", "--groups", type=int)
     parser.add_argument("-n", "--jobname", type=str)
     parser.add_argument("-om", "--out-maping", type=str)
     parser.add_argument("-wd", "--workdir", type=str)

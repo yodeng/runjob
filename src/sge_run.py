@@ -51,36 +51,8 @@ class RunSge(object):
         self.cloudjob = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
-
-        j_groups = []
-        tmp = []
-        for j in self.jobs[:]:
-            if j.rawstring == "wait":
-                self.jobs.remove(j)
-                if tmp:
-                    j_groups.append(tmp)
-                    tmp = []
-            else:
-                tmp.append(j)
-        if tmp:
-            j_groups.append(tmp)
-        j_pre = []
-        for j_group in j_groups:
-            j_dep = []
-            for one_group in [j_group[i:i+self.groups] for i in range(0, len(j_group), self.groups)]:
-                j0 = one_group[0]
-                for ji in one_group[1:]:
-                    j0.rawstring += "\n" + ji.rawstring
-                    self.jobs.remove(ji)
-                j0.raw2cmd()
-                self.totaljobdict[j0.jobname] = j0
-                self.jobsgraph.add_node_if_not_exists(j0.jobname)
-                if j_pre:
-                    for j in j_pre:
-                        self.jobsgraph.add_edge(j.jobname, j0.jobname)
-                j_dep.append(j0)
-            j_pre = j_dep
-
+        self.depency_jobs()
+        self.group_jobs()
         self.init_callback()
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
@@ -92,6 +64,52 @@ class RunSge(object):
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
         self.ncall, self.period = 3, 1
+
+    def depency_jobs(self):
+        cur_jobs, dep_jobs = [], []
+        for j in self.jobs[:]:
+            if j.rawstring == "wait":
+                if cur_jobs:
+                    dep_jobs = cur_jobs[:]
+                    cur_jobs = []
+            else:
+                self.jobsgraph.add_node_if_not_exists(j.jobname)
+                if dep_jobs:
+                    for dep_j in dep_jobs:
+                        self.jobsgraph.add_edge(dep_j.jobname, j.jobname)
+                cur_jobs.append(j)
+
+    def group_jobs(self):
+        jobs_groups = []
+        jgs = []
+        for j in self.jobs[:]:
+            if j.rawstring == "wait":
+                self.jobs.remove(j)
+                if jgs:
+                    jobs_groups.append(jgs)
+                    jgs = []
+            else:
+                jgs.append(j)
+        if jgs:
+            jobs_groups.append(jgs)
+        for wait_groups in jobs_groups:
+            group_idx, i = [], 0
+            for n, jb in enumerate(wait_groups):
+                if jb.groups:
+                    group_idx.append((n, n+jb.groups))
+                    i = jb.groups+n
+                elif n >= i and (n-i) % self.groups == 0:
+                    group_idx.append((n, n+self.groups))
+            for idx in group_idx:
+                jobs = wait_groups[idx[0]:idx[1]]
+                if len(jobs) > 1:
+                    j_header = jobs[0]
+                    for j in jobs[1:]:
+                        j_header.rawstring += "\n" + j.rawstring
+                        self.jobs.remove(j)
+                        self.jobsgraph.delete_node_if_exists(j.jobname)
+                    j_header.raw2cmd()
+                    self.totaljobdict[j_header.jobname] = j_header
 
     def check_already_success(self):
         for job in self.jobs[:]:
