@@ -103,14 +103,20 @@ class RunSge(object):
                         self.throw('groups conflict in "%s" line number %d: "%s"' % (self.jfile,
                                                                                      jb.linenum, jb.cmd0))
                 elif n >= i and (n-i) % self.groups == 0:
-                    self._make_groups(wait_groups[n:n+self.groups])
+                    gs = []
+                    for j in wait_groups[n:n+self.groups]:
+                        if j.groups:
+                            break
+                        gs.append(j)
+                    self._make_groups(gs)
 
     def _make_groups(self, jobs=None):
         if len(jobs) > 1:
             j_header = jobs[0]
             for j in jobs[1:]:
                 j_header.rawstring += "\n" + j.rawstring
-                self.jobs.remove(j)
+                if j in self.jobs:
+                    self.jobs.remove(j)
                 self.jobsgraph.delete_node_if_exists(j.jobname)
             j_header.raw2cmd()
             self.totaljobdict[j_header.jobname] = j_header
