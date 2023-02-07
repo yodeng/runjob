@@ -30,38 +30,28 @@ from subprocess import Popen, call, PIPE, check_output
 class RunSge(object):
 
     def __init__(self, config=None):
-        sgefile = config.get("args", "jobfile")
-        queue = config.get("args", "queue")
-        cpu = config.get("args", "cpu")
-        mem = config.get("args", "memory")
-        name = config.get("args", "jobname")
-        start = config.get("args", "startline")
-        end = config.get("args", "endline")
-        logdir = config.get("args", "logdir")
-        workdir = config.get("args", "workdir")
-        maxjob = config.get("args", "num")
-        groups = config.get("args", "groups")
-        strict = config.get("args", "strict")
-        mode = config.get("args", "mode")
-        self.mode = mode
-        self.name = name
-        self.sgefile = ShellFile(sgefile, mode=mode, name=name,
-                                 logdir=logdir, workdir=workdir)
+        self.conf = config
+        self.mode = config.mode
+        self.name = config.jobname
+        self.logdir = config.logdir
+        self.queue = config.queue
+        self.mem = config.memory
+        self.cpu = config.cpu
+        self.maxjob = config.num
+        self.groups = config.groups
+        self.strict = config.strict
+        self.sgefile = ShellFile(config.jobfile, mode=self.mode, name=self.name,
+                                 logdir=self.logdir, workdir=config.workdir)
         self.jfile = self.sgefile._path
-        self.jobs = self.sgefile.jobshells(start=start, end=end)
+        self.jobs = self.sgefile.jobshells(
+            start=config.startline, end=config.endline)
         self.totaljobdict = {j.jobname: j for j in self.jobs}
-        self.queue = queue
-        self.mem = mem
-        self.cpu = cpu
-        self.maxjob = maxjob
-        self.logdir = logdir
         self.is_run = False
-        self.strict = strict
         self.localprocess = {}
         self.cloudjob = {}
-        self.conf = config
-        self.groups = groups
         self.jobsgraph = dag.DAG()
+        self.has_success = []
+
         j_groups = []
         tmp = []
         for j in self.jobs[:]:
@@ -91,6 +81,47 @@ class RunSge(object):
                 j_dep.append(j0)
             j_pre = j_dep
 
+        self.init_callback()
+        self.logger.info("Total jobs to submit: %s" %
+                         ", ".join([j.name for j in self.jobs]))
+        self.logger.info("All logs can be found in %s directory", self.logdir)
+        self.check_already_success()
+        self.maxjob = self.maxjob or len(self.jobs)
+        self.jobqueue = myQueue(maxsize=min(max(self.maxjob, 1), 1000))
+        self.conf.jobqueue = self.jobqueue
+        self.conf.logger = self.logger
+        self.conf.cloudjob = self.cloudjob
+        self.ncall, self.period = 3, 1
+
+    def check_already_success(self):
+        for job in self.jobs[:]:
+            lf = job.logfile
+            job.subtimes = 0
+            self.remove_job_stat_files(job)
+            if os.path.isfile(lf):
+                js = self.jobstatus(job)
+                if js != "success":
+                    os.remove(lf)
+                    job.status = "wait"
+                elif hasattr(job, "logcmd") and job.logcmd.strip() != job.rawstring.strip():
+                    self.logger.info(
+                        "job %s status already success, but raw command changed, will re-running", job.jobname)
+                    os.remove(lf)
+                    job.status = "wait"
+                else:
+                    if self.conf.force:
+                        self.logger.info(
+                            "job %s status already success, but force to re-running", job.jobname)
+                        os.remove(lf)
+                        job.status = "wait"
+                    else:
+                        self.jobsgraph.delete_node_if_exists(job.jobname)
+                        self.has_success.append(job.jobname)
+                        self.jobs.remove(job)
+            else:
+                job.status = "wait"
+
+    def init_callback(self):
         for name in ["init", "call_back"]:
             cmd = self.conf.get("args", name)
             if not cmd:
@@ -110,47 +141,6 @@ class RunSge(object):
                 self.jobsgraph.add_node_if_not_exists(job.jobname)
                 for j in f:
                     self.jobsgraph.add_edge(j, name)
-
-        self.logger.info("Total jobs to submit: %s" %
-                         ", ".join([j.name for j in self.jobs]))
-        self.logger.info("All logs can be found in %s directory", self.logdir)
-
-        self.has_success = []
-        for job in self.jobs[:]:
-            lf = job.logfile
-            job.subtimes = 0
-            self.remove_job_stat_files(job)
-            if os.path.isfile(lf):
-                js = self.jobstatus(job)
-                if js != "success":
-                    os.remove(lf)
-                    job.status = "wait"
-                elif hasattr(job, "logcmd") and job.logcmd.strip() != job.rawstring.strip():
-                    self.logger.info(
-                        "job %s status already success, but raw command changed, will re-running", job.jobname)
-                    os.remove(lf)
-                    job.status = "wait"
-                else:
-                    if config.get("args", "force"):
-                        self.logger.info(
-                            "job %s status already success, but force to re-running", job.jobname)
-                        os.remove(lf)
-                        job.status = "wait"
-                    else:
-                        self.jobsgraph.delete_node_if_exists(job.jobname)
-                        self.has_success.append(job.jobname)
-                        self.jobs.remove(job)
-            else:
-                job.status = "wait"
-
-        if self.maxjob is None:
-            self.maxjob = len(self.jobs)
-
-        self.jobqueue = myQueue(maxsize=min(max(self.maxjob, 1), 1000))
-        self.conf.jobqueue = self.jobqueue
-        self.conf.logger = self.logger
-        self.conf.cloudjob = self.cloudjob
-        self.ncall, self.period = 3, 1
 
     def jobstatus(self, job):
         jobname = job.jobname
@@ -388,7 +378,6 @@ class RunSge(object):
             self.conf.availableTypes = sorted(availableTypes, key=lambda x: (
                 self.conf.it_conf[x]["cpu"], self.conf.it_conf[x]["memory"]))
             self.conf.client = client
-
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
@@ -467,10 +456,7 @@ class RunSge(object):
         error_jobs = [j for j in run_jobs if j.status == "error"]
         success_jobs = [j for j in run_jobs if j.status == 'success']
         if not verbose:
-            if len(success_jobs) == len(run_jobs):
-                return True
-            else:
-                return False
+            return len(success_jobs) == len(run_jobs) and True or False
         status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) " % (len(
             run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs))
         if not self.sgefile.temp:
