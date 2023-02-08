@@ -10,7 +10,7 @@ from collections import Counter
 from subprocess import call, PIPE
 from ratelimiter import RateLimiter
 
-from .version import __version__
+from ._version import __version__
 
 if sys.version_info[0] < 3:
     from Queue import Queue

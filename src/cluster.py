@@ -130,7 +130,7 @@ class Task(object):
         self.client = self.cluster.client
         job.client = self.client
 
-    def modifyTaskOutMapping(self, mapping=""):
+    def modifyTaskOutMapping(self, job=None, mapping=""):
         if mapping:
             if self.cluster.oss_mount_entry["Destination"] in mapping:
                 # if not mapping.endswith("/"):
@@ -142,7 +142,7 @@ class Task(object):
                     "^"+des, src, mapping)
             else:
                 self.cluster.conf.logger.debug(
-                    "Only oss mount path support(%s), %s", outdir, job.name)
+                    "Only oss mount path support(%s), %s", mapping, job.name)
 
     def get_instance_type(self, cpu=2, mem=4):
         e = []

@@ -1,4 +1,11 @@
 *py[cod]
+*.c
+__pycache__/
 example/
-*job
+*.job
 *log
+tmp/
+build/
+test/
+dist/
+*.egg-info/

@@ -22,7 +22,7 @@ from .utils import *
 from .bc_stat import *
 from .cluster import *
 from .job import Jobfile
-from .version import __version__
+from ._version import __version__
 from .config import load_config, print_config
 
 

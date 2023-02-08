@@ -16,7 +16,7 @@ from .job import *
 from .utils import *
 from .cluster import *
 from .sge import ParseSingal
-from .version import __version__
+from ._version import __version__
 from .qsub import myQueue, QsubError
 from .config import load_config, print_config
 
@@ -368,7 +368,7 @@ class RunSge(object):
                 task.AddOneTask(
                     job=job, outdir=self.conf.get("args", "out_maping"))
                 if job.out_maping:
-                    task.modifyTaskOutMapping(mapping=job.out_maping)
+                    task.modifyTaskOutMapping(job=job, mapping=job.out_maping)
                 task.Submit()
                 info = "Your job (%s) has been submitted in batchcompute (%s) %d times\n" % (
                     task.name, task.id, job.subtimes+1)

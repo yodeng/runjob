@@ -16,7 +16,7 @@ from subprocess import call, PIPE
 
 from .utils import *
 from .qsub import qsub
-from .version import __version__
+from ._version import __version__
 
 
 class ParseSingal(Thread):
