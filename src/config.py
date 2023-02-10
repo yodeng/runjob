@@ -16,7 +16,7 @@ class Conf(configparser.ConfigParser):
 class Dict(dict):
 
     def __getattr__(self, name):
-        return self.get(name) or which(name)
+        return self.get(name, which(name))
 
     def __setattr__(self, name, value=None):
         self[name] = value
@@ -100,18 +100,21 @@ class Config(object):
                     self.info["software"][bin_key] = exe_path
 
     def __str__(self):
-        return self.info
+        return self.info.__str__()
 
-    __call__ = __repr__ = __str__
+    __repr__ = __str__
 
     __metaclass__ = ConfigType
 
+    def __call__(self):
+        return self.info
+
     def __getattr__(self, name):
-        if self.info.get(name):
+        if self.info.get(name) is not None:
             return self.info.get(name)
         values = Dict()
         for k, v in self.info.items():
-            if v.get(name):
+            if v.get(name) is not None:
                 values[k] = v.get(name)
         if not len(values):
             return which(name)
@@ -157,10 +160,13 @@ def canonicalize(path):
     return os.path.abspath(os.path.expanduser(path))
 
 
-def load_config(configfile_default=None, configfile_home=None):
-    configfile_home = configfile_home or os.path.join(
+def load_config(home=None, default=None):
+    '''
+    home config is priority then default
+    '''
+    configfile_home = home or os.path.join(
         os.path.expanduser("~"), ".runjobconfig")
-    configfile_default = configfile_default or os.path.join(os.path.dirname(
+    configfile_default = default or os.path.join(os.path.dirname(
         os.path.abspath(__file__)), 'runjobconfig')
     conf = Config(configfile_default)
     conf.update_config(configfile_home)
