@@ -275,8 +275,8 @@ class RunSge(object):
                             self.deletejob(jb)
                             if jb.subtimes >= self.times + 1:
                                 if self.strict:
-                                    self.throw("Error jobs return(submit %d times, error), exist!, %s" % (jb.subtimes, os.path.join(
-                                        self.logdir, jb.logfile)))  # if error, exit program
+                                    self.throw("Error jobs return (submit %d times), %s" % (
+                                        jb.subtimes, jb.logfile))
                                 self.jobqueue.get(jb)
                                 self.jobsgraph.delete_node_if_exists(
                                     jb.jobname)
