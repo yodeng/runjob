@@ -218,6 +218,8 @@ def runsgeArgparser():
                         "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, 'sge' by default")
     parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
                         type=int, default=2, metavar="<int>")
+    parser.add_argument('--rate', help="rate limite for job status checking per second, 3 by default",
+                        type=int, default=3, metavar="<int>")
     parser.add_argument('-ini', '--ini',
                         help="input configfile for configurations search.", metavar="<configfile>")
     parser.add_argument("-config", '--config',   action='store_true',

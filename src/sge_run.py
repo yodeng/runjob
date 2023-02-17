@@ -63,7 +63,7 @@ class RunSge(object):
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
-        self.ncall, self.period = 3, 1
+        self.ncall, self.period = config.rate, 1
 
     def depency_jobs(self):
         cur_jobs, dep_jobs = [], []

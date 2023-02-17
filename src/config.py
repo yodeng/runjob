@@ -6,6 +6,7 @@ from collections import defaultdict
 
 
 class Conf(configparser.ConfigParser):
+
     def __init__(self, defaults=None):
         super(Conf, self).__init__(defaults=defaults)
 
@@ -162,7 +163,7 @@ def canonicalize(path):
 
 def load_config(home=None, default=None):
     '''
-    home config is priority then default
+    home config is priority
     '''
     configfile_home = home or os.path.join(
         os.path.expanduser("~"), ".runjobconfig")
