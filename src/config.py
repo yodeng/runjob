@@ -179,7 +179,9 @@ def print_config(conf):
     for cf in conf.cf[::-1]:
         print(" - %s" % os.path.abspath(cf))
     print("\nAvailable Config:")
-    for k, info in conf.info.items():
+    for k, info in sorted(conf.info.items()):
+        if not len(info):
+            continue
         print("[%s]" % k)
         for v, p in sorted(info.items()):
             if "secret" in v:
