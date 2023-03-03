@@ -10,6 +10,7 @@ from collections import Counter
 from subprocess import call, PIPE
 from ratelimiter import RateLimiter
 
+from .log import *
 from ._version import __version__
 
 if sys.version_info[0] < 3:
@@ -70,19 +71,11 @@ class myQueue(object):
 
 def Mylog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
-    if level.lower() == "info":
-        logger.setLevel(logging.INFO)
-        f = logging.Formatter(
-            '[%(levelname)s %(asctime)s] %(message)s')
-    elif level.lower() == "debug":
-        logger.setLevel(logging.DEBUG)
-        f = logging.Formatter(
-            '[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s')
     if logfile is None:
-        h = logging.StreamHandler(sys.stdout)  # default: sys.stderr
+        h = logging.StreamHandler()
     else:
         h = logging.FileHandler(logfile, mode='w')
-    h.setFormatter(f)
+    h.setFormatter(Formatter())
     logger.addHandler(h)
     return logger
 
@@ -133,9 +126,9 @@ def sumJobs(qjobs):
 
 def style(string, mode='', fore='', back=''):
     STYLE = {
-        'fore': {'black': 30, 'red': 31, 'green': 32, 'yellow': 33, 'blue': 34, 'purple': 35, 'cyan': 36, 'white': 37},
-        'back': {'black': 40, 'red': 41, 'green': 42, 'yellow': 43, 'blue': 44, 'purple': 45, 'cyan': 46, 'white': 47},
-        'mode': {'mormal': 0, 'bold': 1, 'underline': 4, 'blink': 5, 'invert': 7, 'hide': 8},
+        'fore': Formatter.f_color_map,
+        'back': Formatter.b_color_map,
+        'mode': Formatter.mode_map,
         'default': {'end': 0},
     }
     mode = '%s' % STYLE["mode"].get(mode, "")

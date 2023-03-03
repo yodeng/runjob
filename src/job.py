@@ -339,7 +339,7 @@ class ShellJob(object):
         self.name = self.jobname
         if self.sf.temp and self.sf.name is not None:
             self.logfile = os.path.join(
-                self.sf.logdir, name+"_%d_line%05d.log" % (os.getpid(), self.linenum))
+                self.sf.logdir, name+"_line%05d.log" % self.linenum)
         else:
             self.logfile = os.path.join(self.sf.logdir, os.path.basename(
                 self.sf._path) + "_line%05d.log" % self.linenum)
