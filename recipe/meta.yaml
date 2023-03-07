@@ -22,6 +22,8 @@ requirements:
         - python
         - pip
     run:
+        - python
+        - pip
         - psutil >=5.7.0
         - ratelimiter >=1.2.0
         - prettytable >=3.2.0

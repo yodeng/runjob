@@ -50,12 +50,13 @@ class ConfigType(type):
 
 class Config(object):
 
-    def __init__(self, config_file=None):
+    def __init__(self, config_file=None, init_envs=False):
         self.cf = []
         self.info = Defaultdict(Dict)
         self.info.bin = self.info.software
         self.info.database = self.info.db = self.info.data
-        self.update_executable_bin()
+        if init_envs:
+            self.update_executable_bin()
         if config_file is None:
             return
         self._path = os.path.join(os.getcwd(), config_file)
@@ -161,7 +162,7 @@ def canonicalize(path):
     return os.path.abspath(os.path.expanduser(path))
 
 
-def load_config(home=None, default=None):
+def load_config(home=None, default=None, **kwargs):
     '''
     home config is priority
     '''
@@ -169,7 +170,7 @@ def load_config(home=None, default=None):
         os.path.expanduser("~"), ".runjobconfig")
     configfile_default = default or os.path.join(os.path.dirname(
         os.path.abspath(__file__)), 'runjobconfig')
-    conf = Config(configfile_default)
+    conf = Config(config_file=configfile_default, **kwargs)
     conf.update_config(configfile_home)
     return conf
 
