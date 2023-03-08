@@ -71,6 +71,10 @@ class myQueue(object):
 
 def Mylog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
+    if level.lower() == "info":
+        logger.setLevel(logging.INFO)
+    elif level.lower() == "debug":
+        logger.setLevel(logging.DEBUG)
     if logfile is None:
         h = logging.StreamHandler()
     else:

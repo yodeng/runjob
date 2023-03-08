@@ -19,10 +19,10 @@ source:
 
 requirements:
     host:
-        - python
+        - python <3.10
         - pip
     run:
-        - python
+        - python <3.10
         - pip
         - psutil >=5.7.0
         - ratelimiter >=1.2.0

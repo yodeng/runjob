@@ -15,7 +15,7 @@ runjob is a program for managing a group of related jobs running on a compute cl
 
 ## Software Requirements
 
-python >=2.7.10, <=3.10
+python >=2.7.10, <3.11
 
 ## Installation
 
@@ -30,7 +30,7 @@ The stable release (maybe not latest) can be installed with
 > pypi:
 
 ```
-pip install runjob
+pip install runjob -U
 ```
 
 > conda:

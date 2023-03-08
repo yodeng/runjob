@@ -7,6 +7,7 @@ Usage: qs [jobfile|logdir|logfile]
 
 from __future__ import print_function
 import os
+import re
 import sys
 import pdb
 import psutil
@@ -128,6 +129,7 @@ def main():
                 alljobnames = []
                 with open(statfile) as fi:
                     for line in fi:
+                        line = re.sub('\x1b.*?m', '', line)
                         if line.startswith("[") and "] job " in line:
                             line = line.split()
                             jobname = line[line.index("job")+1]
