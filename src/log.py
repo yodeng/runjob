@@ -45,23 +45,23 @@ class Formatter(logging.Formatter):
         self._formats = {
             logging.DEBUG: {
                 "fmt": "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s",
-                "color": self._color(1, 38)
+                "color": self._color(1, 36) # cyan
             },
             logging.INFO: {
                 "fmt": "[%(levelname)s %(asctime)s] %(message)s",
-                "color": self._color(0, 32)
+                "color": self._color(0, 32) # green
             },
             logging.WARNING: {
                 "fmt": "[%(levelname)s %(asctime)s] %(message)s",
-                "color": self._color(0, 33)
+                "color": self._color(0, 33) # yellow
             },
             logging.ERROR: {
                 "fmt": "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s",
-                "color": self._color(0, 31)
+                "color": self._color(0, 31) # red
             },
             logging.CRITICAL: {
                 "fmt": "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s",
-                "color": self._color(1, 31)
+                "color": self._color(1, 35) # purple
             },
         }
 
