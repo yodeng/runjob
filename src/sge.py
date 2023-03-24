@@ -43,7 +43,7 @@ class ParseSingal(Thread):
             except:
                 call_cmd(['qdel', "%s*" % self.name])
             for jb in self.obj.jobqueue.queue:
-                self.obj.remove_job_stat_files(jb)
+                jb.remove_all_job_stat_files()
                 jb.set_kill()
         elif self.mode == "batchcompute":
             user = getpass.getuser()
@@ -72,7 +72,7 @@ class ParseSingal(Thread):
                 terminate_process(p.pid)
             p.wait()
             self.obj.totaljobdict[j].set_kill()
-        self.obj.sumstatus(verbose=True)
+        self.obj.sumstatus()
         sys.exit(signum)
 
 

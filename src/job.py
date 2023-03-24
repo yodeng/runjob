@@ -113,6 +113,10 @@ class Jobstatus(object):
         if not self.is_end:
             self.set_status("kill")
 
+    def remove_all_job_stat_files(self):
+        call_cmd(["rm", "-fr", self.stat_file + ".success", self.stat_file +
+                 ".run", self.stat_file+".error", self.stat_file+".submit"])
+
     @property
     def is_fail(self):
         return self.status in ["kill", "error", "exit"]
