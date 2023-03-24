@@ -103,7 +103,34 @@ class Jobfile(object):
         raise OrderError(msg)
 
 
-class Job(object):
+class Jobstatus(object):
+
+    def set_status(self, status=None):
+        if not self.is_success:
+            self.status = status
+
+    def set_kill(self):
+        if not self.is_end:
+            self.set_status("kill")
+
+    @property
+    def is_fail(self):
+        return self.status in ["kill", "error", "exit"]
+
+    @property
+    def is_end(self):
+        return self.is_fail or self.is_success
+
+    @property
+    def is_success(self):
+        return self.status == "success"
+
+    @property
+    def has_submited(self):
+        return self.status in ["run", "submit", "resubmit", "success"]
+
+
+class Job(Jobstatus):
     def __init__(self, jobfile, rules):
         self.rules = rules
         self.jf = jobfile
@@ -193,11 +220,6 @@ class Job(object):
             self.cmd = self.cmd[0]
         else:
             self.throw("No cmd in %s job" % self.name)
-
-    def set_status(self, status=None):
-        if self.status == "success":
-            return
-        self.status = status
 
     def checkrule(self):
         rules = self.rules[:]
@@ -322,7 +344,7 @@ class ShellFile(object):
         return jobs
 
 
-class ShellJob(object):
+class ShellJob(Jobstatus):
     def __init__(self, sgefile, linenum=None, cmd=None):
         self.sf = sgefile
         name = self.sf.name
@@ -400,8 +422,3 @@ class ShellJob(object):
             os.remove(self.logfile)
         self.rawstring = self.cmd0.strip()
         self.raw2cmd()
-
-    def set_status(self, status=None):
-        if self.status == "success":
-            return
-        self.status = status

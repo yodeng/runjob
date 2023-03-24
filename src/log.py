@@ -39,29 +39,31 @@ class Formatter(logging.Formatter):
     mode_map = {'bold': 1, 'dark': 2, 'underline': 4,
                 'blink': 5, 'reverse': 7, 'concealed': 8}
     reset = '\x1b[0m'
+    fmt_debug = "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s"
 
     def __init__(self, *args, **kw):
         super(Formatter, self).__init__(*args, **kw)
+        fmt = "[%(levelname)s %(asctime)s] %(message)s"
         self._formats = {
             logging.DEBUG: {
-                "fmt": "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s",
-                "color": self._color(1, 36) # cyan
+                "fmt": fmt,
+                "color": self._color(1, 36)  # cyan
             },
             logging.INFO: {
-                "fmt": "[%(levelname)s %(asctime)s] %(message)s",
-                "color": self._color(0, 32) # green
+                "fmt": fmt,
+                "color": self._color(0, 32)  # green
             },
             logging.WARNING: {
-                "fmt": "[%(levelname)s %(asctime)s] %(message)s",
-                "color": self._color(0, 33) # yellow
+                "fmt": fmt,
+                "color": self._color(0, 33)  # yellow
             },
             logging.ERROR: {
-                "fmt": "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s",
-                "color": self._color(0, 31) # red
+                "fmt": fmt,
+                "color": self._color(0, 31)  # red
             },
             logging.CRITICAL: {
-                "fmt": "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s",
-                "color": self._color(1, 35) # purple
+                "fmt": fmt,
+                "color": self._color(1, 35)  # purple
             },
         }
 
