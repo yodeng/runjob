@@ -182,6 +182,15 @@ class RunSge(object):
             level = "info"
         getattr(self.logger, level)("job %s status %s", name, job.status)
 
+    def log_kill(self, jb):
+        '''
+        may be status delay
+        '''
+        if not jb.is_killed:
+            jb.set_kill()
+        # if jb.is_killed:
+        #    self.log_status(jb)
+
     def jobstatus(self, job):
         jobname = job.jobname
         status = job.status
@@ -306,21 +315,21 @@ class RunSge(object):
             call_cmd(['qdel', "%s*" % name])
             for jb in self.jobqueue.queue:
                 jb.remove_all_job_stat_files()
-                jb.set_kill()
+                self.log_kill(jb)
         else:
             if jb.jobname in self.localprocess:
                 p = self.localprocess.pop(jb.jobname)
                 if p.poll() is None:
                     terminate_process(p.pid)
                 p.wait()
-                jb.set_kill()
+                self.log_kill(jb)
             if jb.host == "sge":
                 call_cmd(["qdel", jb.jobname])
-                jb.set_kill()
+                jb.remove_all_job_stat_files()
+                self.log_kill(jb)
             if self.is_run:
                 if jb.is_end:
-                    call_cmd(["rm", "-fr", jb.stat_file + ".success", jb.stat_file +
-                             ".run", jb.stat_file+".error", jb.stat_file+".submit"])
+                    jb.remove_all_job_stat_files()
                 elif jb.status == "run":
                     call_cmd(["rm", "-fr", jb.stat_file + ".success",
                              jb.stat_file+".error", jb.stat_file+".submit"])
@@ -441,8 +450,8 @@ class RunSge(object):
             raise QsubError(msg)
         else:
             if self.sgefile.mode == "sge":
-                self.logger.info(msg)
                 self.deletejob(name=self.sgefile.name)
+                self.logger.error(msg)
             elif self.sgefile.mode == "batchcompute":
                 for jb in self.jobqueue.queue:
                     jobname = jb.name
@@ -451,7 +460,7 @@ class RunSge(object):
                         j = self.conf.client.get_job(jobid)
                     except ClientError as e:
                         if e.status == 404:
-                            self.logger.info("Invalid JobId %s", jobid)
+                            self.logger.error("Invalid JobId %s", jobid)
                             continue
                     except:
                         continue
@@ -462,13 +471,13 @@ class RunSge(object):
                         self.logger.info("Delete job %s done", j.Name)
                         self.jobqueue.get(jb)
                     else:
-                        self.logger.info(
+                        self.logger.error(
                             "Delete job error, you have no assess with job %s", j.Name)
             for j, p in self.localprocess.items():
                 if p.poll() is None:
                     terminate_process(p.pid)
                 p.wait()
-                self.totaljobdict[j].set_kill()
+                self.log_kill(self.totaljobdict[j])
             self.sumstatus()
             os._exit(signal.SIGTERM)
 
@@ -496,12 +505,15 @@ class RunSge(object):
         return all(j.is_success for j in self.jobs)
 
     def sumstatus(self):
-        error_jobs = [j for j in self.jobs if j.is_fail]
-        success_jobs = [j for j in self.jobs if j.is_success]
-        sum_info = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) " % (len(
-            self.jobs) + len(self.has_success), len(self.jobs), len(success_jobs), len(error_jobs))
+        err_jobs = sum(j.is_fail for j in self.jobs)
+        suc_jobs = sum(j.is_success for j in self.jobs)
+        wt_jobs = sum(j.is_wait for j in self.jobs)
+        total_jobs = len(self.jobs) + len(self.has_success)
+        sub_jobs = len(self.jobs) - wt_jobs
+        sum_info = "All tesks(total: %d, submited: %d, success: %d, error: %d, wait: %d) " % (
+            total_jobs, sub_jobs, suc_jobs, err_jobs, wt_jobs)
         if not self.sgefile.temp:
-            sum_info += "in file (%s) " % os.path.abspath(self.jfile)
+            sum_info += "in file '%s' " % os.path.abspath(self.jfile)
         self.writestates(os.path.join(self.logdir, "job.status.txt"))
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
         if self.is_success:

@@ -114,8 +114,8 @@ class Jobstatus(object):
             self.set_status("kill")
 
     def remove_all_job_stat_files(self):
-        call_cmd(["rm", "-fr", self.stat_file + ".success", self.stat_file +
-                 ".run", self.stat_file+".error", self.stat_file+".submit"])
+        call_cmd(["rm", "-fr"] + [self.stat_file +
+                 i for i in [".success", ".run", ".error", ".submit"]])
 
     @property
     def is_fail(self):
@@ -128,6 +128,14 @@ class Jobstatus(object):
     @property
     def is_success(self):
         return self.status == "success"
+
+    @property
+    def is_killed(self):
+        return self.status == "kill"
+
+    @property
+    def is_wait(self):
+        return self.status == "wait"
 
     @property
     def has_submited(self):

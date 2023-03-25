@@ -43,26 +43,26 @@ class Formatter(logging.Formatter):
 
     def __init__(self, *args, **kw):
         super(Formatter, self).__init__(*args, **kw)
-        fmt = "[%(levelname)s %(asctime)s] %(message)s"
+        self.fmt = "[%(levelname)s %(asctime)s] %(message)s"
         self._formats = {
             logging.DEBUG: {
-                "fmt": fmt,
+                "fmt": self.fmt,
                 "color": self._color(1, 36)  # cyan
             },
             logging.INFO: {
-                "fmt": fmt,
+                "fmt": self.fmt,
                 "color": self._color(0, 32)  # green
             },
             logging.WARNING: {
-                "fmt": fmt,
+                "fmt": self.fmt,
                 "color": self._color(0, 33)  # yellow
             },
             logging.ERROR: {
-                "fmt": fmt,
+                "fmt": self.fmt,
                 "color": self._color(0, 31)  # red
             },
             logging.CRITICAL: {
-                "fmt": fmt,
+                "fmt": self.fmt,
                 "color": self._color(1, 35)  # purple
             },
         }
