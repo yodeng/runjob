@@ -335,7 +335,7 @@ class RunSge(object):
                              jb.stat_file+".error", jb.stat_file+".submit"])
 
     def submit(self, job):
-        if not self.is_run or job.has_submited:
+        if not self.is_run or job.do_not_submit:
             return
         logfile = job.logfile
         self.jobqueue.put(job, block=True, timeout=1080000)

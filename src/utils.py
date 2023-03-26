@@ -9,6 +9,7 @@ import threading
 from collections import Counter
 from subprocess import call, PIPE
 from ratelimiter import RateLimiter
+from functools import total_ordering
 
 from .log import *
 from ._version import __version__
@@ -23,6 +24,14 @@ RUNSTAT = " && echo [`date +'%F %T'`] SUCCESS || echo [`date +'%F %T'`] ERROR"
 
 
 class QsubError(Exception):
+    pass
+
+
+class JobRuleError(Exception):
+    pass
+
+
+class JobOrderError(Exception):
     pass
 
 
@@ -60,7 +69,7 @@ class myQueue(object):
 
     @property
     def queue(self):
-        return self._content.copy()
+        return sorted(self._content)
 
     def isEmpty(self):
         return self._queue.empty()

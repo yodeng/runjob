@@ -100,10 +100,11 @@ class Jobfile(object):
         return thisjobs
 
     def throw(self, msg):
-        raise OrderError(msg)
+        raise JobOrderError(msg)
 
 
-class Jobstatus(object):
+@total_ordering
+class Jobutils(object):
 
     def set_status(self, status=None):
         if not self.is_success:
@@ -138,11 +139,25 @@ class Jobstatus(object):
         return self.status == "wait"
 
     @property
-    def has_submited(self):
+    def do_not_submit(self):
         return self.status in ["run", "submit", "resubmit", "success"]
 
+    def __lt__(self, other):
+        return self.name < other.name
 
-class Job(Jobstatus):
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __repr__(self):
+        return self.name
+
+    __str__ = __repr__
+
+    def __hash__(self):
+        return hash(self.name)
+
+
+class Job(Jobutils):
     def __init__(self, jobfile, rules):
         self.rules = rules
         self.jf = jobfile
@@ -281,27 +296,7 @@ class Job(Jobstatus):
         fo.write("job_end\n")
 
     def throw(self, msg):
-        raise RuleError(msg)
-
-
-class RuleError(Exception):
-    def __init__(self, ErrorInfo):
-        super(RuleError, self).__init__(self)
-        self.errorinfo = ErrorInfo
-
-    def __str__(self):
-        return self.errorinfo
-    __repr__ = __str__
-
-
-class OrderError(Exception):
-    def __init__(self, ErrorInfo):
-        super(OrderError, self).__init__(self)
-        self.errorinfo = ErrorInfo
-
-    def __str__(self):
-        return self.errorinfo
-    __repr__ = __str__
+        raise JobRuleError(msg)
 
 
 class ShellFile(object):
@@ -356,7 +351,7 @@ class ShellFile(object):
         return jobs
 
 
-class ShellJob(Jobstatus):
+class ShellJob(Jobutils):
     def __init__(self, sgefile, linenum=None, cmd=None):
         self.sf = sgefile
         name = self.sf.name
