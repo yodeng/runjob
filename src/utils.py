@@ -11,7 +11,7 @@ from subprocess import call, PIPE
 from ratelimiter import RateLimiter
 from functools import total_ordering
 
-from .log import *
+from .loger import *
 from ._version import __version__
 
 if sys.version_info[0] < 3:

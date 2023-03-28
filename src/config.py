@@ -119,7 +119,7 @@ class Config(object):
             if v.get(name) is not None:
                 values[k] = v.get(name)
         if not len(values):
-            return which(name)
+            return
         if len(values) == 1 or len(set(values.values())) == 1:
             return list(values.values())[0]
         return values

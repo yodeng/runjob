@@ -30,21 +30,43 @@ from subprocess import Popen, call, PIPE, check_output
 class RunSge(object):
 
     def __init__(self, config=None):
+        '''
+        all attribute of config:
+
+            @jobfile <file>: required
+            @jobname <str>: default: basename(jobfile) + os.getpid()
+            @mode <str>: default: sge
+            @queue <list>: default: all access queue
+            @num <int>: default: total jobs
+            @startline <int>: default: 1
+            @endline <int>: default: None
+            @cpu <int>: default: 1
+            @memory <int>: default: 1
+            @groups <int>: default: 1
+            @strict <bool>: default: False
+            @force <bool>: default: False
+            @logdir <dir>: defalut: "%s/runjob_*_log_dir" % os.getcwd()
+            @workdir <dir>: default: os.getcwd()
+            @rate <int>: default: 3
+        '''
         self.conf = config
-        self.mode = config.mode
         self.name = config.jobname
-        self.logdir = config.logdir
+        self.jobfile = config.jobfile
         self.queue = config.queue
-        self.mem = config.memory
-        self.cpu = config.cpu
         self.maxjob = config.num
-        self.groups = config.groups
-        self.strict = config.strict
-        self.sgefile = ShellFile(config.jobfile, mode=self.mode, name=self.name,
-                                 logdir=self.logdir, workdir=config.workdir)
+        self.mode = config.mode or "sge"
+        self.cpu = config.cpu or 1
+        self.mem = config.memory or 1
+        self.groups = config.groups or 1
+        self.strict = config.strict or False
+        self.workdir = config.workdir or os.getcwd()
+        self.logdir = config.logdir or os.path.join(
+            self.workdir, "runjob_"+os.path.basename(self.jobfile) + "_log_dir")
+        self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
+                                 logdir=self.logdir, workdir=self.workdir)
         self.jfile = self.sgefile._path
         self.jobs = self.sgefile.jobshells(
-            start=config.startline, end=config.endline)
+            start=config.startline or 1, end=config.endline)
         self.totaljobdict = {j.jobname: j for j in self.jobs}
         self.is_run = False
         self.localprocess = {}
@@ -63,7 +85,7 @@ class RunSge(object):
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
-        self.ncall, self.period = config.rate, 1
+        self.ncall, self.period = config.rate or 3, 1
 
     def depency_jobs(self):
         cur_jobs, dep_jobs = [], []
@@ -398,6 +420,11 @@ class RunSge(object):
             job.subtimes += 1
 
     def run(self, sec=2, times=3, resubivs=2):
+        '''
+        @sec: submit epoch ivs, default: 2
+        @times: resubmit times, default: 3
+        @resubivs: resubmit ivs sec, default: 2
+        '''
         self.is_run = True
         self.times = max(0, times)
         self.resubivs = max(resubivs, 0)
