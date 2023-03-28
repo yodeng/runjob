@@ -294,8 +294,9 @@ class RunSge(object):
         return status
 
     def set_rate(self, ncall=3, period=1):
-        self.ncall = ncall
-        self.period = period
+        if ncall and period:
+            self.ncall = ncall
+            self.period = period
 
     def jobcheck(self):
         if self.sgefile.mode == "batchcompute":

@@ -368,10 +368,10 @@ class ShellJob(Jobutils):
         self.name = self.jobname
         if self.sf.temp and self.sf.name is not None:
             self.logfile = os.path.join(
-                self.sf.logdir, name+"_line%05d.log" % self.linenum)
+                self.sf.logdir, name+"_%05d.log" % self.linenum)
         else:
             self.logfile = os.path.join(self.sf.logdir, os.path.basename(
-                self.sf._path) + "_line%05d.log" % self.linenum)
+                self.sf._path) + "_%05d.log" % self.linenum)
         self.subtimes = 0
         self.status = None
         self.host = self.sf.mode
