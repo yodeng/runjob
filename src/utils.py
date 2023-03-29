@@ -8,16 +8,18 @@ import threading
 
 from collections import Counter
 from subprocess import call, PIPE
-from ratelimiter import RateLimiter
+from time import monotonic as now
 from functools import total_ordering
+
+from ratelimiter import RateLimiter
 
 from .loger import *
 from ._version import __version__
 
 if sys.version_info[0] < 3:
-    from Queue import Queue
+    from Queue import Queue, Empty
 else:
-    from queue import Queue
+    from queue import Queue, Empty
 
 
 RUNSTAT = " && echo [`date +'%F %T'`] SUCCESS || echo [`date +'%F %T'`] ERROR"
@@ -35,47 +37,63 @@ class JobOrderError(Exception):
     pass
 
 
-class myQueue(object):
+class JobQueue(Queue):
 
-    def __init__(self, maxsize=0):
-        self._content = set()
-        self._queue = Queue(maxsize=maxsize)
-        self.sm = threading.Semaphore(maxsize)
-        self.lock = threading.Lock()
+    def _init(self, maxsize):
+        self._queue = set()
+
+    def _qsize(self):
+        return len(self._queue)
+
+    def _put(self, item):
+        self._queue.add(item)
+
+    def _get(self, name=None):
+        if name is not None:
+            if name in self._queue:
+                self._queue.remove(name)
+                return name
+            else:
+                raise KeyError(name)
+        return self._queue.pop()
+
+    def __str__(self):
+        return self._queue.__str__()
+
+    __repr__ = __str__
 
     @property
     def length(self):
-        return self._queue.qsize()
-
-    def put(self, v, **kwargs):
-        self._queue.put(v, **kwargs)
-        # self.sm.acquire()
-        if v not in self._content:
-            with self.lock:
-                self._content.add(v)
-
-    def get(self, v=None):
-        self._queue.get()
-        # self.sm.release()
-        if v is None:
-            with self.lock:
-                o = self._content.pop()
-                return o
-        else:
-            if v in self._content:
-                with self.lock:
-                    self._content.remove(v)
-                    return v
+        return self.qsize()
 
     @property
     def queue(self):
-        return sorted(self._content)
+        return sorted(self._queue)
 
-    def isEmpty(self):
-        return self._queue.empty()
+    def puts(self, *items, **kw):
+        for item in items:
+            self.put(item, **kw)
 
-    def isFull(self):
-        return self._queue.full()
+    def get(self, name=None, block=True, timeout=None):
+        with self.not_empty:
+            if not block:
+                if not self._qsize():
+                    raise Empty
+            elif timeout is None:
+                while not self._qsize():
+                    self.not_empty.wait()
+            elif timeout < 0:
+                raise ValueError("'timeout' must be a non-negative number")
+            else:
+                endtime = now() + timeout
+                while not self._qsize():
+                    remaining = endtime - now()
+                    if remaining <= 0.0:
+                        raise Empty
+                    self.not_empty.wait(remaining)
+            item = self._get(name)
+            self.not_full.notify()
+            return item
 
 
 def Mylog(logfile=None, level="info", name=None):

@@ -17,7 +17,7 @@ from .utils import *
 from .cluster import *
 from .sge import ParseSingal
 from ._version import __version__
-from .qsub import myQueue, QsubError
+from .qsub import JobQueue, QsubError
 from .config import load_config, print_config
 
 from copy import deepcopy
@@ -81,7 +81,7 @@ class RunSge(object):
         self.logger.info("All logs can be found in %s directory", self.logdir)
         self.check_already_success()
         self.maxjob = self.maxjob or len(self.jobs)
-        self.jobqueue = myQueue(maxsize=min(max(self.maxjob, 1), 1000))
+        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
