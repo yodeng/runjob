@@ -105,7 +105,7 @@ class Packages(object):
     @property
     def _entrys(self):
         eps = [
-            '%s = %s.run:main' % (self.name, self.name),
+            '%s = %s.qsub:main' % (self.name, self.name),
             '%s = %s.jobstat:main' % ("qs", self.name),
             '%s = %s.jobstat:batchStat' % ("qcs", self.name),
             '%s = %s.sge_run:main' % ("runsge", self.name),

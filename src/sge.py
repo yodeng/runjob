@@ -41,7 +41,7 @@ class ParseSingal(Thread):
             try:
                 self.obj.deletejob(name=self.name)
             except:
-                call_cmd(['qdel', "%s*" % self.name])
+                self.obj.qdel(name=self.name)
             for jb in self.obj.jobqueue.queue:
                 jb.remove_all_job_stat_files()
                 self.obj.log_kill(jb)

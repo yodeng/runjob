@@ -1,11 +1,15 @@
 import os
+import re
 import sys
 import pdb
+import time
+import signal
 import psutil
 import logging
 import argparse
 import threading
 
+from threading import Thread
 from collections import Counter
 from subprocess import call, PIPE
 from time import monotonic as now
@@ -23,6 +27,8 @@ else:
 
 
 RUNSTAT = " && echo [`date +'%F %T'`] SUCCESS || echo [`date +'%F %T'`] ERROR"
+
+QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
 
 
 class QsubError(Exception):
@@ -109,50 +115,6 @@ def Mylog(logfile=None, level="info", name=None):
     h.setFormatter(Formatter())
     logger.addHandler(h)
     return logger
-
-
-def cleanAll(clear=False, qjobs=None, sumj=True):
-    if qjobs is None:
-        return
-    stillrunjob = qjobs.jobqueue.queue
-    if clear:
-        pid = os.getpid()
-        gid = os.getpgid(pid)
-        for jn in stillrunjob:
-            if jn.status in ["error", "success"]:
-                continue
-            jn.status = "killed"
-            qjobs.logger.info("job %s status killed", jn.name)
-        call_cmd(['qdel,  "*_%d"' % os.getpid()])
-    else:
-        for jn in stillrunjob:
-            if jn.status in ["error", "success"]:
-                continue
-            jn.status += "-but-exit"
-            qjobs.logger.info("job %s status %s", jn.name, jn.status)
-    if sumj:
-        sumJobs(qjobs)
-
-
-def sumJobs(qjobs):
-    run_jobs = qjobs.jobs
-    has_success_jobs = qjobs.has_success
-    error_jobs = [j for j in run_jobs if j.status == "error"]
-    success_jobs = [j for j in run_jobs if j.status == 'success']
-
-    logger = logging.getLogger()
-    status = "All tesks(total(%d), actual(%d), actual_success(%d), actual_error(%d)) in file (%s) finished" % (len(
-        run_jobs) + len(has_success_jobs), len(run_jobs), len(success_jobs), len(error_jobs), os.path.abspath(qjobs.jfile))
-    SUCCESS = True
-    if len(success_jobs) == len(run_jobs):
-        status += " successfully."
-    else:
-        status += ", but there are Unsuccessful tesks."
-        SUCCESS = False
-    logger.info(status)
-    qjobs.writestates(os.path.join(qjobs.logdir, "job.status.txt"))
-    logger.info(str(dict(Counter([j.status for j in run_jobs]))))
-    return SUCCESS
 
 
 def style(string, mode='', fore='', back=''):
@@ -275,6 +237,40 @@ def runsgeArgparser():
     parser.add_argument("-j", "--jobfile", type=str,
                         help="the input jobfile", metavar="<jobfile>")
     return parser
+
+
+def runjobArgparser():
+    parser = argparse.ArgumentParser(
+        description="For manger submit your jobs in a job file.")
+    parser.add_argument("-n", "--num", type=int,
+                        help="the max job number runing at the same time, default: 1000", default=1000, metavar="<int>")
+    parser.add_argument("-j", "--jobfile", type=str, required=True,
+                        help="the input jobfile", metavar="<jobfile>")
+    parser.add_argument('-i', '--injname', help="job names you need to run, default: all jobnames of you job file",
+                        nargs="*", type=str, metavar="<str>")
+    parser.add_argument("-s", "--startline", type=int,
+                        help="which line number(1-base) be used for the first job tesk. default: 1", metavar="<int>", default=1)
+    parser.add_argument("-e", "--endline", type=int,
+                        help="which line number (include) be used for the last job tesk. default: all in your job file", metavar="<int>")
+    parser.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, 0 by default",
+                        type=int, default=0, metavar="<int>")
+    parser.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, 2 by default",
+                        type=int, default=2, metavar="<int>")
+    parser.add_argument('--rate', help="rate limite for job status checking per second, 3 by default",
+                        type=int, default=3, metavar="<int>")
+    parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
+                        "sge", "local", "localhost"], help="the mode to submit your jobs, 'sge' by default, if no sge installed, always localhost.")
+    parser.add_argument("--local", default=False, action="store_true",
+                        help="submit your jobs in localhost, same as '--mode local'")
+    parser.add_argument("--strict", action="store_true", default=False,
+                        help="use strict to run. Means if any errors occur, clean all jobs and exit programe. off by default")
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='log debug info', default=False)
+    parser.add_argument("-l", "--log", type=str,
+                        help='append log info to file, sys.stdout by default', metavar="<file>")
+    parser.add_argument('-v', '--version',
+                        action='version', version="%(prog)s v" + __version__)
+    return parser.parse_args()
 
 
 def shellJobArgparser(arglist):

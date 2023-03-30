@@ -1,258 +1,120 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-import os
-import sys
-import time
-import signal
-import logging
-import threading
-
-from datetime import datetime
-from collections import Counter
-from subprocess import Popen, call, PIPE
-
-from .job import Jobfile
-from .dag import DAG
+from . import dag
 from .utils import *
+from .job import Jobfile
+from .sge_run import RunSge
+from .config import load_config
 
 
-class qsub(object):
-    def __init__(self, jobfile, max_jobs=None, jobnames=None, start=0, end=None, mode=None, usestrict=False, clear=False):
-        self.pid = os.getpid()
-        self.jfile = jobfile
-        self.is_run = False
-        self.usestrict = usestrict
-        self.clear = clear
+class CleanUpSingal(Thread):
 
-        jf = Jobfile(self.jfile, mode=mode)
-        self.has_sge = jf.has_sge
-        self.jobs = jf.jobs(jobnames, start, end)
+    def __init__(self, obj=None):
+        super(CleanUpSingal, self).__init__()
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        self.obj = obj
+        self.mode = obj.mode
+        self.daemon = True
+
+    def run(self):
+        time.sleep(1)
+
+    def singal_handler_us(self, signum, fram):
+        pass
+
+    def signal_handler(self, signum, frame):
+        if self.mode == "sge":
+            self.obj.qdel(name=self.obj.name)
+            for jb in self.obj.jobqueue.queue:
+                jb.remove_all_job_stat_files()
+                self.obj.log_kill(jb)
+        for j, p in self.obj.localprocess.items():
+            if p.poll() is None:
+                terminate_process(p.pid)
+            p.wait()
+            self.obj.log_kill(self.obj.totaljobdict[j])
+        self.obj.sumstatus()
+        sys.exit(signum)
+
+
+class qsub(RunSge):
+
+    def __init__(self, config=None):
+
+        self.conf = config
+        self.jobfile = config.jobfile
+        self.queue = config.queue
+        self.maxjob = config.num
+        self.strict = config.strict or False
+        self.workdir = config.workdir or os.getcwd()
+        self.jf = jf = Jobfile(self.jobfile, mode=config.mode or "sge")
+        self.mode = jf.mode
+        self.name = os.getpid()
+        self.jobs = jf.jobs(
+            config.injname, config.startline or 1, config.endline)
+        self.logdir = jf.logdir
         self.jobnames = [j.name for j in self.jobs]
-
         self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
-
         self.orders = jf.orders()
+        self.is_run = False
         self.localprocess = {}
+        self.cloudjob = {}
+        self.jobsgraph = dag.DAG()
+        self.has_success = []
+        self.create_graph()
+        self.logger.info("Total jobs to submit: %s" %
+                         ", ".join([j.name for j in self.jobs]))
+        self.logger.info("All logs can be found in %s directory", self.logdir)
+        self.check_already_success()
+        self.maxjob = self.maxjob or len(self.jobs)
+        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
+        self.ncall, self.period = config.rate or 3, 1
+        self.sge_jobid = {}
 
-        # duplicate job names
-        if len(jf.alljobnames) != len(set(jf.alljobnames)):
-            names = [i for i, j in Counter(jf.alljobnames).items() if j > 1]
-            self.throw("duplicate job name: %s" % " ".join(names))
-
-        self.jobsgraph = DAG()
+    def create_graph(self):
         for k, v in self.orders.items():
             self.jobsgraph.add_node_if_not_exists(k)
             for i in v:
                 self.jobsgraph.add_node_if_not_exists(i)
                 self.jobsgraph.add_edge(i, k)
-
         for jn in self.jobsgraph.all_nodes.copy():
             if jn not in self.jobnames:
                 self.jobsgraph.delete_node(jn)
-
-        self.logdir = jf.logdir
-        if not os.path.isdir(self.logdir):
-            os.makedirs(self.logdir)
-
-        self.logger.info("Total jobs to submit: %s" %
-                         " ".join([j.name for j in self.jobs]))
-        self.logger.info("All logs can be found in %s directory", self.logdir)
-
-        self.has_success = []
-        for job in self.jobs[:]:
-            lf = os.path.join(self.logdir, job.name + ".log")
-            job.subtimes = 0
-            if job.status is not None and job.status in ["done", "success"]:
-                self.jobsgraph.delete_node_if_exists(job.name)
-                self.has_success.append(job.name)
-                self.jobs.remove(job)
-                continue
-            if os.path.isfile(lf):
-                js = self.jobstatus(job)
-                if js != "success":
-                    os.remove(lf)
-                    job.status = "wait"
-                elif hasattr(job, "logcmd") and job.logcmd.strip() != job.cmd.strip():
-                    self.logger.info(
-                        "job %s status already success, but raw command changed, will re-runing", job.name)
-                    os.remove(lf)
-                    job.status = "wait"
-                else:
-                    self.jobsgraph.delete_node_if_exists(job.name)
-                    self.has_success.append(job.name)
-                    self.jobs.remove(job)
-            else:
-                job.status = "wait"
-
+        if len(self.jf.alljobnames) != len(set(self.jf.alljobnames)):
+            names = [i for i, j in Counter(
+                self.jf.alljobnames).items() if j > 1]
+            self.throw("duplicate job name: %s" % " ".join(names))
         if self.jobsgraph.size() == 0:
             for jb in self.jobs:
                 self.jobsgraph.add_node_if_not_exists(jb.name)
 
-        self.max_jobs = len(self.jobs) if max_jobs is None else min(
-            max_jobs, len(self.jobs))
+    def clean_resource(self):
+        h = CleanUpSingal(obj=self)
+        h.start()
 
-        self.jobqueue = JobQueue(maxsize=min(max(self.max_jobs, 1), 1000))
+    def qdel(self, name="", jobname=""):
+        if name:
+            call_cmd(['qdel', "*_%d" % os.getpid()])
+            self.sge_jobid.clear()
+        if jobname:
+            jobid = self.sge_jobid.get(jobname, jobname)
+            call_cmd(["qdel", jobid])
+            if jobid in self.sge_jobid:
+                self.sge_jobid.pop(jobid)
 
-    def jobstatus(self, job):
-        jobname = job.name
-        status = job.status
-        logfile = os.path.join(self.logdir, jobname + ".log")
-        if os.path.isfile(logfile):
-            with os.popen('tail -n 1 %s' % logfile) as fi:
-                sta = fi.read().strip()
-                stal = sta.split()
-            if sta:
-                if stal[-1] == "SUCCESS":
-                    status = "success"
-                elif stal[-1] == "ERROR":
-                    status = "error"
-                elif stal[-1] == "Exiting.":
-                    status = "exit"
-                elif "RUNNING..." in sta:
-                    status = "run"
-                # sge submit, but not running
-                elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
-                    with os.popen("qstat -j %s | tail -n 1" % jobname) as fi:
-                        info = fi.read()
-                        if info.startswith("error") or ("error" in info and "Job is in error" in info):
-                            status = "error"
-                else:
-                    status = "run"
-            else:
-                status = "run"
-            if not self.is_run and status == "success":
-                job.logcmd = ""
-                with open(logfile) as fi:
-                    for line in fi:
-                        if not line.strip():
-                            continue
-                        if line.startswith("["):
-                            break
-                        job.logcmd += line
-                job.logcmd = job.logcmd.strip()
-        if status != job.status and self.is_run:
-            self.logger.info("job %s status %s", jobname, status)
-            job.set_status(status)
-        return status
 
-    def jobcheck(self, sec=1):
-        rate_limiter = RateLimiter(max_calls=3, period=sec)
-        while True:
-            with rate_limiter:
-                for jb in self.jobqueue.queue:
-                    with rate_limiter:
-                        try:
-                            js = self.jobstatus(jb)
-                        except:
-                            continue
-                        if js == "success":
-                            if jb.name in self.localprocess:
-                                self.localprocess[jb.name].wait()
-                            self.jobqueue.get(jb)
-                            self.jobsgraph.delete_node_if_exists(jb.name)
-                        elif js == "error":
-                            if jb.name in self.localprocess:
-                                self.localprocess[jb.name].wait()
-                            if jb.host == "sge":
-                                call_cmd(["qdel", jb.jobname])
-                            self.jobqueue.get(jb)
-                            if jb.subtimes >= self.times + 1:
-                                if self.usestrict:
-                                    self.throw("Error jobs return(submit %d times, error), exist!, %s" % (jb.subtimes, os.path.join(
-                                        self.logdir, jb.name + ".log")))  # if error, exit program
-                                self.jobsgraph.delete_node_if_exists(jb.name)
-                            else:
-                                self.submit(jb)
-                        elif js == "exit":
-                            if jb.host == "sge":
-                                call_cmd(["qdel", jb.jobname])
-                            if self.usestrict:
-                                self.throw("Error when submit, %s" % jb.name)
+def main():
+    args = runjobArgparser()
+    conf = load_config()
+    if args.local:
+        args.mode = "local"
+    conf.update_dict(**args.__dict__)
+    logger = Mylog(logfile=args.log, level=args.debug and "debug" or "info")
+    qjobs = qsub(config=conf)
+    qjobs.run(times=args.resub, resubivs=args.resubivs)
 
-    def run(self, sec=2, times=3, resubivs=2):
-        self.is_run = True
-        self.times = max(times, 0)
-        self.resubivs = max(resubivs, 0)
 
-        for jn in self.has_success:
-            self.logger.info("job %s status already success", jn)
-
-        p = threading.Thread(target=self.jobcheck)
-        p.setDaemon(True)
-        p.start()
-
-        while True:
-            subjobs = self.jobsgraph.ind_nodes()
-            if len(subjobs) == 0:
-                break
-            for j in subjobs:
-                jb = self.totaljobdict[j]
-                if jb in self.jobqueue.queue:
-                    continue
-                self.submit(jb)
-            time.sleep(sec)
-
-    def submit(self, job):
-        if not self.is_run or job.status in ["run", "submit", "resubmit", "success"]:
-            return
-
-        logfile = os.path.join(self.logdir, job.name + ".log")
-
-        self.jobqueue.put(job, block=True, timeout=1080000)
-
-        with open(logfile, "a") as logcmd:
-            if job.subtimes == 0:
-                logcmd.write(job.cmd+"\n")
-                job.set_status("submit")
-            elif job.subtimes > 0:
-                logcmd.write("\n" + job.cmd+"\n")
-                job.set_status("resubmit")
-
-            self.logger.info("job %s status %s", job.name, job.status)
-            logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
-            logcmd.flush()
-
-            qsubline = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-                job.cmd + RUNSTAT
-
-            if (job.host is not None and job.host == "localhost") or not self.has_sge:
-                cmd = "echo 'Your job (\"%s\") has been submitted in localhost' && " % job.name + qsubline
-                if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
-                    time.sleep(self.resubivs)
-                p = Popen(cmd, shell=True, stdout=logcmd, stderr=logcmd)
-                self.localprocess[job.name] = p
-            else:
-                cmd = 'echo "%s" | qsub %s -N %s_%d -o %s -j y' % (
-                    qsubline, job.sched_options, job.name, self.pid, logfile)
-                if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
-                    time.sleep(self.resubivs)
-                call(cmd.replace("`", "\`"), shell=True,
-                     stdout=logcmd, stderr=logcmd)
-            job.subtimes += 1
-            self.logger.debug("%s job submit %s times", job.name, job.subtimes)
-
-    def throw(self, msg):
-        if threading.current_thread().name == 'MainThread':
-            raise QsubError(msg)
-        else:
-            self.logger.info(msg)
-            cleanAll(self.clear, self)
-            os._exit(signal.SIGTERM)
-
-    def writestates(self, outstat):
-        summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
-        with open(outstat, "w") as fo:
-            fo.write(str(dict(Counter(summary.values()))) + "\n\n")
-            sumout = {}
-            for k, v in summary.items():
-                sumout.setdefault(v, []).append(k)
-            for k, v in sorted(sumout.items()):
-                fo.write(
-                    k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
-
-    @property
-    def logger(self):
-        return logging.getLogger()
+if __name__ == "__main__":
+    sys.exit(main())

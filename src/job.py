@@ -13,6 +13,7 @@ from .utils import *
 
 
 class Jobfile(object):
+
     def __init__(self, jobfile, mode=None):
         self.has_sge = os.getenv("SGE_ROOT")
         self._path = os.path.abspath(jobfile)
@@ -20,8 +21,9 @@ class Jobfile(object):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.logdir = os.path.join(self._pathdir, "log")
+        self.workdir = os.getcwd()
         if self.has_sge:
-            self.mode = "sge" if mode is None else mode
+            self.mode = mode or "sge"
         else:
             self.mode = "localhost"
         if "local" in self.mode:
@@ -96,7 +98,7 @@ class Jobfile(object):
                         break
             return thisjobs
         jobend = len(jobs) if end is None else end
-        thisjobs = self.totaljobs[start:jobend]
+        thisjobs = self.totaljobs[start-1:jobend]
         return thisjobs
 
     def throw(self, msg):
@@ -117,6 +119,18 @@ class Jobutils(object):
     def remove_all_job_stat_files(self):
         call_cmd(["rm", "-fr"] + [self.stat_file +
                  i for i in [".success", ".run", ".error", ".submit"]])
+
+    def raw2cmd(self):
+        self.stat_file = os.path.join(
+            self.logdir, "."+os.path.basename(self.logfile))
+        if self.host == "sge":
+            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && ".format(self.stat_file) + \
+                self.rawstring + \
+                " && (echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || (echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
+                    self.stat_file)
+        else:
+            self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
+                self.rawstring + RUNSTAT
 
     @property
     def is_fail(self):
@@ -158,9 +172,12 @@ class Jobutils(object):
 
 
 class Job(Jobutils):
+
     def __init__(self, jobfile, rules):
         self.rules = rules
         self.jf = jobfile
+        self.logdir = self.jf.logdir
+        self._path = self.jf._path
         self.name = None
         self.status = None
         self.sched_options = None
@@ -168,6 +185,7 @@ class Job(Jobutils):
         self.host = None
         self.checkrule()
         cmd = False
+        self.queue = []
         for j in self.rules:
             j = j.strip()
             if not j or j.startswith("#"):
@@ -186,28 +204,22 @@ class Job(Jobutils):
                 self.sched_options = " ".join(j.split()[1:])
                 self.cpu, self.mem = 1, 1
                 args = self.sched_options.split()
-                if "-l" in args:
-                    resourceidx = args.index("-l")
-                    res = args[resourceidx+1].split(",")
-                    for r in res:
-                        k = r.split("=")[0].strip()
-                        v = r.split("=")[1].strip()
-                        if k == "vf":
-                            self.mem = int(re.sub("\D", "", v))
-                        elif k in ["p", "np", "nprc"]:
-                            self.cpu = int(v)
-                if "-c" in args:
-                    cpuidx = args.index("-c")
-                    self.cpu = max(int(args[cpuidx+1]), 1)
-                elif "--cpu" in args:
-                    cpuidx = args.index("--cpu")
-                    self.cpu = max(int(args[cpuidx+1]), 1)
-                if "-m" in args:
-                    memidx = args.index("-m")
-                    self.mem = max(int(args[memidx+1]), 1)
-                elif "--memory" in args:
-                    memidx = args.index("--memory")
-                    self.mem = max(int(args[memidx+1]), 1)
+                for n, i in enumerate(args[:]):
+                    if i in ["-c", "--cpu"]:
+                        self.cpu = max(int(args[n+1]), 1)
+                    elif i in ["-m", "--memory"]:
+                        self.mem = max(int(args[i+1]), 1)
+                    elif i in ["-q", "--queue"]:
+                        self.queue.append(args[n+1])
+                    elif i == "-l":
+                        res = args[n+1].split(",")
+                        for r in res:
+                            k = r.split("=")[0].strip()
+                            v = r.split("=")[1].strip()
+                            if k == "vf":
+                                self.mem = int(re.sub("\D", "", v))
+                            elif k in ["p", "np", "nprc"]:
+                                self.cpu = int(v)
             elif j.startswith("host"):
                 self.host = j.split()[-1]
             elif j == "cmd_begin":
@@ -241,12 +253,30 @@ class Job(Jobutils):
                     self.host = None
         else:
             self.host = "localhost"  # if not sge installed, only run localhost
+        if self.host is None:
+            if self.jf.has_sge:
+                self.host = "sge"
+            else:
+                self.host = "localhost"
         if len(self.cmd) > 1:
             self.cmd = " && ".join(self.cmd)
         elif len(self.cmd) == 1:
             self.cmd = self.cmd[0]
         else:
             self.throw("No cmd in %s job" % self.name)
+        self.rawstring = self.cmd.strip()
+        self.cmd0 = self.cmd.strip()
+        self.logfile = os.path.join(self.logdir, self.name + ".log")
+        self.subtimes = 0
+        self.raw2cmd()
+        self.workdir = os.getcwd()
+        self.jobname = self.name
+        self.jobpidname = self.jobname + "_%d" % os.getpid()
+
+    def qsub_cmd(self, name, mem, cpu):
+        cmd = 'echo "%s" | qsub -V -wd %s -N %s_%d -o %s -j y -l vf=%dg,p=%d' % (
+            self.cmd, self.workdir, name, os.getpid(), self.logfile, mem, cpu)
+        return cmd
 
     def checkrule(self):
         rules = self.rules[:]
@@ -300,6 +330,7 @@ class Job(Jobutils):
 
 
 class ShellFile(object):
+
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
         self.has_sge = os.getenv("SGE_ROOT")
         self.workdir = workdir or os.getcwd()
@@ -352,11 +383,14 @@ class ShellFile(object):
 
 
 class ShellJob(Jobutils):
+
     def __init__(self, sgefile, linenum=None, cmd=None):
         self.sf = sgefile
+        self.logdir = self.sf.logdir
+        self._path = self.sf._path
         name = self.sf.name
         if name is None:
-            name = os.path.basename(self.sf._path) + "_" + str(os.getpid())
+            name = os.path.basename(self._path) + "_" + str(os.getpid())
             if name[0].isdigit():
                 name = "job_" + name
         self.cpu = 0
@@ -366,12 +400,13 @@ class ShellJob(Jobutils):
         self.linenum = linenum + 1
         self.jobname = name + "_%05d" % self.linenum
         self.name = self.jobname
+        self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
         if self.sf.temp and self.sf.name is not None:
             self.logfile = os.path.join(
-                self.sf.logdir, name+"_%05d.log" % self.linenum)
+                self.logdir, self.jobname + ".log")
         else:
-            self.logfile = os.path.join(self.sf.logdir, os.path.basename(
-                self.sf._path) + "_%05d.log" % self.linenum)
+            self.logfile = os.path.join(self.logdir, os.path.basename(
+                self._path) + "_%05d.log" % self.linenum)
         self.subtimes = 0
         self.status = None
         self.host = self.sf.mode
@@ -408,23 +443,16 @@ class ShellJob(Jobutils):
             self.name = self.jobname
             self.cmd = self.rawstring
 
-    def raw2cmd(self):
-        self.stat_file = os.path.join(
-            self.sf.logdir, "."+os.path.basename(self.logfile))
-        if self.host == "sge":
-            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && ".format(self.stat_file) + \
-                self.rawstring + \
-                " && (echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || (echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
-                    self.stat_file)
-        else:
-            self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-                self.rawstring + RUNSTAT
+    def qsub_cmd(self, name, mem, cpu):
+        cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
+            self.cmd, self.workdir, name, self.logfile, mem, cpu)
+        return cmd
 
     def forceToLocal(self, jobname="", removelog=False):
         self.host = "localhost"
         self.name = self.jobname = jobname
-        self.logfile = os.path.join(self.sf.logdir, os.path.basename(
-            self.sf._path) + "_%s.log" % jobname)
+        self.logfile = os.path.join(self.logdir, os.path.basename(
+            self._path) + "_%s.log" % jobname)
         if removelog and os.path.isfile(self.logfile):
             os.remove(self.logfile)
         self.rawstring = self.cmd0.strip()

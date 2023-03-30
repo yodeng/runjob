@@ -9,7 +9,6 @@ import signal
 import getpass
 import logging
 import argparse
-import threading
 
 from . import dag
 from .job import *
@@ -17,11 +16,9 @@ from .utils import *
 from .cluster import *
 from .sge import ParseSingal
 from ._version import __version__
-from .qsub import JobQueue, QsubError
 from .config import load_config, print_config
 
 from copy import deepcopy
-from threading import Thread
 from datetime import datetime
 from collections import Counter
 from subprocess import Popen, call, PIPE, check_output
@@ -50,11 +47,9 @@ class RunSge(object):
             @rate <int>: default: 3
         '''
         self.conf = config
-        self.name = config.jobname
         self.jobfile = config.jobfile
         self.queue = config.queue
         self.maxjob = config.num
-        self.mode = config.mode or "sge"
         self.cpu = config.cpu or 1
         self.mem = config.memory or 1
         self.groups = config.groups or 1
@@ -62,11 +57,13 @@ class RunSge(object):
         self.workdir = config.workdir or os.getcwd()
         self.logdir = config.logdir or os.path.join(
             self.workdir, "runjob_"+os.path.basename(self.jobfile) + "_log_dir")
-        self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
+        self.sgefile = ShellFile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
                                  logdir=self.logdir, workdir=self.workdir)
         self.jfile = self.sgefile._path
         self.jobs = self.sgefile.jobshells(
             start=config.startline or 1, end=config.endline)
+        self.mode = self.sgefile.mode
+        self.name = self.sgefile.name
         self.totaljobdict = {j.jobname: j for j in self.jobs}
         self.is_run = False
         self.localprocess = {}
@@ -86,6 +83,7 @@ class RunSge(object):
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
         self.ncall, self.period = config.rate or 3, 1
+        self.sge_jobid = {}
 
     def depency_jobs(self):
         cur_jobs, dep_jobs = [], []
@@ -261,9 +259,10 @@ class RunSge(object):
                             status = "run"
                         # sge submit, but not running
                         elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
+                            jobid = self.sge_jobid.get(jobname, jobname)
                             try:
                                 info = check_output(
-                                    "qstat -j %s" % jobname, shell=True)
+                                    "qstat -j %s" % jobid, stderr=PIPE, shell=True)
                                 info = info.decode().strip().split("\n")[-1]
                                 if info.startswith("error") or ("error" in info and "Job is in error" in info):
                                     status = "error"
@@ -299,7 +298,7 @@ class RunSge(object):
             self.period = period
 
     def jobcheck(self):
-        if self.sgefile.mode == "batchcompute":
+        if self.mode == "batchcompute":
             self.set_rate(1, 1)
         rate_limiter = RateLimiter(max_calls=self.ncall, period=self.period)
         while True:
@@ -333,9 +332,19 @@ class RunSge(object):
                             if self.strict:
                                 self.throw("Error job: %s, exit" % jb.jobname)
 
-    def deletejob(self, jb=None, name=""):
+    def qdel(self, name="", jobname=""):
         if name:
             call_cmd(['qdel', "%s*" % name])
+            self.sge_jobid.clear()
+        if jobname:
+            jobid = self.sge_jobid.get(jobname, jobname)
+            call_cmd(["qdel", jobid])
+            if jobid in self.sge_jobid:
+                self.sge_jobid.pop(jobid)
+
+    def deletejob(self, jb=None, name=""):
+        if name:
+            self.qdel(name=name)
             for jb in self.jobqueue.queue:
                 jb.remove_all_job_stat_files()
                 self.log_kill(jb)
@@ -347,7 +356,7 @@ class RunSge(object):
                 p.wait()
                 self.log_kill(jb)
             if jb.host == "sge":
-                call_cmd(["qdel", jb.jobname])
+                self.qdel(jobname=jb.jobname)
                 jb.remove_all_job_stat_files()
                 self.log_kill(jb)
             if self.is_run:
@@ -377,13 +386,13 @@ class RunSge(object):
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
-                if job.workdir != self.sgefile.workdir:
+                if job.workdir != self.workdir:
                     if not os.path.isdir(job.workdir):
                         os.makedirs(job.workdir)
                     os.chdir(job.workdir)
                     p = Popen(cmd, shell=True, stdout=logcmd,
                               stderr=logcmd, env=os.environ)
-                    os.chdir(self.sgefile.workdir)
+                    os.chdir(self.workdir)
                 else:
                     p = Popen(cmd, shell=True, stdout=logcmd,
                               stderr=logcmd, env=os.environ)
@@ -393,15 +402,15 @@ class RunSge(object):
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 self.queue = job.queue or self.queue
-                cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
-                    job.cmd, job.workdir, job.jobname, logfile, jobmem, jobcpu)
+                cmd = job.qsub_cmd(job.jobname, jobmem, jobcpu)
                 if self.queue:
                     cmd += " -q " + " -q ".join(self.queue)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
-                call(cmd.replace("`", "\`"), shell=True,
-                     stdout=logcmd, stderr=logcmd, env=os.environ)
+                sgeid, output = self.sge_qsub(cmd)
+                self.sge_jobid[job.jobname] = sgeid
+                logcmd.write(output)
             elif job.host == "batchcompute":
                 jobcpu = job.cpu if job.cpu else self.cpu
                 jobmem = job.mem if job.mem else self.mem
@@ -420,6 +429,15 @@ class RunSge(object):
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
             job.subtimes += 1
 
+    def sge_qsub(self, cmd):
+        output = check_output(cmd.replace("`", "\`"), stderr=PIPE, shell=True)
+        match = QSUB_JOB_ID_DECODER.search(output.decode())
+        if match:
+            jobid = match.group(1)
+        else:
+            self.throw(output.decode())
+        return jobid, output.decode()
+
     def run(self, sec=2, times=3, resubivs=2):
         '''
         @sec: submit epoch ivs, default: 2
@@ -437,7 +455,7 @@ class RunSge(object):
         p = Thread(target=self.jobcheck)
         p.setDaemon(True)
         p.start()
-        if self.sgefile.mode == "batchcompute":
+        if self.mode == "batchcompute":
             access_key_id = self.conf.get("args", "access_key_id")
             access_key_secret = self.conf.get("args", "access_key_secret")
             if access_key_id is None:
@@ -477,10 +495,10 @@ class RunSge(object):
             self.sumstatus()
             raise QsubError(msg)
         else:
-            if self.sgefile.mode == "sge":
-                self.deletejob(name=self.sgefile.name)
+            if self.mode == "sge":
+                self.deletejob(name=self.name)
                 self.logger.error(msg)
-            elif self.sgefile.mode == "batchcompute":
+            elif self.mode == "batchcompute":
                 for jb in self.jobqueue.queue:
                     jobname = jb.name
                     try:
@@ -540,7 +558,7 @@ class RunSge(object):
         sub_jobs = len(self.jobs) - wt_jobs
         sum_info = "All tesks(total: %d, submited: %d, success: %d, error: %d, wait: %d) " % (
             total_jobs, sub_jobs, suc_jobs, err_jobs, wt_jobs)
-        if not self.sgefile.temp:
+        if hasattr(self, "sgefile") and not self.sgefile.temp:
             sum_info += "in file '%s' " % os.path.abspath(self.jfile)
         self.writestates(os.path.join(self.logdir, "job.status.txt"))
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
@@ -560,7 +578,6 @@ def main():
     conf = load_config()
     if args.ini:
         conf.update_config(args.ini)
-    conf.update_dict(**args.__dict__)
     if args.config:
         print_config(conf)
         parser.exit()
