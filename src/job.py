@@ -7,8 +7,6 @@ import sys
 import getpass
 import tempfile
 
-from subprocess import check_output
-
 from .utils import *
 
 
@@ -131,6 +129,11 @@ class Jobutils(object):
         else:
             self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
                 self.rawstring + RUNSTAT
+
+    def qsub_cmd(self, mem=1, cpu=1):
+        cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
+            self.cmd, self.workdir, self.jobpidname, self.logfile, mem, cpu)
+        return cmd
 
     @property
     def is_fail(self):
@@ -273,11 +276,6 @@ class Job(Jobutils):
         self.jobname = self.name
         self.jobpidname = self.jobname + "_%d" % os.getpid()
 
-    def qsub_cmd(self, name, mem, cpu):
-        cmd = 'echo "%s" | qsub -V -wd %s -N %s_%d -o %s -j y -l vf=%dg,p=%d' % (
-            self.cmd, self.workdir, name, os.getpid(), self.logfile, mem, cpu)
-        return cmd
-
     def checkrule(self):
         rules = self.rules[:]
         if len(rules) <= 4:
@@ -390,7 +388,7 @@ class ShellJob(Jobutils):
         self._path = self.sf._path
         name = self.sf.name
         if name is None:
-            name = os.path.basename(self._path) + "_" + str(os.getpid())
+            name = os.path.basename(self._path)
             if name[0].isdigit():
                 name = "job_" + name
         self.cpu = 0
@@ -400,7 +398,6 @@ class ShellJob(Jobutils):
         self.linenum = linenum + 1
         self.jobname = name + "_%05d" % self.linenum
         self.name = self.jobname
-        self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
         if self.sf.temp and self.sf.name is not None:
             self.logfile = os.path.join(
                 self.logdir, self.jobname + ".log")
@@ -437,16 +434,14 @@ class ShellJob(Jobutils):
         else:
             self.rawstring = cmd.strip()
         self.raw2cmd()
+        self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
         if self.host == "batchcompute":
             self.jobname = getpass.getuser() + "_" + \
                 re.sub("[^a-zA-Z0-9_-]", "-", name + "_%05d" % self.linenum)
             self.name = self.jobname
             self.cmd = self.rawstring
-
-    def qsub_cmd(self, name, mem, cpu):
-        cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
-            self.cmd, self.workdir, name, self.logfile, mem, cpu)
-        return cmd
+            self.jobpidname = self.jobname.rsplit(
+                "_", 1)[0] + "_%d_%05d" % (os.getpid(), self.linenum)
 
     def forceToLocal(self, jobname="", removelog=False):
         self.host = "localhost"

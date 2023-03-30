@@ -10,10 +10,11 @@ import argparse
 import threading
 
 from threading import Thread
+from datetime import datetime
 from collections import Counter
-from subprocess import call, PIPE
 from time import monotonic as now
 from functools import total_ordering
+from subprocess import check_output, call, Popen, PIPE
 
 from ratelimiter import RateLimiter
 

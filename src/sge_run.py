@@ -18,11 +18,6 @@ from .sge import ParseSingal
 from ._version import __version__
 from .config import load_config, print_config
 
-from copy import deepcopy
-from datetime import datetime
-from collections import Counter
-from subprocess import Popen, call, PIPE, check_output
-
 
 class RunSge(object):
 
@@ -334,7 +329,7 @@ class RunSge(object):
 
     def qdel(self, name="", jobname=""):
         if name:
-            call_cmd(['qdel', "%s*" % name])
+            call_cmd(['qdel', "%s_%d*" % (name, os.getpid())])
             self.sge_jobid.clear()
         if jobname:
             jobid = self.sge_jobid.get(jobname, jobname)
@@ -402,7 +397,7 @@ class RunSge(object):
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 self.queue = job.queue or self.queue
-                cmd = job.qsub_cmd(job.jobname, jobmem, jobcpu)
+                cmd = job.qsub_cmd(jobmem, jobcpu)
                 if self.queue:
                     cmd += " -q " + " -q ".join(self.queue)
                 if job.subtimes > 0:
@@ -583,14 +578,8 @@ def main():
         parser.exit()
     if args.jobfile is None:
         parser.error("argument -j/--jobfile is required")
-    name = args.jobname
     if args.local:
         args.mode = "local"
-    if name is None:
-        name = os.path.basename(args.jobfile) + "_" + str(os.getpid())
-        if name[0].isdigit():
-            name = "job_" + name
-    args.jobname = name
     if not os.path.isdir(args.workdir):
         os.makedirs(args.workdir)
     os.chdir(args.workdir)
