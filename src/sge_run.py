@@ -396,10 +396,10 @@ class RunSge(object):
                 call_cmd(["touch", job.stat_file + ".submit"])
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
-                self.queue = job.queue or self.queue
+                sge_queue = job.queue or self.queue
                 cmd = job.qsub_cmd(jobmem, jobcpu)
-                if self.queue:
-                    cmd += " -q " + " -q ".join(self.queue)
+                if sge_queue:
+                    cmd += " -q " + " -q ".join(sge_queue)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
@@ -425,7 +425,9 @@ class RunSge(object):
             job.subtimes += 1
 
     def sge_qsub(self, cmd):
-        output = check_output(cmd.replace("`", "\`"), stderr=PIPE, shell=True)
+        p = Popen(cmd.replace("`", "\`"), stderr=PIPE, stdout=PIPE, shell=True)
+        stdout, stderr = p.communicate()
+        output = stdout + stderr
         match = QSUB_JOB_ID_DECODER.search(output.decode())
         if match:
             jobid = match.group(1)
