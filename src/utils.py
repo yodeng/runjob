@@ -3,6 +3,7 @@ import re
 import sys
 import pdb
 import time
+import socket
 import signal
 import psutil
 import logging
@@ -19,6 +20,7 @@ from subprocess import check_output, call, Popen, PIPE
 from ratelimiter import RateLimiter
 
 from .loger import *
+from .config import which
 from ._version import __version__
 
 if sys.version_info[0] < 3:
@@ -172,6 +174,20 @@ def call_cmd(cmd, verbose=False):
     else:
         with open(os.devnull, "w") as fo:
             call(cmd, shell=shell, stdout=fo, stderr=fo)
+
+
+def is_sge_submit():
+    if os.getenv("SGE_ROOT") and which("qconf"):
+        hostname = os.path.splitext(socket.gethostname())[0]
+        try:
+            with os.popen("qconf -ss") as fi:
+                for line in fi:
+                    ss = os.path.splitext(line.strip())[0]
+                    if ss == hostname:
+                        return True
+        except:
+            return False
+    return False
 
 
 def common_parser():

@@ -13,7 +13,7 @@ from .utils import *
 class Jobfile(object):
 
     def __init__(self, jobfile, mode=None):
-        self.has_sge = os.getenv("SGE_ROOT")
+        self.has_sge = is_sge_submit()
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
             raise IOError("No such file: %s" % self._path)
@@ -330,7 +330,7 @@ class Job(Jobutils):
 class ShellFile(object):
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
-        self.has_sge = os.getenv("SGE_ROOT")
+        self.has_sge = is_sge_submit()
         self.workdir = workdir or os.getcwd()
         self.temp = None
         if isinstance(jobfile, (tuple, list)):
