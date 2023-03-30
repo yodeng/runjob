@@ -101,8 +101,8 @@ class qsub(RunSge):
         if jobname:
             jobid = self.sge_jobid.get(jobname, jobname)
             call_cmd(["qdel", jobid])
-            if jobid in self.sge_jobid:
-                self.sge_jobid.pop(jobid)
+            if jobname in self.sge_jobid:
+                self.sge_jobid.pop(jobname)
 
 
 def main():

@@ -188,7 +188,7 @@ class RunSge(object):
     def log_status(self, job):
         name = job.jobname
         if name in self.cloudjob:
-            name = self.cloudjob[jobname]
+            name = self.cloudjob[name]
         if job.is_fail:
             level = "error"
         elif job.status == "resubmit":
@@ -334,8 +334,8 @@ class RunSge(object):
         if jobname:
             jobid = self.sge_jobid.get(jobname, jobname)
             call_cmd(["qdel", jobid])
-            if jobid in self.sge_jobid:
-                self.sge_jobid.pop(jobid)
+            if jobname in self.sge_jobid:
+                self.sge_jobid.pop(jobname)
 
     def deletejob(self, jb=None, name=""):
         if name:
