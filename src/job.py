@@ -10,6 +10,109 @@ import tempfile
 from .utils import *
 
 
+@total_ordering
+class Jobutils(object):
+
+    def set_status(self, status=None):
+        if not self.is_success:
+            self.status = status
+
+    def set_kill(self):
+        if not self.is_end:
+            self.set_status("kill")
+
+    def remove_all_job_stat_files(self):
+        call_cmd(["rm", "-fr"] + [self.stat_file +
+                 i for i in [".success", ".run", ".error", ".submit"]])
+
+    def raw2cmd(self):
+        self.stat_file = os.path.join(
+            self.logdir, "."+os.path.basename(self.logfile))
+        if self.host == "sge":
+            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && ".format(self.stat_file) + \
+                self.rawstring + \
+                " && (echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || (echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
+                    self.stat_file)
+        else:
+            self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
+                self.rawstring + RUNSTAT
+
+    def qsub_cmd(self, mem=1, cpu=1):
+        cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
+            self.cmd, self.workdir, self.jobpidname, self.logfile, mem, cpu)
+        return cmd
+
+    @property
+    def is_fail(self):
+        return self.status in ["kill", "error", "exit"]
+
+    @property
+    def is_end(self):
+        return self.is_fail or self.is_success
+
+    @property
+    def is_success(self):
+        return self.status == "success"
+
+    @property
+    def is_killed(self):
+        return self.status == "kill"
+
+    @property
+    def is_wait(self):
+        return self.status == "wait"
+
+    @property
+    def do_not_submit(self):
+        return self.status in ["run", "submit", "resubmit", "success"]
+
+    def __lt__(self, other):
+        return self.name < other.name
+
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __repr__(self):
+        return self.name
+
+    __str__ = __repr__
+
+    def __hash__(self):
+        return hash(self.name)
+
+    @staticmethod
+    def cmd2job(cmd="", name="", host=None, mem=1, cpu=1, queue=[]):
+        '''
+        @cmd <str or list>: required
+        @name <str>: required
+        @host <str>: default: None, {None,sge,local,localhost}
+        @mem <int>: default: 1
+        @cpu <int>: default: 1
+        @queue <list>: default: all access queue
+        '''
+        job = textwrap.dedent('''
+        job_begin
+            name {name}
+            host {host}
+            sched_options{queue} -l vf={mem}g,p={cpu}
+            cmd_begin
+                {cmd} 
+            cmd_end
+        job_end
+        ''').strip()
+        if not cmd or not name:
+            raise JobRuleError("cmd and name required")
+        if len(queue):
+            queue = " -q " + " -q ".join(queue)
+        else:
+            queue = ""
+        if isinstance(cmd, (list, tuple)):
+            cmd = ("\n" + " "*8).join(cmd)
+        job = job.format(cmd=cmd.strip(), name=name, host=host,
+                         mem=mem, cpu=cpu, queue=queue)
+        return job+"\n"
+
+
 class Jobfile(object):
 
     def __init__(self, jobfile, mode=None):
@@ -103,77 +206,6 @@ class Jobfile(object):
         raise JobOrderError(msg)
 
 
-@total_ordering
-class Jobutils(object):
-
-    def set_status(self, status=None):
-        if not self.is_success:
-            self.status = status
-
-    def set_kill(self):
-        if not self.is_end:
-            self.set_status("kill")
-
-    def remove_all_job_stat_files(self):
-        call_cmd(["rm", "-fr"] + [self.stat_file +
-                 i for i in [".success", ".run", ".error", ".submit"]])
-
-    def raw2cmd(self):
-        self.stat_file = os.path.join(
-            self.logdir, "."+os.path.basename(self.logfile))
-        if self.host == "sge":
-            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && ".format(self.stat_file) + \
-                self.rawstring + \
-                " && (echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || (echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
-                    self.stat_file)
-        else:
-            self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-                self.rawstring + RUNSTAT
-
-    def qsub_cmd(self, mem=1, cpu=1):
-        cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
-            self.cmd, self.workdir, self.jobpidname, self.logfile, mem, cpu)
-        return cmd
-
-    @property
-    def is_fail(self):
-        return self.status in ["kill", "error", "exit"]
-
-    @property
-    def is_end(self):
-        return self.is_fail or self.is_success
-
-    @property
-    def is_success(self):
-        return self.status == "success"
-
-    @property
-    def is_killed(self):
-        return self.status == "kill"
-
-    @property
-    def is_wait(self):
-        return self.status == "wait"
-
-    @property
-    def do_not_submit(self):
-        return self.status in ["run", "submit", "resubmit", "success"]
-
-    def __lt__(self, other):
-        return self.name < other.name
-
-    def __eq__(self, other):
-        return self.name == other.name
-
-    def __repr__(self):
-        return self.name
-
-    __str__ = __repr__
-
-    def __hash__(self):
-        return hash(self.name)
-
-
 class Job(Jobutils):
 
     def __init__(self, jobfile, rules):
@@ -185,7 +217,7 @@ class Job(Jobutils):
         self.status = None
         self.sched_options = None
         self.cmd = []
-        self.host = None
+        self.host = self.jf.mode
         self.checkrule()
         cmd = False
         self.queue = []
@@ -196,11 +228,12 @@ class Job(Jobutils):
             if j in ["job_begin", "job_end"]:
                 continue
             elif j.startswith("name"):
-                name = j.split()[1:]
-                if len(name) > 1:
-                    self.name = self.name.replace(" ", "_")
-                else:
-                    self.name = name[-1]
+                name = re.split("\s", j, 1)[1]
+                if re.search("\s", name.strip()):
+                    raise self.throw("whitespace not allowed in name: %s" % j)
+                if name.lower() == "none":
+                    raise self.throw("None name")
+                self.name = name
             elif j.startswith("status"):
                 self.status = j.split()[-1]
             elif j.startswith("sched_options"):
@@ -230,6 +263,9 @@ class Job(Jobutils):
                 continue
             elif j == "cmd_end":
                 cmd = False
+                continue
+            elif cmd:
+                self.cmd.append(j.strip())
             elif j.startswith("cmd"):
                 self.cmd.append(" ".join(j.split()[1:]))
             elif j.startswith("memory"):
@@ -237,34 +273,15 @@ class Job(Jobutils):
             elif j.startswith("time"):
                 pass  # miss
                 # self.sched_options += " -l h_rt=" + j.split()[-1].upper()   # hh:mm:ss
-            else:
-                if cmd:
-                    self.cmd.append(j)
-                else:
-                    self.throw("cmd after cmd_end")
-        for c in self.cmd:
-            if c.startswith("exit"):
-                self.throw(
-                    "'exit' command not allow in the cmd string in %s job." % self.name)
         if self.jf.has_sge:
-            # if localhost defined, run localhost whether sge installed.
-            if self.jf.mode in ["localhost", "local"]:
-                self.host = "localhost"
-            else:
-                # if self.host has been defined other mode in job, sge default.
-                if self.host not in [None, "sge", "localhost", "local"]:
-                    self.host = None
-        else:
-            self.host = "localhost"  # if not sge installed, only run localhost
-        if self.host is None:
-            if self.jf.has_sge:
+            if self.host not in ["sge", "localhost", "local"]:
                 self.host = "sge"
-            else:
-                self.host = "localhost"
-        if len(self.cmd) > 1:
-            self.cmd = " && ".join(self.cmd)
-        elif len(self.cmd) == 1:
-            self.cmd = self.cmd[0]
+        else:
+            self.host = "localhost"
+        if self.jf.mode in ["localhost", "local"]:
+            self.host = "localhost"
+        if len(self.cmd):
+            self.cmd = "\n".join(self.cmd)
         else:
             self.throw("No cmd in %s job" % self.name)
         self.rawstring = self.cmd.strip()
@@ -277,51 +294,19 @@ class Job(Jobutils):
         self.jobpidname = self.jobname + "_%d" % os.getpid()
 
     def checkrule(self):
-        rules = self.rules[:]
+        rules = self.rules
         if len(rules) <= 4:
             self.throw("rules lack of elements")
         if rules[0] != "job_begin" or rules[-1] != "job_end":
             self.throw("No start or end in you rule")
-        rules = rules[1:-1]
-        if any([i.startswith("cmd") for i in rules]):
-            return
-        try:
-            rules.remove("cmd_begin")
-            rules.remove("cmd_end")
-        except ValueError:
+        if "cmd_begin" not in rules or "cmd_end" not in rules:
             self.throw("No start or end in %s job" % "\n".join(rules))
 
     def write(self, fo):
-        fo.write("job_begin\n")
-        rules = self.rules
-        host = None
-        for r in rules:
-            r = r.strip()
-            if r.startswith("host"):
-                host = r.split()[-1]
-        for k, attr in self.__dict__.items():
-            if hasattr(attr, '__call__'):
-                continue
-            if k == "cmd":
-                fo.write("    cmd_begin\n")
-                cmdlines = ["        " +
-                            i.strip() + "\n" for i in attr.split("&&")]
-                fo.writelines(cmdlines)
-                fo.write("    cmd_end\n")
-            elif k == "rules":
-                continue
-            elif k == "host":
-                if host is None:
-                    continue
-                else:
-                    fo.write("    host " + host + "\n")
-            else:
-                try:
-                    line = "    " + k + " " + attr + "\n"
-                except TypeError:
-                    continue
-                fo.write(line)
-        fo.write("job_end\n")
+        cmd = self.cmd.split("\n")
+        job = self.cmd2job(cmd=cmd, name=self.name, host=self.host,
+                           mem=self.mem, cpu=self.cpu, queue=self.queue)
+        fo.write(job)
 
     def throw(self, msg):
         raise JobRuleError(msg)

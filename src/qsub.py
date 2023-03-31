@@ -21,9 +21,6 @@ class CleanUpSingal(Thread):
     def run(self):
         time.sleep(1)
 
-    def singal_handler_us(self, signum, fram):
-        pass
-
     def signal_handler(self, signum, frame):
         if self.mode == "sge":
             self.obj.qdel(name=self.obj.name)
