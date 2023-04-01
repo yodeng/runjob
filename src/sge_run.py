@@ -26,7 +26,7 @@ class RunSge(object):
         all attribute of config:
 
             @jobfile <file>: required
-            @jobname <str>: default: basename(jobfile) + os.getpid()
+            @jobname <str>: default: basename(jobfile)
             @mode <str>: default: sge
             @queue <list>: default: all access queue
             @num <int>: default: total jobs
@@ -140,7 +140,7 @@ class RunSge(object):
         for job in self.jobs[:]:
             lf = job.logfile
             job.subtimes = 0
-            job.remove_all_job_stat_files()
+            job.remove_all_stat_files()
             if os.path.isfile(lf):
                 js = self.jobstatus(job)
                 if js != "success":
@@ -341,7 +341,7 @@ class RunSge(object):
         if name:
             self.qdel(name=name)
             for jb in self.jobqueue.queue:
-                jb.remove_all_job_stat_files()
+                jb.remove_all_stat_files()
                 self.log_kill(jb)
         else:
             if jb.jobname in self.localprocess:
@@ -352,14 +352,13 @@ class RunSge(object):
                 self.log_kill(jb)
             if jb.host == "sge":
                 self.qdel(jobname=jb.jobname)
-                jb.remove_all_job_stat_files()
+                jb.remove_all_stat_files()
                 self.log_kill(jb)
             if self.is_run:
                 if jb.is_end:
-                    jb.remove_all_job_stat_files()
+                    jb.remove_all_stat_files()
                 elif jb.status == "run":
-                    call_cmd(["rm", "-fr", jb.stat_file + ".success",
-                             jb.stat_file+".error", jb.stat_file+".submit"])
+                    self.remove_stat_file(".success", ".error", ".submit")
 
     def submit(self, job):
         if not self.is_run or job.do_not_submit:

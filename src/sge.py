@@ -40,7 +40,7 @@ class ParseSingal(Thread):
             except:
                 self.obj.qdel(name=self.name)
             for jb in self.obj.jobqueue.queue:
-                jb.remove_all_job_stat_files()
+                jb.remove_all_stat_files()
                 self.obj.log_kill(jb)
         elif self.mode == "batchcompute":
             user = getpass.getuser()

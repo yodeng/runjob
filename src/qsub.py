@@ -25,7 +25,7 @@ class CleanUpSingal(Thread):
         if self.mode == "sge":
             self.obj.qdel(name=self.obj.name)
             for jb in self.obj.jobqueue.queue:
-                jb.remove_all_job_stat_files()
+                jb.remove_all_stat_files()
                 self.obj.log_kill(jb)
         for j, p in self.obj.localprocess.items():
             if p.poll() is None:

@@ -21,9 +21,20 @@ class Jobutils(object):
         if not self.is_end:
             self.set_status("kill")
 
-    def remove_all_job_stat_files(self):
-        call_cmd(["rm", "-fr"] + [self.stat_file +
-                 i for i in [".success", ".run", ".error", ".submit"]])
+    def remove_all_stat_files(self):
+        stats = [".success", ".run", ".error", ".submit"]
+        self.remove_stat_file(*stats)
+
+    def remove_stat_file(self, *stat):
+        for i in stat:
+            fs = self.stat_file + i
+            self.remove_file(fs)
+
+    def remove_file(self, fs):
+        try:
+            os.remove(fs)
+        except:
+            pass
 
     def raw2cmd(self):
         self.stat_file = os.path.join(
@@ -228,15 +239,14 @@ class Job(Jobutils):
             if j in ["job_begin", "job_end"]:
                 continue
             elif j.startswith("name"):
-                name = re.split("\s", j, 1)[1]
-                if re.search("\s", name.strip()):
-                    raise self.throw("whitespace not allowed in name: %s" % j)
+                name = re.split("\s", j, 1)[1].strip()
+                name = re.sub("\s+", "_", name)
                 if name.lower() == "none":
-                    raise self.throw("None name")
+                    raise self.throw("None name in %s" % j)
                 self.name = name
             elif j.startswith("status"):
                 self.status = j.split()[-1]
-            elif j.startswith("sched_options"):
+            elif j.startswith("sched_options") or j.startswith("option"):
                 self.sched_options = " ".join(j.split()[1:])
                 self.cpu, self.mem = 1, 1
                 args = self.sched_options.split()
@@ -346,6 +356,10 @@ class ShellFile(object):
         self.logdir = os.path.abspath(logdir)
         if not os.path.isdir(self.logdir):
             os.makedirs(self.logdir)
+        if name is None:
+            name = os.path.basename(self._path)
+        if name[0].isdigit():
+            name = "job_" + name
         self.name = name
 
     def jobshells(self, start=0, end=None):
@@ -371,24 +385,18 @@ class ShellJob(Jobutils):
         self.sf = sgefile
         self.logdir = self.sf.logdir
         self._path = self.sf._path
+        prefix = os.path.basename(self._path)
         name = self.sf.name
-        if name is None:
-            name = os.path.basename(self._path)
-            if name[0].isdigit():
-                name = "job_" + name
         self.cpu = 0
         self.mem = 0
         self.queue = None
         self.out_maping = None
         self.linenum = linenum + 1
-        self.jobname = name + "_%05d" % self.linenum
-        self.name = self.jobname
-        if self.sf.temp and self.sf.name is not None:
-            self.logfile = os.path.join(
-                self.logdir, self.jobname + ".log")
-        else:
-            self.logfile = os.path.join(self.logdir, os.path.basename(
-                self._path) + "_%05d.log" % self.linenum)
+        self.jobname = self.name = name + "_%05d" % self.linenum
+        if self.sf.temp and name is not None:
+            prefix = name
+        self.logfile = os.path.join(
+            self.logdir, prefix + "_%05d.log" % self.linenum)
         self.subtimes = 0
         self.status = None
         self.host = self.sf.mode
