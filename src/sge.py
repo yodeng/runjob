@@ -24,53 +24,33 @@ class ParseSingal(Thread):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGUSR1, self.signal_handler_ui)
         self.obj = obj
         self.name = name
         self.mode = mode
         self.conf = conf
         self.daemon = True
+        self.killed = False
 
     def run(self):
         time.sleep(1)
 
+    def clean_jobs(self):
+        self.obj.clean_jobs()
+
     def signal_handler(self, signum, frame):
-        if self.mode == "sge":
-            try:
-                self.obj.deletejob(name=self.name)
-            except:
-                self.obj.qdel(name=self.name)
-            for jb in self.obj.jobqueue.queue:
-                jb.remove_all_stat_files()
-                self.obj.log_kill(jb)
-        elif self.mode == "batchcompute":
-            user = getpass.getuser()
-            jobs = self.conf.jobqueue.queue
-            for jb in jobs:
-                jobname = jb.name
-                try:
-                    jobid = self.conf.cloudjob.get(jobname, "")
-                    j = self.conf.client.get_job(jobid)
-                except ClientError as e:
-                    if e.status == 404:
-                        self.conf.logger.info("Invalid JobId %s", jobid)
-                        continue
-                except:
-                    continue
-                if j.Name.startswith(user):
-                    if j.State not in ["Stopped", "Failed", "Finished"]:
-                        self.conf.client.stop_job(jobid)
-                    self.conf.client.delete_job(jobid)
-                    self.conf.logger.info("Delete job %s done", j.Name)
-                else:
-                    self.conf.logger.info(
-                        "Delete job error, you have no assess with job %s", j.Name)
-        for j, p in self.obj.localprocess.items():
-            if p.poll() is None:  # still running
-                terminate_process(p.pid)
-            p.wait()
-            self.obj.log_kill(self.obj.totaljobdict[j])
-        self.obj.sumstatus()
-        sys.exit(signum)
+        if not self.killed:
+            self.clean_jobs()
+            self.obj.sumstatus()
+            self.killed = True
+        os._exit(signum)  # force exit
+
+    def signal_handler_ui(self, signum, frame):
+        if not self.killed:
+            self.clean_jobs()
+            self.obj.sumstatus()
+            self.killed = True
+        sys.exit(signum)  # SystemExit Exception
 
 
 def not_empty(s):

@@ -25,7 +25,7 @@ class RunSge(object):
         '''
         all attribute of config:
 
-            @jobfile <file>: required
+            @jobfile <file, list>: required
             @jobname <str>: default: basename(jobfile)
             @mode <str>: default: sge
             @queue <list>: default: all access queue
@@ -43,6 +43,8 @@ class RunSge(object):
         '''
         self.conf = config
         self.jobfile = config.jobfile
+        if not self.jobfile:
+            raise self.throw("Empty jobs input")
         self.queue = config.queue
         self.maxjob = config.num
         self.cpu = config.cpu or 1
@@ -50,10 +52,9 @@ class RunSge(object):
         self.groups = config.groups or 1
         self.strict = config.strict or False
         self.workdir = config.workdir or os.getcwd()
-        self.logdir = config.logdir or os.path.join(
-            self.workdir, "runjob_"+os.path.basename(self.jobfile) + "_log_dir")
         self.sgefile = ShellFile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
-                                 logdir=self.logdir, workdir=self.workdir)
+                                 logdir=config.logdir, workdir=self.workdir)
+        self.logdir = self.sgefile.logdir
         self.jfile = self.sgefile._path
         self.jobs = self.sgefile.jobshells(
             start=config.startline or 1, end=config.endline)
@@ -467,7 +468,7 @@ class RunSge(object):
             availableTypes = [i for i in quotas if i in self.conf.it_conf]
             self.conf.availableTypes = sorted(availableTypes, key=lambda x: (
                 self.conf.it_conf[x]["cpu"], self.conf.it_conf[x]["memory"]))
-            self.conf.client = client
+            self.conf.client = self.client = client
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
@@ -479,49 +480,62 @@ class RunSge(object):
                 self.submit(jb)
             time.sleep(sec)
         if not self.is_success:
-            os.kill(os.getpid(), signal.SIGTERM)
+            os.kill(os.getpid(), signal.SIGUSR1)
 
     @property
     def logger(self):
         return logging.getLogger(__name__)
 
-    def throw(self, msg):
-        user = getpass.getuser()
+    def clean_jobs(self):
+        if self.mode == "sge":
+            try:
+                self.deletejob(name=self.name)
+            except:
+                self.qdel(name=self.name)
+            for jb in self.jobqueue.queue:
+                jb.remove_all_stat_files()
+                self.log_kill(jb)
+        elif self.mode == "batchcompute":
+            user = getpass.getuser()
+            for jb in self.jobqueue.queue:
+                jobname = jb.name
+                try:
+                    jobid = self.cloudjob.get(jobname, "")
+                    j = self.client.get_job(jobid)
+                except ClientError as e:
+                    if e.status == 404:
+                        self.logger.error("Invalid JobId %s", jobid)
+                        continue
+                except:
+                    continue
+                if j.Name.startswith(user):
+                    if j.State not in ["Stopped", "Failed", "Finished"]:
+                        self.client.stop_job(jobid)
+                    self.client.delete_job(jobid)
+                    self.logger.info("Delete job %s done", j.Name)
+                else:
+                    self.logger.error(
+                        "Delete job error, you have no assess with job %s", j.Name)
+        for j, p in self.localprocess.items():
+            if p.poll() is None:  # still running
+                terminate_process(p.pid)
+            p.wait()
+            self.log_kill(self.totaljobdict[j])
+
+    def throw(self, msg=""):
         if threading.current_thread().name == 'MainThread':
             self.sumstatus()
             raise QsubError(msg)
         else:
             if self.mode == "sge":
-                self.deletejob(name=self.name)
+                self.clean_jobs()
                 self.logger.error(msg)
-            elif self.mode == "batchcompute":
-                for jb in self.jobqueue.queue:
-                    jobname = jb.name
-                    try:
-                        jobid = self.conf.cloudjob.get(jobname, "")
-                        j = self.conf.client.get_job(jobid)
-                    except ClientError as e:
-                        if e.status == 404:
-                            self.logger.error("Invalid JobId %s", jobid)
-                            continue
-                    except:
-                        continue
-                    if j.Name.startswith(user):
-                        if j.State not in ["Stopped", "Failed", "Finished"]:
-                            self.conf.client.stop_job(jobid)
-                        self.conf.client.delete_job(jobid)
-                        self.logger.info("Delete job %s done", j.Name)
-                        self.jobqueue.get(jb)
-                    else:
-                        self.logger.error(
-                            "Delete job error, you have no assess with job %s", j.Name)
-            for j, p in self.localprocess.items():
-                if p.poll() is None:
-                    terminate_process(p.pid)
-                p.wait()
-                self.log_kill(self.totaljobdict[j])
-            self.sumstatus()
-            os._exit(signal.SIGTERM)
+            if self.strict:
+                # force exit
+                os.kill(os.getpid(), signal.SIGTERM)
+            else:
+                # SystemExit Exception
+                os.kill(os.getpid(), signal.SIGUSR1)
 
     def writestates(self, outstat):
         summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
@@ -547,6 +561,8 @@ class RunSge(object):
         return all(j.is_success for j in self.jobs)
 
     def sumstatus(self):
+        if not hasattr(self, "jobs") or not len(self.jobs):
+            return
         err_jobs = sum(j.is_fail for j in self.jobs)
         suc_jobs = sum(j.is_success for j in self.jobs)
         wt_jobs = sum(j.is_wait for j in self.jobs)
@@ -563,7 +579,7 @@ class RunSge(object):
             self.logger.info(sum_info)
             self.logger.info(job_counter)
         else:
-            sum_info += "finished, but there are unsuccessful jobs."
+            sum_info += "finished, but there are unsuccessful job."
             self.logger.error(sum_info)
             self.logger.error(job_counter)
 

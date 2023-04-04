@@ -353,7 +353,14 @@ class ShellFile(object):
                 self.mode = "localhost"
         if self.mode == "sge" and not self.has_sge:
             self.mode = "localhost"
-        self.logdir = os.path.abspath(logdir)
+        if logdir is None:
+            if self.temp:
+                self.logdir = os.path.join(self.workdir, "runjob_log_dir")
+            else:
+                self.logdir = os.path.join(
+                    self.workdir, "runjob_%s_log_dir" % os.path.basename(self._path))
+        else:
+            self.logdir = os.path.abspath(logdir)
         if not os.path.isdir(self.logdir):
             os.makedirs(self.logdir)
         if name is None:

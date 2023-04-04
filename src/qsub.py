@@ -17,11 +17,12 @@ class CleanUpSingal(Thread):
         self.obj = obj
         self.mode = obj.mode
         self.daemon = True
+        self.killed = False
 
     def run(self):
         time.sleep(1)
 
-    def signal_handler(self, signum, frame):
+    def clean(self):
         if self.mode == "sge":
             self.obj.qdel(name=self.obj.name)
             for jb in self.obj.jobqueue.queue:
@@ -32,7 +33,12 @@ class CleanUpSingal(Thread):
                 terminate_process(p.pid)
             p.wait()
             self.obj.log_kill(self.obj.totaljobdict[j])
-        self.obj.sumstatus()
+
+    def signal_handler(self, signum, frame):
+        if not self.killed:
+            self.clean()
+            self.obj.sumstatus()
+            self.killed = True
         sys.exit(signum)
 
 
