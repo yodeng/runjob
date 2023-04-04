@@ -552,7 +552,7 @@ class RunSge(object):
         wt_jobs = sum(j.is_wait for j in self.jobs)
         total_jobs = len(self.jobs) + len(self.has_success)
         sub_jobs = len(self.jobs) - wt_jobs
-        sum_info = "All tesks(total: %d, submited: %d, success: %d, error: %d, wait: %d) " % (
+        sum_info = "All jobs (total: %d, submited: %d, success: %d, error: %d, wait: %d) " % (
             total_jobs, sub_jobs, suc_jobs, err_jobs, wt_jobs)
         if hasattr(self, "sgefile") and not self.sgefile.temp:
             sum_info += "in file '%s' " % os.path.abspath(self.jfile)
@@ -563,7 +563,7 @@ class RunSge(object):
             self.logger.info(sum_info)
             self.logger.info(job_counter)
         else:
-            sum_info += "finished, but there are Unsuccessful tesks."
+            sum_info += "finished, but there are unsuccessful jobs."
             self.logger.error(sum_info)
             self.logger.error(job_counter)
 
