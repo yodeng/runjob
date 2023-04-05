@@ -164,7 +164,9 @@ def canonicalize(path):
 
 def load_config(home=None, default=None, **kwargs):
     '''
-    home config is priority
+    @home <file>: default: ~/.runjobconfig, home config is priority then default config
+    @default <file>: default: dirname(__file__)/runjobconfig
+    @init_envs <bool>: default: Fasle, this will add sys.prefix/bin to PATH for cmd search if init_envs=True
     '''
     configfile_home = home or os.path.join(
         os.path.expanduser("~"), ".runjobconfig")

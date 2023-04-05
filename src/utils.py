@@ -14,7 +14,6 @@ import threading
 from threading import Thread
 from datetime import datetime
 from collections import Counter
-from time import monotonic as now
 from functools import total_ordering
 from subprocess import check_output, call, Popen, PIPE
 
@@ -153,6 +152,12 @@ def get_job_state(state):
         return style(state, fore="white")
 
 
+def now():
+    if hasattr(time, 'monotonic'):
+        return time.monotonic()
+    return time.time()
+
+
 def terminate_process(pid):
     try:
         pproc = psutil.Process(pid)
@@ -205,7 +210,7 @@ def common_parser():
     common.add_argument('-d', '--debug', action='store_true',
                         help='log debug info', default=False)
     common.add_argument("-l", "--log", type=str,
-                        help='append log info to file, default: sys.stdout', metavar="<file>")
+                        help='append log info to file, default: stdout', metavar="<file>")
     common.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit, default: 0",
                         type=int, default=0, metavar="<int>")
     common.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, default: 2",
@@ -234,9 +239,9 @@ def runsgeArgparser():
                         help='the output log dir, default: "%s/runjob_*_log_dir"' % os.getcwd(), metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
                         help="groups number of lines to a new jobs, default: 1", metavar="<int>")
-    parser.add_argument('--init', help="initial command before all task if set, will be running in localhost",
+    parser.add_argument('--init', help="command before all jobs, will be running in localhost",
                         type=str,  metavar="<cmd>")
-    parser.add_argument('--call-back', help="callback command if set, will be running in localhost",
+    parser.add_argument('--call-back', help="command after all jobs, will be running in localhost",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--mode', type=str, default="sge", choices=[
                         "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, default: sge, if no sge installed, always localhost.")

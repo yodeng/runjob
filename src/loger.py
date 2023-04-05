@@ -47,7 +47,7 @@ class Formatter(logging.Formatter):
         self._formats = {
             logging.DEBUG: {
                 "fmt": self.fmt,
-                "color": self._color(1, 36)  # cyan
+                "color": self._color(0, 36)  # cyan
             },
             logging.INFO: {
                 "fmt": self.fmt,
@@ -63,7 +63,7 @@ class Formatter(logging.Formatter):
             },
             logging.CRITICAL: {
                 "fmt": self.fmt,
-                "color": self._color(1, 35)  # purple
+                "color": self._color(0, 35)  # purple
             },
         }
 

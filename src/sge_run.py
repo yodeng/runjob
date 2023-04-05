@@ -413,7 +413,7 @@ class RunSge(object):
                 c.AddClusterMount()
                 task = Task(c)
                 task.AddOneTask(
-                    job=job, outdir=self.conf.get("args", "out_maping"))
+                    job=job, outdir=self.conf.args.out_maping)
                 if job.out_maping:
                     task.modifyTaskOutMapping(job=job, mapping=job.out_maping)
                 task.Submit()
@@ -435,10 +435,10 @@ class RunSge(object):
             self.throw(output.decode())
         return jobid, output.decode()
 
-    def run(self, sec=2, times=3, resubivs=2):
+    def run(self, sec=2, times=0, resubivs=2):
         '''
         @sec: submit epoch ivs, default: 2
-        @times: resubmit times, default: 3
+        @times: resubmit times, default: 0
         @resubivs: resubmit ivs sec, default: 2
         '''
         self.is_run = True
@@ -453,13 +453,9 @@ class RunSge(object):
         p.setDaemon(True)
         p.start()
         if self.mode == "batchcompute":
-            access_key_id = self.conf.get("args", "access_key_id")
-            access_key_secret = self.conf.get("args", "access_key_secret")
-            if access_key_id is None:
-                access_key_id = self.conf.get("OSS", "access_key_id")
-            if access_key_secret is None:
-                access_key_secret = self.conf.get("OSS", "access_key_secret")
-            region = REGION.get(self.conf.get("args", "region"), CN_BEIJING)
+            access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
+            access_key_secret = self.conf.args.access_key_secret or self.conf.access_key_secret
+            region = REGION.get(self.conf.args.region, CN_BEIJING)
             client = Client(region, access_key_id, access_key_secret)
             quotas = client.get_quotas().AvailableClusterInstanceType
             cfg_path = os.path.join(os.path.dirname(__file__), "ins_type.json")
