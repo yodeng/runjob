@@ -78,7 +78,7 @@ class RunSge(object):
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
-        self.ncall, self.period = config.rate or 3, 1
+        self.rate = Fraction(config.rate or 3).limit_denominator()
         self.sge_jobid = {}
 
     def depency_jobs(self):
@@ -288,45 +288,46 @@ class RunSge(object):
                         datetime.today().strftime("%F %X"), job.status.upper()))
         return status
 
-    def set_rate(self, ncall=3, period=1):
-        if ncall and period:
-            self.ncall = ncall
-            self.period = period
+    def set_rate(self, rate=3):
+        if rate:
+            self.rate = Fraction(rate).limit_denominator()
 
     def jobcheck(self):
         if self.mode == "batchcompute":
-            self.set_rate(1, 1)
-        rate_limiter = RateLimiter(max_calls=self.ncall, period=self.period)
+            self.set_rate(1)
+        rate_limiter = RateLimiter(
+            max_calls=self.rate.numerator, period=self.rate.denominator)
         while True:
-            with rate_limiter:
-                for jb in self.jobqueue.queue:
-                    with rate_limiter:
-                        try:
-                            js = self.jobstatus(jb)
-                        except:
-                            continue
-                        if js == "success":
-                            self.deletejob(jb)
-                            self.jobqueue.get(jb)
-                            self.jobsgraph.delete_node_if_exists(jb.jobname)
-                        elif js == "error":
-                            self.deletejob(jb)
-                            if jb.subtimes >= self.times + 1:
-                                if self.strict:
-                                    self.throw("Error jobs return (submit %d times), %s" % (
-                                        jb.subtimes, jb.logfile))
-                                self.jobqueue.get(jb)
-                                self.jobsgraph.delete_node_if_exists(
-                                    jb.jobname)
-                            else:
-                                self.jobqueue.get(jb)
-                                self.submit(jb)
-                        elif js == "exit":
-                            self.deletejob(jb)
-                            self.jobqueue.get(jb)
-                            self.jobsgraph.delete_node_if_exists(jb.jobname)
+            for jb in self.jobqueue.queue:
+                with rate_limiter:
+                    try:
+                        js = self.jobstatus(jb)
+                    except:
+                        self.logger.error(
+                            "check job status error: %s", jb.name)
+                        continue
+                    if js == "success":
+                        self.deletejob(jb)
+                        self.jobqueue.get(jb)
+                        self.jobsgraph.delete_node_if_exists(jb.jobname)
+                    elif js == "error":
+                        self.deletejob(jb)
+                        if jb.subtimes >= self.times + 1:
                             if self.strict:
-                                self.throw("Error job: %s, exit" % jb.jobname)
+                                self.throw("Error jobs return (submit %d times), %s" % (
+                                    jb.subtimes, jb.logfile))
+                            self.jobqueue.get(jb)
+                            self.jobsgraph.delete_node_if_exists(
+                                jb.jobname)
+                        else:
+                            self.jobqueue.get(jb)
+                            self.submit(jb)
+                    elif js == "exit":
+                        self.deletejob(jb)
+                        self.jobqueue.get(jb)
+                        self.jobsgraph.delete_node_if_exists(jb.jobname)
+                        if self.strict:
+                            self.throw("Error job: %s, exit" % jb.jobname)
 
     def qdel(self, name="", jobname=""):
         if name:
@@ -471,7 +472,7 @@ class RunSge(object):
                 break
             for j in sorted(subjobs):
                 jb = self.totaljobdict[j]
-                if jb in self.jobqueue.queue:
+                if jb in self.jobqueue._queue:
                     continue
                 self.submit(jb)
             time.sleep(sec)

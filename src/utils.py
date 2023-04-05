@@ -13,6 +13,7 @@ import threading
 
 from threading import Thread
 from datetime import datetime
+from fractions import Fraction
 from collections import Counter
 from functools import total_ordering
 from subprocess import check_output, call, Popen, PIPE
@@ -216,7 +217,7 @@ def common_parser():
     common.add_argument('-ivs', '--resubivs', help="rebsub interval seconds, default: 2",
                         type=int, default=2, metavar="<int>")
     common.add_argument('--rate', help="rate limite for job status checking per second, default: 3",
-                        type=int, default=3, metavar="<int>")
+                        type=float, default=3, metavar="<float>")
     common.add_argument("-f", "--force", default=False, action="store_true",
                         help="force to submit jobs even if already successed")
     common.add_argument("--local", default=False, action="store_true",
