@@ -73,7 +73,7 @@ class qsub(RunSge):
         self.check_already_success()
         self.maxjob = self.maxjob or len(self.jobs)
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
-        self.ncall, self.period = config.rate or 3, 1
+        self.rate = Fraction(config.rate or 3).limit_denominator()
         self.sge_jobid = {}
 
     def create_graph(self):
