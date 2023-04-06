@@ -21,9 +21,11 @@ class Jobutils(object):
         if not self.is_end:
             self.set_status("kill")
 
-    def remove_all_stat_files(self):
-        stats = [".success", ".run", ".error", ".submit"]
+    def remove_all_stat_files(self, is_run=True):
+        stats = [".success", ".error", ".submit"]
         self.remove_stat_file(*stats)
+        if is_run:
+            self.remove_stat_file(".run")
 
     def remove_stat_file(self, *stat):
         for i in stat:
@@ -39,17 +41,22 @@ class Jobutils(object):
     def raw2cmd(self):
         self.stat_file = os.path.join(
             self.logdir, "."+os.path.basename(self.logfile))
+        raw_cmd = self.rawstring
+        if self.groups and self.groups > 1 and len(self.rawstring.split("\n")) > 1:
+            with open(self.stat_file + ".run", "w") as fo:
+                fo.write(self.rawstring.strip() + "\n")
+            raw_cmd = "/bin/bash -euxo pipefail " + self.stat_file + ".run"
         if self.host == "sge":
             self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && ".format(self.stat_file) + \
-                self.rawstring + \
+                "(%s)" % raw_cmd + \
                 " && (echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || (echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
                     self.stat_file)
         else:
-            self.cmd = "echo [`date +'%F %T'`] 'RUNNING...' && " + \
-                self.rawstring + RUNSTAT
+            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...') && " + \
+                "(%s)" % raw_cmd + RUNSTAT
 
     def qsub_cmd(self, mem=1, cpu=1):
-        cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu}'
+        cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu} -S /bin/bash'
         cmd = cmd.format(
             cmd=self.cmd,
             workdir=self.workdir,

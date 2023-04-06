@@ -141,7 +141,7 @@ class RunSge(object):
         for job in self.jobs[:]:
             lf = job.logfile
             job.subtimes = 0
-            job.remove_all_stat_files()
+            job.remove_all_stat_files(is_run=self.is_run)
             if os.path.isfile(lf):
                 js = self.jobstatus(job)
                 if js != "success":
@@ -517,7 +517,9 @@ class RunSge(object):
             if p.poll() is None:  # still running
                 terminate_process(p.pid)
             p.wait()
-            self.log_kill(self.totaljobdict[j])
+            jb = self.totaljobdict[j]
+            jb.remove_all_stat_files()
+            self.log_kill(jb)
 
     def throw(self, msg=""):
         if threading.current_thread().name == 'MainThread':
