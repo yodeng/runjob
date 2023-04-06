@@ -14,6 +14,7 @@ class CleanUpSingal(Thread):
         super(CleanUpSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGUSR1, self.signal_handler)
         self.obj = obj
         self.mode = obj.mode
         self.daemon = True

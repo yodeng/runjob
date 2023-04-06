@@ -43,6 +43,8 @@ class Jobutils(object):
             self.logdir, "."+os.path.basename(self.logfile))
         raw_cmd = self.rawstring
         if self.groups and self.groups > 1 and len(self.rawstring.split("\n")) > 1:
+            if not os.path.isdir(self.logdir):
+                os.makedirs(self.logdir)
             with open(self.stat_file + ".run", "w") as fo:
                 fo.write(self.rawstring.strip() + "\n")
             raw_cmd = "/bin/bash -euxo pipefail " + self.stat_file + ".run"
@@ -245,6 +247,7 @@ class Job(Jobutils):
         self.host = self.jf.mode
         self.checkrule()
         cmd = False
+        self.groups = None
         self.queue = []
         for j in self.rules:
             j = j.strip()
@@ -305,6 +308,7 @@ class Job(Jobutils):
         if self.jf.mode in ["localhost", "local"]:
             self.host = "localhost"
         if len(self.cmd):
+            self.groups = len(self.cmd)
             self.cmd = "\n".join(self.cmd)
         else:
             self.throw("No cmd in %s job" % self.name)
