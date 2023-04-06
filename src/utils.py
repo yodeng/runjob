@@ -276,7 +276,7 @@ def runjobArgparser():
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
                         "sge", "local", "localhost"], help="the mode to submit your jobs, default: sge, if no sge installed, always localhost.")
-    return parser.parse_args()
+    return parser
 
 
 def shellJobArgparser(arglist):

@@ -109,8 +109,11 @@ class qsub(RunSge):
 
 
 def main():
-    args = runjobArgparser()
+    parser = runjobArgparser()
+    args = parser.parse_args()
     conf = load_config()
+    if args.jobfile is None:
+        parser.error("the following arguments are required: -j/--jobfile")
     if args.local:
         args.mode = "local"
     conf.update_dict(**args.__dict__)

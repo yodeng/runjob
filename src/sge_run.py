@@ -591,7 +591,7 @@ def main():
         print_config(conf)
         parser.exit()
     if args.jobfile is None:
-        parser.error("argument -j/--jobfile is required")
+        parser.error("the following arguments are required: -j/--jobfile")
     if args.local:
         args.mode = "local"
     if not os.path.isdir(args.workdir):
