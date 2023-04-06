@@ -49,8 +49,15 @@ class Jobutils(object):
                 self.rawstring + RUNSTAT
 
     def qsub_cmd(self, mem=1, cpu=1):
-        cmd = 'echo "%s" | qsub -V -wd %s -N %s -o %s -j y -l vf=%dg,p=%d' % (
-            self.cmd, self.workdir, self.jobpidname, self.logfile, mem, cpu)
+        cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu}'
+        cmd = cmd.format(
+            cmd=self.cmd,
+            workdir=self.workdir,
+            name=self.jobpidname,
+            logfile=self.logfile,
+            mem=mem,
+            cpu=cpu,
+        )
         return cmd
 
     @property
