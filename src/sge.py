@@ -24,7 +24,7 @@ class ParseSingal(Thread):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
-        signal.signal(signal.SIGUSR1, self.signal_handler_ui)
+        signal.signal(signal.SIGUSR1, self.signal_handler_us)
         self.obj = obj
         self.name = name
         self.mode = mode
@@ -39,13 +39,13 @@ class ParseSingal(Thread):
         self.obj.clean_jobs()
 
     def signal_handler(self, signum, frame):
-        if not self.killed:
+        if not self.killed and not self.obj.is_success:
             self.clean_jobs()
             self.obj.sumstatus()
             self.killed = True
         os._exit(signum)  # force exit
 
-    def signal_handler_ui(self, signum, frame):
+    def signal_handler_us(self, signum, frame):
         if not self.killed:
             self.clean_jobs()
             self.obj.sumstatus()

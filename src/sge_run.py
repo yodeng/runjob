@@ -330,6 +330,10 @@ class RunSge(object):
                             self.throw("Error job: %s, exit" % jb.jobname)
 
     def qdel(self, name="", jobname=""):
+        self._qdel(name=name, jobname=jobname)
+
+    # Override these methods to implement other subclass
+    def _qdel(self, name="", jobname=""):
         if name:
             call_cmd(['qdel', "%s_%d*" % (name, os.getpid())])
             self.sge_jobid.clear()
@@ -478,6 +482,8 @@ class RunSge(object):
             time.sleep(sec)
         if not self.is_success:
             os.kill(os.getpid(), signal.SIGUSR1)
+        else:
+            self.sumstatus()
 
     @property
     def logger(self):

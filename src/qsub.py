@@ -8,41 +8,6 @@ from .sge_run import RunSge
 from .config import load_config
 
 
-class CleanUpSingal(Thread):
-
-    def __init__(self, obj=None):
-        super(CleanUpSingal, self).__init__()
-        signal.signal(signal.SIGINT, self.signal_handler)
-        signal.signal(signal.SIGTERM, self.signal_handler)
-        signal.signal(signal.SIGUSR1, self.signal_handler)
-        self.obj = obj
-        self.mode = obj.mode
-        self.daemon = True
-        self.killed = False
-
-    def run(self):
-        time.sleep(1)
-
-    def clean(self):
-        if self.mode == "sge":
-            self.obj.qdel(name=self.obj.name)
-            for jb in self.obj.jobqueue.queue:
-                jb.remove_all_stat_files()
-                self.obj.log_kill(jb)
-        for j, p in self.obj.localprocess.items():
-            if p.poll() is None:
-                terminate_process(p.pid)
-            p.wait()
-            self.obj.log_kill(self.obj.totaljobdict[j])
-
-    def signal_handler(self, signum, frame):
-        if not self.killed:
-            self.clean()
-            self.obj.sumstatus()
-            self.killed = True
-        sys.exit(signum)
-
-
 class qsub(RunSge):
 
     def __init__(self, config=None):
@@ -94,11 +59,7 @@ class qsub(RunSge):
             for jb in self.jobs:
                 self.jobsgraph.add_node_if_not_exists(jb.name)
 
-    def clean_resource(self):
-        h = CleanUpSingal(obj=self)
-        h.start()
-
-    def qdel(self, name="", jobname=""):
+    def _qdel(self, name="", jobname=""):
         if name:
             call_cmd(['qdel', "*_%d" % os.getpid()])
             self.sge_jobid.clear()
