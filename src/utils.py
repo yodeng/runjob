@@ -159,6 +159,14 @@ def now():
     return time.time()
 
 
+def mkdir(path):
+    if not os.path.isdir(path):
+        try:
+            os.makedirs(path)
+        except:
+            pass
+
+
 def terminate_process(pid):
     try:
         pproc = psutil.Process(pid)

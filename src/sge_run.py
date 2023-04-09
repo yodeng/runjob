@@ -388,7 +388,7 @@ class RunSge(object):
                     time.sleep(self.resubivs)
                 if job.workdir != self.workdir:
                     if not os.path.isdir(job.workdir):
-                        os.makedirs(job.workdir)
+                        mkdir(job.workdir)
                     os.chdir(job.workdir)
                     p = Popen(cmd, shell=True, stdout=logcmd,
                               stderr=logcmd, env=os.environ)
@@ -457,6 +457,8 @@ class RunSge(object):
         p = Thread(target=self.jobcheck)
         p.setDaemon(True)
         p.start()
+        mkdir(self.logdir)
+        mkdir(self.workdir)
         if self.mode == "batchcompute":
             access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
             access_key_secret = self.conf.args.access_key_secret or self.conf.access_key_secret
