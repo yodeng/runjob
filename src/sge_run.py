@@ -69,6 +69,8 @@ class RunSge(object):
         self.depency_jobs()
         self.group_jobs()
         self.init_callback()
+        if config.loglevel is not None:
+            self.logger.setLevel(config.loglevel)
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
