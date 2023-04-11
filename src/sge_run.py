@@ -24,7 +24,6 @@ class RunSge(object):
     def __init__(self, config=None):
         '''
         all attribute of config:
-
             @jobfile <file, list>: required
             @jobname <str>: default: basename(jobfile)
             @mode <str>: default: sge
@@ -198,7 +197,8 @@ class RunSge(object):
             level = "warn"
         else:
             level = "info"
-        getattr(self.logger, level)("job %s status %s", name, job.status)
+        if not job.is_wait:
+            getattr(self.logger, level)("job %s status %s", name, job.status)
 
     def log_kill(self, jb):
         '''
