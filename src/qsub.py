@@ -32,7 +32,7 @@ class qsub(RunSge):
         self.cloudjob = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
-        self.create_graph()
+        self.__create_graph()
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
@@ -42,7 +42,7 @@ class qsub(RunSge):
         self.rate = Fraction(config.rate or 3).limit_denominator()
         self.sge_jobid = {}
 
-    def create_graph(self):
+    def __create_graph(self):
         for k, v in self.orders.items():
             self.jobsgraph.add_node_if_not_exists(k)
             for i in v:

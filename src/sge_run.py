@@ -65,8 +65,8 @@ class RunSge(object):
         self.cloudjob = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
-        self.depency_jobs()
-        self.group_jobs()
+        self.__add_depency_for_wait()
+        self.__group_jobs()
         self.init_callback()
         if config.loglevel is not None:
             self.logger.setLevel(config.loglevel)
@@ -82,7 +82,7 @@ class RunSge(object):
         self.rate = Fraction(config.rate or 3).limit_denominator()
         self.sge_jobid = {}
 
-    def depency_jobs(self):
+    def __add_depency_for_wait(self):
         cur_jobs, dep_jobs = [], []
         for j in self.jobs[:]:
             if j.rawstring == "wait":
@@ -96,7 +96,7 @@ class RunSge(object):
                         self.jobsgraph.add_edge(dep_j.jobname, j.jobname)
                 cur_jobs.append(j)
 
-    def group_jobs(self):
+    def __group_jobs(self):
         jobs_groups = []
         jgs = []
         for j in self.jobs[:]:
@@ -114,7 +114,7 @@ class RunSge(object):
             for n, jb in enumerate(wait_groups):
                 if jb.groups:
                     if n >= i:
-                        self._make_groups(wait_groups[n:n+jb.groups])
+                        self.__make_groups(wait_groups[n:n+jb.groups])
                         i = jb.groups+n
                     else:
                         self.throw('groups conflict in "%s" line number %d: "%s"' % (self.jfile,
@@ -125,9 +125,9 @@ class RunSge(object):
                         if j.groups:
                             break
                         gs.append(j)
-                    self._make_groups(gs)
+                    self.__make_groups(gs)
 
-    def _make_groups(self, jobs=None):
+    def __make_groups(self, jobs=None):
         if len(jobs) > 1:
             j_header = jobs[0]
             for j in jobs[1:]:
