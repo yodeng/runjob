@@ -217,25 +217,25 @@ def main():
 
 def bcArgs():
     parser = argparse.ArgumentParser(
-        description="For query job status in batch compute.")
+        description="for query job status in batch compute.")
     parser.add_argument("-t", "--top", type=int, default=10,
-                        help="show top number job (default: 10)", metavar="<int>")
+                        help="show top number job. (default: 10)", metavar="<int>")
     parser.add_argument("-a", "--all", action="store_true", default=False,
-                        help="show all jobs")
+                        help="show all jobs.")
     parser.add_argument("-n", "--name", type=str,
-                        help="show jobName contains the specific name", metavar="<str>")
+                        help="show jobName contains the specific name.", metavar="<str>")
     parser.add_argument("-u", "--user", type=str, default=getpass.getuser(),
-                        help="show jobs with a user name matching, defualt: %s" % getpass.getuser(), metavar="<str>")
-    parser.add_argument("-r", '--regin', type=str, default="BEIJING", choices=['BEIJING', 'HANGZHOU', 'HUHEHAOTE', 'SHANGHAI',
-                        'ZHANGJIAKOU', 'CHENGDU', 'HONGKONG', 'QINGDAO', 'SHENZHEN'], help="batch compute regin, BEIJING by default")
+                        help="show jobs with a user name matching. (defualt: %s)" % getpass.getuser(), metavar="<str>")
+    parser.add_argument('-r', '--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
+                                                                               'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: beijing)")
     parser.add_argument("-d", "--delete", type=str, nargs="*",
-                        help="delete job with jobId", metavar="<jobId>")
+                        help="delete job with jobId.", metavar="<jobId>")
     parser.add_argument("-j", "--job", type=str,
-                        help="description of the job", metavar="<jobId>")
+                        help="description of the job.", metavar="<jobId>")
     parser.add_argument('--access-key-id', type=str,
-                        help="AccessKeyID while access oss", metavar="<str>")
+                        help="AccessKeyID while access oss.", metavar="<str>")
     parser.add_argument('--access-key-secret', type=str,
-                        help="AccessKeySecret while access oss", metavar="<str>")
+                        help="AccessKeySecret while access oss.", metavar="<str>")
     parser.add_argument('-ini', '--ini',
                         help="input configfile for configurations search.", metavar="<configfile>")
     parser.add_argument("-config", '--config',   action='store_true',
@@ -257,7 +257,7 @@ def batchStat():
     if args.config:
         print_config(conf)
         sys.exit()
-    region = REGION.get(args.regin, CN_BEIJING)
+    region = REGION.get(args.region.upper(), CN_BEIJING)
     access_key_id = conf.get("args", "access_key_id")
     access_key_secret = conf.get("args", "access_key_secret")
     if access_key_id is None:

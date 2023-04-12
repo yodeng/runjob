@@ -79,7 +79,10 @@ class RunSge(object):
         self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
-        self.rate = Fraction(config.rate or 3).limit_denominator()
+        self.check_rate = Fraction(
+            config.max_check or 3).limit_denominator()
+        self.sub_rate = Fraction(
+            config.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
 
     def __add_depency_for_wait(self):
@@ -290,15 +293,17 @@ class RunSge(object):
                         datetime.today().strftime("%F %X"), job.status.upper()))
         return status
 
-    def set_rate(self, rate=3):
-        if rate:
-            self.rate = Fraction(rate).limit_denominator()
+    def set_rate(self, check_rate=0, sub_rate=0):
+        if check_rate:
+            self.check_rate = Fraction(check_rate).limit_denominator()
+        if sub_rate:
+            self.sub_rate = Fraction(sub_rate).limit_denominator()
 
     def jobcheck(self):
         if self.mode == "batchcompute":
-            self.set_rate(1)
+            self.set_rate(check_rate=1)
         rate_limiter = RateLimiter(
-            max_calls=self.rate.numerator, period=self.rate.denominator)
+            max_calls=self.check_rate.numerator, period=self.check_rate.denominator)
         while True:
             for jb in self.jobqueue.queue:
                 with rate_limiter:
@@ -442,15 +447,15 @@ class RunSge(object):
             self.throw(output.decode())
         return jobid, output.decode()
 
-    def run(self, sec=2, times=0, resubivs=2):
+    def run(self, retry=0, ivs=2, sec=2):
         '''
+        @retry: retry times, default: 0
+        @ivs: retry ivs sec, default: 2
         @sec: submit epoch ivs, default: 2
-        @times: resubmit times, default: 0
-        @resubivs: resubmit ivs sec, default: 2
         '''
         self.is_run = True
-        self.times = max(0, times)
-        self.resubivs = max(resubivs, 0)
+        self.times = max(0, retry)
+        self.resubivs = max(ivs, 0)
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
         if len(self.jobsgraph.graph) == 0:
@@ -461,10 +466,11 @@ class RunSge(object):
         p.start()
         mkdir(self.logdir)
         mkdir(self.workdir)
+        max_calls = 10000
         if self.mode == "batchcompute":
             access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
             access_key_secret = self.conf.args.access_key_secret or self.conf.access_key_secret
-            region = REGION.get(self.conf.args.region, CN_BEIJING)
+            region = REGION.get(self.conf.args.region.upper(), CN_BEIJING)
             client = Client(region, access_key_id, access_key_secret)
             quotas = client.get_quotas().AvailableClusterInstanceType
             cfg_path = os.path.join(os.path.dirname(__file__), "ins_type.json")
@@ -474,20 +480,31 @@ class RunSge(object):
             self.conf.availableTypes = sorted(availableTypes, key=lambda x: (
                 self.conf.it_conf[x]["cpu"], self.conf.it_conf[x]["memory"]))
             self.conf.client = self.client = client
+            max_calls = self.sub_rate.numerator
+        elif self.mode == "sge":
+            max_calls = self.sub_rate.numerator
+        sub_rate_limiter = RateLimiter(
+            max_calls=max_calls, period=self.sub_rate.denominator)
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
                 break
-            for j in sorted(subjobs):
-                jb = self.totaljobdict[j]
-                if jb in self.jobqueue._queue:
-                    continue
-                self.submit(jb)
+            for jb in self.pending_jobs(*subjobs):
+                with sub_rate_limiter:
+                    self.submit(jb)
             time.sleep(sec)
         if not self.is_success:
             os.kill(os.getpid(), signal.SIGUSR1)
         else:
             self.sumstatus()
+
+    def pending_jobs(self, *names):
+        jobs = []
+        for j in sorted(names):
+            jb = self.totaljobdict[j]
+            if jb not in self.jobqueue:
+                jobs.append(jb)
+        return jobs
 
     @property
     def logger(self):
@@ -616,7 +633,7 @@ def main():
     logger = Mylog(logfile=args.log,
                    level="debug" if args.debug else "info", name=__name__)
     runsge = RunSge(config=conf)
-    runsge.run(times=args.resub, resubivs=args.resubivs)
+    runsge.run(retry=args.resub, ivs=args.resubivs)
 
 
 if __name__ == "__main__":

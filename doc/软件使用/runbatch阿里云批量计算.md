@@ -28,7 +28,7 @@
 | --mode              | 指定任务运行方式，可选`[sge,local,localhost,batchcompute]`，默认为sge投递。batchcompute代表阿里云上投递，local和localhost代表本地运行，sge代表SGE集群运行 |
 | --access-key-id     | OSS访问id，当使用阿里云投递时使用，若不传入该参数，会从配置文件中读取，传入时，会覆盖配置文件中的指定 |
 | --access-key-secret | OSS访问密钥，当使用阿里云投递时使用，若不传入该参数，会从配置文件中读取，传入时，会覆盖配置文件中的指定 |
-| --regin             | 当使用阿里云投递时，指定的云主机所在区域，默认BEIJING        |
+| --region             | 当使用阿里云投递时，指定的云主机所在区域，默认BEIJING        |
 | -ivs/--resubivs     | 任务错误后，重投的等待时间，单位秒，默认2秒                  |
 | -ini/--ini          | 程序运行的配置文件，当使用阿里云投递时，可以传入指定配置文件。默认配置文件路径为：`$HOME/.runjobconfig`或软件安装路径下的`runjobconfig`文件，默认路径可通过`runbatch -config`查看 |
 | -config/--config    | 打印配置文件和参数信息并退出                                 |

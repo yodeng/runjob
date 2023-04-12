@@ -109,6 +109,7 @@ class Packages(object):
             '%s = %s.jobstat:main' % ("qs", self.name),
             '%s = %s.jobstat:batchStat' % ("qcs", self.name),
             '%s = %s.sge_run:main' % ("runsge", self.name),
+            '%s = %s.sge_run:main' % ("runshell", self.name),
             '%s = %s.sge_run:main' % ("runbatch", self.name),
             '%s = %s.sge:main' % ("runsge0", self.name),
         ]

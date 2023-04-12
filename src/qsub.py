@@ -39,7 +39,10 @@ class qsub(RunSge):
         self.check_already_success()
         self.maxjob = self.maxjob or len(self.jobs)
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
-        self.rate = Fraction(config.rate or 3).limit_denominator()
+        self.check_rate = Fraction(
+            config.max_check or 3).limit_denominator()
+        self.sub_rate = Fraction(
+            config.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
 
     def __create_graph(self):
@@ -81,7 +84,7 @@ def main():
     conf.update_dict(**args.__dict__)
     logger = Mylog(logfile=args.log, level=args.debug and "debug" or "info")
     qjobs = qsub(config=conf)
-    qjobs.run(times=args.resub, resubivs=args.resubivs)
+    qjobs.run(retry=args.resub, ivs=args.resubivs)
 
 
 if __name__ == "__main__":
