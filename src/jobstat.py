@@ -227,7 +227,7 @@ def bcArgs():
     parser.add_argument("-u", "--user", type=str, default=getpass.getuser(),
                         help="show jobs with a user name matching. (defualt: %s)" % getpass.getuser(), metavar="<str>")
     parser.add_argument('-r', '--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
-                                                                               'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: beijing)")
+                                                                                'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: beijing)")
     parser.add_argument("-d", "--delete", type=str, nargs="*",
                         help="delete job with jobId.", metavar="<jobId>")
     parser.add_argument("-j", "--job", type=str,

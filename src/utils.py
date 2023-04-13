@@ -109,6 +109,41 @@ class JobQueue(Queue):
             return item
 
 
+class ParseSingal(Thread):
+
+    def __init__(self, obj=None, name="", mode="sge", conf=None):
+        super(ParseSingal, self).__init__()
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGUSR1, self.signal_handler_us)
+        self.obj = obj
+        self.name = name
+        self.mode = mode
+        self.conf = conf
+        self.daemon = True
+        self.killed = False
+
+    def run(self):
+        time.sleep(1)
+
+    def clean_jobs(self):
+        self.obj.clean_jobs()
+
+    def signal_handler(self, signum, frame):
+        if not self.killed and not self.obj.is_success:
+            self.clean_jobs()
+            self.obj.sumstatus()
+            self.killed = True
+        os._exit(signum)  # force exit
+
+    def signal_handler_us(self, signum, frame):
+        if not self.killed:
+            self.clean_jobs()
+            self.obj.sumstatus()
+            self.killed = True
+        sys.exit(signum)  # SystemExit Exception
+
+
 def Mylog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
     if level.lower() == "info":
@@ -278,7 +313,7 @@ def runsgeArgparser():
     batchcmp.add_argument('--access-key-secret', type=str,
                           help="AccessKeySecret while access oss.", metavar="<str>")
     batchcmp.add_argument('--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
-                                                                           'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: beijing)")
+                                                                            'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: beijing)")
     return parser
 
 

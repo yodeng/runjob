@@ -14,7 +14,6 @@ from . import dag
 from .job import *
 from .utils import *
 from .cluster import *
-from .sge import ParseSingal
 from ._version import __version__
 from .config import load_config, print_config
 
