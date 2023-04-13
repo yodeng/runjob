@@ -71,13 +71,6 @@ class RunSge(object):
         self.init_callback()
         if config.loglevel is not None:
             self.logger.setLevel(config.loglevel)
-        self.logger.info("Total jobs to submit: %s" %
-                         ", ".join([j.name for j in self.jobs]))
-        self.logger.info("All logs can be found in %s directory", self.logdir)
-        self.check_already_success()
-        self.maxjob = self.maxjob or len(self.jobs)
-        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
-        self.conf.jobqueue = self.jobqueue
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
         self.check_rate = Fraction(
@@ -454,6 +447,12 @@ class RunSge(object):
         @ivs: retry ivs sec, default: 2
         @sec: submit epoch ivs, default: 2
         '''
+        self.logger.info("Total jobs to submit: %s" %
+                         ", ".join([j.name for j in self.jobs]))
+        self.logger.info("All logs can be found in %s directory", self.logdir)
+        self.check_already_success()
+        self.maxjob = self.maxjob or len(self.jobs)
+        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.is_run = True
         self.times = max(0, retry)
         self.resubivs = max(ivs, 0)

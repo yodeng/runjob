@@ -48,12 +48,6 @@ class qsub(RunSge):
         self.__create_graph()
         if config.loglevel is not None:
             self.logger.setLevel(config.loglevel)
-        self.logger.info("Total jobs to submit: %s" %
-                         ", ".join([j.name for j in self.jobs]))
-        self.logger.info("All logs can be found in %s directory", self.logdir)
-        self.check_already_success()
-        self.maxjob = self.maxjob or len(self.jobs)
-        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.check_rate = Fraction(
             config.max_check or 3).limit_denominator()
         self.sub_rate = Fraction(
