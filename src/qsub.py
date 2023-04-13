@@ -11,7 +11,20 @@ from .config import load_config
 class qsub(RunSge):
 
     def __init__(self, config=None):
-
+        '''
+        all attribute of config:
+            @jobfile <file, list>: required
+            @mode <str>: default: sge
+            @queue <list>: default: all access queue
+            @num <int>: default: total jobs
+            @startline <int>: default: 1
+            @endline <int>: default: None
+            @strict <bool>: default: False
+            @force <bool>: default: False
+            @max_check <int>: default: 3
+            @max_submit <int>: default: 30
+            @loglevel <int>: default: None
+        '''
         self.conf = config
         self.jobfile = config.jobfile
         self.queue = config.queue
@@ -33,6 +46,8 @@ class qsub(RunSge):
         self.jobsgraph = dag.DAG()
         self.has_success = []
         self.__create_graph()
+        if config.loglevel is not None:
+            self.logger.setLevel(config.loglevel)
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)

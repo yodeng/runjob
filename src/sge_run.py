@@ -37,7 +37,9 @@ class RunSge(object):
             @force <bool>: default: False
             @logdir <dir>: defalut: "%s/runjob_*_log_dir" % os.getcwd()
             @workdir <dir>: default: os.getcwd()
-            @rate <int>: default: 3
+            @max_check <int>: default: 3
+            @max_submit <int>: default: 30
+            @loglevel <int>: default: None
         '''
         self.conf = config
         self.jobfile = config.jobfile

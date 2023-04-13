@@ -53,9 +53,7 @@ You can run a quick test like this:
 	
 	$ qcs --help
 	
-	$ runsge/runbatch --help
-	
-	$ runsge0 --help
+	$ runsge/runshell/runbatch --help
 
 ## License
 
