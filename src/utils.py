@@ -10,6 +10,7 @@ import logging
 import argparse
 import textwrap
 import threading
+import pkg_resources
 
 from threading import Thread
 from datetime import datetime
@@ -36,6 +37,10 @@ QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
 
 
 class QsubError(Exception):
+    pass
+
+
+class FailJobError(Exception):
     pass
 
 
@@ -121,27 +126,35 @@ class ParseSingal(Thread):
         self.mode = mode
         self.conf = conf
         self.daemon = True
-        self.killed = False
 
     def run(self):
         time.sleep(1)
+
+    @property
+    def isBin(self):
+        return os.path.basename(sys.argv[0]) in \
+            list(pkg_resources.get_entry_map(__package__).values())[0].keys() \
+            and os.path.join(sys.prefix, "bin", os.path.basename(sys.argv[0])) == sys.argv[0]
 
     def clean_jobs(self):
         self.obj.clean_jobs()
 
     def signal_handler(self, signum, frame):
-        if not self.killed and not self.obj.is_success:
+        if not self.obj.killed and not self.obj.is_success:
             self.clean_jobs()
             self.obj.sumstatus()
-            self.killed = True
+            self.obj.killed = True
         os._exit(signum)  # force exit
 
     def signal_handler_us(self, signum, frame):
-        if not self.killed:
+        if not self.obj.killed:
             self.clean_jobs()
             self.obj.sumstatus()
-            self.killed = True
-        sys.exit(signum)  # SystemExit Exception
+            self.obj.killed = True
+        if self.isBin:
+            sys.exit(signum)  # SystemExit Exception
+        else:
+            raise FailJobError("job failed")
 
 
 def Mylog(logfile=None, level="info", name=None):

@@ -1,5 +1,5 @@
-from .utils import JobQueue
 from .utils import Mylog as log
+from .utils import JobQueue, FailJobError
 from .loger import Formatter
 from ._version import __version__
 from .qsub import qsub as runjob

@@ -62,6 +62,8 @@ class RunSge(object):
         self.name = self.sgefile.name
         self.totaljobdict = {j.jobname: j for j in self.jobs}
         self.is_run = False
+        self.reseted = False
+        self.killed = False
         self.localprocess = {}
         self.cloudjob = {}
         self.jobsgraph = dag.DAG()
@@ -78,6 +80,26 @@ class RunSge(object):
         self.sub_rate = Fraction(
             config.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
+
+    def reset(self):
+        config = self.conf
+        self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
+                                 logdir=self.logdir, workdir=self.workdir)
+        self.jobs = self.sgefile.jobshells(
+            start=config.startline or 1, end=config.endline)
+        self.totaljobdict = {j.jobname: j for j in self.jobs}
+        self.localprocess = {}
+        self.cloudjob = {}
+        self.jobsgraph = dag.DAG()
+        self.has_success = []
+        self.__add_depency_for_wait()
+        self.__group_jobs()
+        self.init_callback()
+        self.conf.cloudjob = self.cloudjob
+        self.sge_jobid = {}
+        self.is_run = False
+        self.reseted = True
+        self.killed = False
 
     def __add_depency_for_wait(self):
         cur_jobs, dep_jobs = [], []
@@ -447,6 +469,9 @@ class RunSge(object):
         @ivs: retry ivs sec, default: 2
         @sec: submit epoch ivs, default: 2
         '''
+        if self.is_run:
+            self.logger.warning("not allowed for job has run")
+            return
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
@@ -460,10 +485,11 @@ class RunSge(object):
             self.logger.info("job %s status already success", jn)
         if len(self.jobsgraph.graph) == 0:
             return
-        self.clean_resource()
-        p = Thread(target=self.jobcheck)
-        p.setDaemon(True)
-        p.start()
+        if not self.reseted:
+            self.clean_resource()
+            p = Thread(target=self.jobcheck)
+            p.setDaemon(True)
+            p.start()
         mkdir(self.logdir)
         mkdir(self.workdir)
         max_calls = 10000
@@ -556,12 +582,7 @@ class RunSge(object):
             if self.mode == "sge":
                 self.clean_jobs()
                 self.logger.error(msg)
-            if self.strict:
-                # force exit
-                os.kill(os.getpid(), signal.SIGTERM)
-            else:
-                # SystemExit Exception
-                os.kill(os.getpid(), signal.SIGUSR1)
+            os.kill(os.getpid(), signal.SIGUSR1)
 
     def writestates(self, outstat):
         summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}

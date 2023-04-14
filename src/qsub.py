@@ -41,6 +41,8 @@ class qsub(RunSge):
         self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
         self.orders = jf.orders()
         self.is_run = False
+        self.killed = False
+        self.reseted = False
         self.localprocess = {}
         self.cloudjob = {}
         self.jobsgraph = dag.DAG()
@@ -53,6 +55,24 @@ class qsub(RunSge):
         self.sub_rate = Fraction(
             config.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
+
+    def reset(self):
+        config = self.conf
+        self.jf = jf = Jobfile(self.jobfile, mode=self.mode)
+        self.jobs = jf.jobs(
+            config.injname, config.startline or 1, config.endline)
+        self.jobnames = [j.name for j in self.jobs]
+        self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
+        self.orders = jf.orders()
+        self.localprocess = {}
+        self.cloudjob = {}
+        self.jobsgraph = dag.DAG()
+        self.has_success = []
+        self.__create_graph()
+        self.sge_jobid = {}
+        self.is_run = False
+        self.reseted = True
+        self.killed = False
 
     def __create_graph(self):
         for k, v in self.orders.items():
