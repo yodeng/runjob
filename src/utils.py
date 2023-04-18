@@ -231,7 +231,7 @@ def mkdir(*path):
                 pass
 
 
-def isBin():
+def is_entry_cmd():
     prog = os.path.abspath(os.path.realpath(sys.argv[0]))
     return os.path.basename(prog) in \
         list(pkg_resources.get_entry_map(__package__).values())[0].keys() \
@@ -305,7 +305,7 @@ def common_parser():
                         help="use strict to run, means if any errors, clean all jobs and exit.")
     common.add_argument('--max-check', help="maximal number of job status checks per second, default is 3, fractions allowed. (default: 3)",
                         type=float, default=3, metavar="<float>")
-    common.add_argument('--max-submit', help="maximal number of sge jobs submited per second, default is 30, fractions allowed. (default: 30)",
+    common.add_argument('--max-submit', help="maximal number of jobs submited per second, default is 30, fractions allowed. (default: 30)",
                         type=float, default=30, metavar="<float>")
     return p
 

@@ -60,7 +60,11 @@ class RunSge(object):
             start=config.startline or 1, end=config.endline)
         self.mode = self.sgefile.mode
         self.name = self.sgefile.name
+        self._init()
+
+    def _init(self):
         self.totaljobdict = {j.jobname: j for j in self.jobs}
+        self.jobnames = [j.name for j in self.jobs]
         self.is_run = False
         self.finished = False
         self.err_msg = ""
@@ -72,36 +76,23 @@ class RunSge(object):
         self.__add_depency_for_wait()
         self.__group_jobs()
         self.init_callback()
-        if config.loglevel is not None:
-            self.logger.setLevel(config.loglevel)
+        if self.conf.loglevel is not None:
+            self.logger.setLevel(self.conf.loglevel)
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
         self.check_rate = Fraction(
-            config.max_check or 3).limit_denominator()
+            self.conf.max_check or 3).limit_denominator()
         self.sub_rate = Fraction(
-            config.max_submit or 30).limit_denominator()
+            self.conf.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
 
     def reset(self):
-        config = self.conf
         self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
                                  logdir=self.logdir, workdir=self.workdir)
         self.jobs = self.sgefile.jobshells(
-            start=config.startline or 1, end=config.endline)
-        self.totaljobdict = {j.jobname: j for j in self.jobs}
-        self.localprocess = {}
-        self.cloudjob = {}
-        self.jobsgraph = dag.DAG()
-        self.has_success = []
-        self.__add_depency_for_wait()
-        self.__group_jobs()
-        self.init_callback()
-        self.conf.cloudjob = self.cloudjob
-        self.sge_jobid = {}
-        self.is_run = False
-        self.err_msg = ""
+            start=self.conf.startline or 1, end=self.conf.endline)
+        self._init()
         self.reseted = True
-        self.finished = False
 
     def __add_depency_for_wait(self):
         cur_jobs, dep_jobs = [], []
@@ -486,7 +477,6 @@ class RunSge(object):
             p = RunThread(self.jobcheck)
             p.start()
         mkdir(self.logdir, self.workdir)
-        max_calls = 10000
         if self.mode == "batchcompute":
             access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
             access_key_secret = self.conf.args.access_key_secret or self.conf.access_key_secret
@@ -500,11 +490,8 @@ class RunSge(object):
             self.conf.availableTypes = sorted(availableTypes, key=lambda x: (
                 self.conf.it_conf[x]["cpu"], self.conf.it_conf[x]["memory"]))
             self.conf.client = self.client = client
-            max_calls = self.sub_rate.numerator
-        elif self.mode == "sge":
-            max_calls = self.sub_rate.numerator
         sub_rate_limiter = RateLimiter(
-            max_calls=max_calls, period=self.sub_rate.denominator)
+            max_calls=self.sub_rate.numerator, period=self.sub_rate.denominator)
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
@@ -560,7 +547,7 @@ class RunSge(object):
                 else:
                     self.logger.error(
                         "Delete job error, you have no assess with job %s", j.Name)
-        for j, p in self.localprocess.items():
+        for j, p in self.localprocess.copy().items():
             jb = self.totaljobdict[j]
             self.deletejob(jb)
 
@@ -569,10 +556,10 @@ class RunSge(object):
         self.clean_jobs()
         self.logger.error(self.err_msg)
         self.sumstatus()
-        if threading.current_thread().name != 'MainThread':
-            os.kill(os.getpid(), signal.SIGUSR1)  # threading exit
-        else:
+        if threading.current_thread().name == 'MainThread':
             raise QsubError(self.err_msg)
+        else:
+            os.kill(os.getpid(), signal.SIGUSR1)  # threading exit
 
     def writestates(self, outstat):
         summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}

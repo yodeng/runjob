@@ -171,11 +171,11 @@ def main():
         elif os.path.isdir(jobfile):
             logdir = os.path.abspath(jobfile)
         else:
-            raise IOError("No such file or directory %s." % jobfile)
+            raise OSError("No such file or directory %s." % jobfile)
 
         if not os.path.isdir(logdir):
             return
-            #raise IOError("No such log_dir %s" % logdir)
+            #raise OSError("No such log_dir %s" % logdir)
         if submit == 0:
             submit = len([i for i in os.listdir(
                 logdir) if i.endswith(".log")])

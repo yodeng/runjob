@@ -146,7 +146,7 @@ class Jobfile(object):
         self.has_sge = is_sge_submit()
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
-            raise IOError("No such file: %s" % self._path)
+            raise OSError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.logdir = os.path.join(self._pathdir, "log")
         self.workdir = os.getcwd()
@@ -357,7 +357,7 @@ class ShellFile(object):
             jobfile = tmp_jobfile
         self._path = os.path.abspath(jobfile)
         if not os.path.exists(self._path):
-            raise IOError("No such file: %s" % self._path)
+            raise OSError("No such file: %s" % self._path)
         self._pathdir = os.path.dirname(self._path)
         self.mode = mode
         # "sge", "local", "localhost", "batchcompute"

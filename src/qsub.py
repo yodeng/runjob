@@ -32,14 +32,18 @@ class qsub(RunSge):
         self.strict = config.strict or False
         self.workdir = config.workdir or os.getcwd()
         self.jf = jf = Jobfile(self.jobfile, mode=config.mode or "sge")
+        self.jfile = self.jf._path
         self.mode = jf.mode
         self.name = os.getpid()
         self.jobs = jf.jobs(
             config.injname, config.startline or 1, config.endline)
         self.logdir = jf.logdir
+        self._init()
+
+    def _init(self):
         self.jobnames = [j.name for j in self.jobs]
-        self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
-        self.orders = jf.orders()
+        self.totaljobdict = {jf.name: jf for jf in self.jf.totaljobs}
+        self.orders = self.jf.orders()
         self.is_run = False
         self.finished = False
         self.err_msg = ""
@@ -49,32 +53,20 @@ class qsub(RunSge):
         self.jobsgraph = dag.DAG()
         self.has_success = []
         self.__create_graph()
-        if config.loglevel is not None:
-            self.logger.setLevel(config.loglevel)
+        if self.conf.loglevel is not None:
+            self.logger.setLevel(self.conf.loglevel)
         self.check_rate = Fraction(
-            config.max_check or 3).limit_denominator()
+            self.conf.max_check or 3).limit_denominator()
         self.sub_rate = Fraction(
-            config.max_submit or 30).limit_denominator()
+            self.conf.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
 
     def reset(self):
-        config = self.conf
         self.jf = jf = Jobfile(self.jobfile, mode=self.mode)
         self.jobs = jf.jobs(
-            config.injname, config.startline or 1, config.endline)
-        self.jobnames = [j.name for j in self.jobs]
-        self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
-        self.orders = jf.orders()
-        self.localprocess = {}
-        self.cloudjob = {}
-        self.jobsgraph = dag.DAG()
-        self.has_success = []
-        self.__create_graph()
-        self.sge_jobid = {}
-        self.is_run = False
+            self.conf.injname, self.conf.startline or 1, self.conf.endline)
+        self._init()
         self.reseted = True
-        self.err_msg = ""
-        self.finished = False
 
     def __create_graph(self):
         for k, v in self.orders.items():
