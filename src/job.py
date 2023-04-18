@@ -21,10 +21,10 @@ class Jobutils(object):
         if not self.is_end:
             self.set_status("kill")
 
-    def remove_all_stat_files(self, is_run=True):
+    def remove_all_stat_files(self, remove_run=True):
         stats = [".success", ".error", ".submit"]
         self.remove_stat_file(*stats)
-        if is_run:
+        if remove_run:
             self.remove_stat_file(".run")
 
     def remove_stat_file(self, *stat):

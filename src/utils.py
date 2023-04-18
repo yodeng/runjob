@@ -10,6 +10,7 @@ import logging
 import argparse
 import textwrap
 import threading
+import traceback
 import pkg_resources
 
 from threading import Thread
@@ -40,7 +41,7 @@ class QsubError(Exception):
     pass
 
 
-class FailJobError(Exception):
+class JobFailedError(Exception):
     pass
 
 
@@ -116,45 +117,56 @@ class JobQueue(Queue):
 
 class ParseSingal(Thread):
 
-    def __init__(self, obj=None, name="", mode="sge", conf=None):
+    def __init__(self, obj=None):
         super(ParseSingal, self).__init__()
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGUSR1, self.signal_handler_us)
-        self.obj = obj
-        self.name = name
-        self.mode = mode
-        self.conf = conf
         self.daemon = True
+        self.obj = obj
 
     def run(self):
         time.sleep(1)
 
-    @property
-    def isBin(self):
-        return os.path.basename(sys.argv[0]) in \
-            list(pkg_resources.get_entry_map(__package__).values())[0].keys() \
-            and os.path.join(sys.prefix, "bin", os.path.basename(sys.argv[0])) == sys.argv[0]
-
-    def clean_jobs(self):
+    def clean_up(self):
         self.obj.clean_jobs()
+        self.obj.sumstatus()
 
     def signal_handler(self, signum, frame):
-        if not self.obj.killed and not self.obj.is_success:
-            self.clean_jobs()
-            self.obj.sumstatus()
-            self.obj.killed = True
-        os._exit(signum)  # force exit
+        self.clean_up()
+        # os._exit(signum)  # Force Exit
+        sys.exit(signum)    # SystemExit Exception
 
     def signal_handler_us(self, signum, frame):
-        if not self.obj.killed:
-            self.clean_jobs()
-            self.obj.sumstatus()
-            self.obj.killed = True
-        if self.isBin:
-            sys.exit(signum)  # SystemExit Exception
-        else:
-            raise FailJobError("job failed")
+        self.clean_up()
+        raise QsubError(self.obj.err_msg)
+
+
+class RunThread(Thread):
+
+    def __init__(self, func, *args):
+        super(RunThread, self).__init__()
+        self.args = args
+        self.func = func
+        self.exitcode = 0
+        self.exception = None
+        self.exc_traceback = ''
+        self.daemon = True
+
+    def run(self):
+        try:
+            self._run()
+        except Exception as e:
+            self.exitcode = 1
+            self.exception = e
+            self.exc_traceback = ''.join(
+                traceback.format_exception(*sys.exc_info()))
+
+    def _run(self):
+        try:
+            self.func(*(self.args))
+        except Exception as e:
+            raise e
 
 
 def Mylog(logfile=None, level="info", name=None):
@@ -210,12 +222,20 @@ def now():
     return time.time()
 
 
-def mkdir(path):
-    if not os.path.isdir(path):
-        try:
-            os.makedirs(path)
-        except:
-            pass
+def mkdir(*path):
+    for p in path:
+        if not os.path.isdir(p):
+            try:
+                os.makedirs(p)
+            except:
+                pass
+
+
+def isBin():
+    prog = os.path.abspath(os.path.realpath(sys.argv[0]))
+    return os.path.basename(prog) in \
+        list(pkg_resources.get_entry_map(__package__).values())[0].keys() \
+        and os.path.join(sys.prefix, "bin", os.path.basename(prog)) == prog
 
 
 def terminate_process(pid):

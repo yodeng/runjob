@@ -41,7 +41,8 @@ class qsub(RunSge):
         self.totaljobdict = {jf.name: jf for jf in jf.totaljobs}
         self.orders = jf.orders()
         self.is_run = False
-        self.killed = False
+        self.finished = False
+        self.err_msg = ""
         self.reseted = False
         self.localprocess = {}
         self.cloudjob = {}
@@ -72,7 +73,8 @@ class qsub(RunSge):
         self.sge_jobid = {}
         self.is_run = False
         self.reseted = True
-        self.killed = False
+        self.err_msg = ""
+        self.finished = False
 
     def __create_graph(self):
         for k, v in self.orders.items():
@@ -113,7 +115,12 @@ def main():
     conf.update_dict(**args.__dict__)
     logger = Mylog(logfile=args.log, level=args.debug and "debug" or "info")
     qjobs = qsub(config=conf)
-    qjobs.run(retry=args.resub, ivs=args.resubivs)
+    try:
+        qjobs.run(retry=args.resub, ivs=args.resubivs)
+    except (JobFailedError, QsubError):
+        sys.exit(10)
+    except Exception as e:
+        raise e
 
 
 if __name__ == "__main__":
