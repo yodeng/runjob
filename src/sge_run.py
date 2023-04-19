@@ -85,6 +85,8 @@ class RunSge(object):
         self.sub_rate = Fraction(
             self.conf.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
+        self.maxjob = self.maxjob or len(self.jobs)
+        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
 
     def reset(self):
         self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
@@ -310,11 +312,15 @@ class RunSge(object):
             self.sub_rate = Fraction(sub_rate).limit_denominator()
 
     def jobcheck(self):
+        p = RunThread(self._jobcheck)
+        p.start()
+
+    def _jobcheck(self):
         if self.mode == "batchcompute":
             self.set_rate(check_rate=1)
         rate_limiter = RateLimiter(
             max_calls=self.check_rate.numerator, period=self.check_rate.denominator)
-        while True:
+        while not self.finished:
             for jb in self.jobqueue.queue:
                 with rate_limiter:
                     try:
@@ -463,8 +469,6 @@ class RunSge(object):
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
         self.check_already_success()
-        self.maxjob = self.maxjob or len(self.jobs)
-        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.is_run = True
         self.times = max(0, retry)
         self.resubivs = max(ivs, 0)
@@ -474,8 +478,6 @@ class RunSge(object):
             return
         if not self.reseted:
             self.clean_resource()
-            p = RunThread(self.jobcheck)
-            p.start()
         mkdir(self.logdir, self.workdir)
         if self.mode == "batchcompute":
             access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
@@ -492,6 +494,7 @@ class RunSge(object):
             self.conf.client = self.client = client
         sub_rate_limiter = RateLimiter(
             max_calls=self.sub_rate.numerator, period=self.sub_rate.denominator)
+        self.jobcheck()
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
