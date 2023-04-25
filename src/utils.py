@@ -268,8 +268,7 @@ def is_sge_submit():
         try:
             with os.popen("qconf -ss") as fi:
                 for line in fi:
-                    ss = os.path.splitext(line.strip())[0]
-                    if ss == hostname:
+                    if line.strip() == hostname or os.path.splitext(line.strip())[0] == hostname:
                         return True
         except:
             return False
