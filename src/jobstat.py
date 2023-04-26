@@ -5,7 +5,6 @@ Usage: qs [jobfile|logdir|logfile]
        qcs --help
 '''
 
-from __future__ import print_function
 import os
 import re
 import sys
@@ -20,7 +19,7 @@ from subprocess import check_output
 from collections import defaultdict
 
 from .utils import *
-from .bc_stat import *
+from .stat_bc import *
 from .cluster import *
 from .job import Jobfile
 from ._version import __version__
@@ -267,7 +266,7 @@ def batchStat():
     if access_key_secret is None or access_key_id is None:
         sys.exit("No access to connect OSS")
     client = Client(region, access_key_id, access_key_secret)
-    logger = Mylog(name=__name__)
+    logger = getlog(name=__name__)
     user = getpass.getuser()
     if args.job:
         try:

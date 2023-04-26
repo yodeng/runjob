@@ -169,7 +169,7 @@ class RunThread(Thread):
             raise e
 
 
-def Mylog(logfile=None, level="info", name=None):
+def getlog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
     if level.lower() == "info":
         logger.setLevel(logging.INFO)

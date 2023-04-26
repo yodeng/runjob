@@ -4,11 +4,11 @@
 from . import dag
 from .utils import *
 from .job import Jobfile
-from .sge_run import RunSge
+from .run import RunJob
 from .config import load_config
 
 
-class qsub(RunSge):
+class qsub(RunJob):
 
     def __init__(self, config=None):
         '''
@@ -107,7 +107,7 @@ def main():
     if args.local:
         args.mode = "local"
     conf.update_dict(**args.__dict__)
-    logger = Mylog(logfile=args.log, level=args.debug and "debug" or "info")
+    logger = getlog(logfile=args.log, level=args.debug and "debug" or "info")
     qjobs = qsub(config=conf)
     try:
         qjobs.run(retry=args.resub, ivs=args.resubivs)

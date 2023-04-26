@@ -18,7 +18,7 @@ from ._version import __version__
 from .config import load_config, print_config
 
 
-class RunSge(object):
+class RunJob(object):
 
     def __init__(self, config=None):
         '''
@@ -629,9 +629,9 @@ def main():
         args.logdir = "runjob_"+os.path.basename(args.jobfile) + "_log_dir"
     args.logdir = os.path.join(args.workdir, args.logdir)
     conf.update_dict(**args.__dict__)
-    logger = Mylog(logfile=args.log,
-                   level="debug" if args.debug else "info", name=__name__)
-    runsge = RunSge(config=conf)
+    logger = getlog(logfile=args.log,
+                    level="debug" if args.debug else "info", name=__name__)
+    runsge = RunJob(config=conf)
     try:
         runsge.run(retry=args.resub, ivs=args.resubivs)
     except (JobFailedError, QsubError):
