@@ -3,6 +3,7 @@ import sys
 import configparser
 
 from collections import defaultdict
+from collections.abc import Iterable
 
 
 class Conf(configparser.ConfigParser):
@@ -51,6 +52,10 @@ class ConfigType(type):
 class Config(object):
 
     def __init__(self, config_file=None, init_envs=False):
+        '''
+        The `config_file` argument must be file-path or iterable. If `config_file` is iterable, returning one line at a time, and `name` attribute must be needed for file path.
+        Return `Config` object
+        '''
         self.cf = []
         self.info = Defaultdict(Dict)
         self.info.bin = self.info.software
@@ -59,12 +64,18 @@ class Config(object):
             self.update_executable_bin()
         if config_file is None:
             return
-        self._path = os.path.join(os.getcwd(), config_file)
-        self.cf.append(self._path)
-        if not os.path.isfile(self._path):
-            return
-        self._config = Conf()
-        self._config.read(self._path)
+        if not isinstance(config_file, (str, bytes)) and isinstance(config_file, Iterable):
+            self._path = os.path.abspath(config_file.name)
+            self.cf.append(self._path)
+            self._config = Conf()
+            self._config.read_file(config_file)
+        else:
+            self._path = os.path.abspath(config_file)
+            self.cf.append(self._path)
+            if not os.path.isfile(self._path):
+                return
+            self._config = Conf()
+            self._config.read(self._path)
         for s in self._config.sections():
             for k, v in self._config[s].items():
                 self.info[s][k] = v
@@ -73,11 +84,16 @@ class Config(object):
         return self.info[section].get(name, None)
 
     def update_config(self, config):
-        self.cf.append(config)
-        if not os.path.isfile(config):
-            return
-        c = Conf()
-        c.read(config)
+        if not isinstance(config, (str, bytes)) and isinstance(config, Iterable):
+            self.cf.append(os.path.abspath(config.name))
+            c = Conf()
+            c.read_file(config)
+        else:
+            self.cf.append(os.path.abspath(config))
+            if not os.path.isfile(config):
+                return
+            c = Conf()
+            c.read(config)
         for s in c.sections():
             self.info[s].update(dict(c[s].items()))
 
@@ -110,6 +126,10 @@ class Config(object):
 
     def __call__(self):
         return self.info
+
+    @property
+    def search_order(self):
+        return self.cf[::-1]
 
     def __getattr__(self, name):
         if self.info.get(name) is not None:
@@ -179,7 +199,7 @@ def load_config(home=None, default=None, **kwargs):
 
 def print_config(conf):
     print("Configuration files to search (order by order):")
-    for cf in conf.cf[::-1]:
+    for cf in conf.search_order:
         print(" - %s" % os.path.abspath(cf))
     print("\nAvailable Config:")
     for k, info in sorted(conf.info.items()):
