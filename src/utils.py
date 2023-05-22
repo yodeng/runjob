@@ -262,6 +262,11 @@ def call_cmd(cmd, verbose=False):
             call(cmd, shell=shell, stdout=fo, stderr=fo)
 
 
+def show_help_on_empty_command():
+    if len(sys.argv) == 1:
+        sys.argv.append('--help')
+
+
 def is_sge_submit():
     if os.getenv("SGE_ROOT") and which("qconf"):
         hostname = os.path.splitext(socket.gethostname())[0]
@@ -306,6 +311,7 @@ def common_parser():
                         type=float, default=3, metavar="<float>")
     common.add_argument('--max-submit', help="maximal number of jobs submited per second, default is 30, fractions allowed. (default: 30)",
                         type=float, default=30, metavar="<float>")
+    show_help_on_empty_command()
     return p
 
 
