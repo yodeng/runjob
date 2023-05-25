@@ -256,45 +256,44 @@ class RunJob(object):
                     status = "error"
                 elif os.path.isfile(job.stat_file+".run"):
                     status = "run"
-            else:
-                if os.path.isfile(logfile):
-                    with os.popen('tail -n 1 %s' % logfile) as fi:
-                        sta = fi.read().strip()
-                        stal = sta.split()
-                    if sta:
-                        if stal[-1] == "SUCCESS":
-                            status = "success"
-                        elif stal[-1] == "ERROR":
-                            status = "error"
-                        elif stal[-1] == "Exiting.":
-                            status = "exit"
-                        elif "RUNNING..." in sta:
-                            status = "run"
-                        # sge submit, but not running
-                        elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
-                            jobid = self.sge_jobid.get(jobname, jobname)
-                            try:
-                                info = check_output(
-                                    "qstat -j %s" % jobid, stderr=PIPE, shell=True)
-                                info = info.decode().strip().split("\n")[-1]
-                                if info.startswith("error") or ("error" in info and "Job is in error" in info):
-                                    status = "error"
-                            except:
+            elif os.path.isfile(logfile):
+                with os.popen('tail -n 1 %s' % logfile) as fi:
+                    sta = fi.read().strip()
+                    stal = sta.split()
+                if sta:
+                    if stal[-1] == "SUCCESS":
+                        status = "success"
+                    elif stal[-1] == "ERROR":
+                        status = "error"
+                    elif stal[-1] == "Exiting.":
+                        status = "exit"
+                    elif "RUNNING..." in sta:
+                        status = "run"
+                    # sge submit, but not running
+                    elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
+                        jobid = self.sge_jobid.get(jobname, jobname)
+                        try:
+                            info = check_output(
+                                "qstat -j %s" % jobid, stderr=PIPE, shell=True)
+                            info = info.decode().strip().split("\n")[-1]
+                            if info.startswith("error") or ("error" in info and "Job is in error" in info):
                                 status = "error"
-                        else:
-                            status = "run"
+                        except:
+                            status = "error"
                     else:
                         status = "run"
-                    if not self.is_run and status == "success":
-                        job.logcmd = ""
-                        with open(logfile) as fi:
-                            for line in fi:
-                                if not line.strip():
-                                    continue
-                                if line.startswith("["):
-                                    break
-                                job.logcmd += line
-                        job.logcmd = job.logcmd.strip()
+                else:
+                    status = "run"
+                if not self.is_run and status == "success":
+                    job.logcmd = ""
+                    with open(logfile) as fi:
+                        for line in fi:
+                            if not line.strip():
+                                continue
+                            if line.startswith("["):
+                                break
+                            job.logcmd += line
+                    job.logcmd = job.logcmd.strip()
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run:
             job.set_status(status)

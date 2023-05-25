@@ -49,13 +49,16 @@ class Jobutils(object):
                 fo.write(self.rawstring.strip() + "\n")
             raw_cmd = "/bin/bash -euxo pipefail " + self.stat_file + ".run"
         if self.host == "sge":
-            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && ".format(self.stat_file) + \
-                "(%s)" % raw_cmd + \
-                " && (echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || (echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
-                    self.stat_file)
+            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && " \
+                       "({1}) && " \
+                       "(echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || " \
+                       "(echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
+                           self.stat_file, raw_cmd)
         else:
-            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...') && " + \
-                "(%s)" % raw_cmd + RUNSTAT
+            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...') && " \
+                       "({0}) && " \
+                       "(echo [`date +'%F %T'`] SUCCESS) || " \
+                       "(echo [`date +'%F %T'`] ERROR)".format(raw_cmd)
 
     def qsub_cmd(self, mem=1, cpu=1):
         cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu} -S /bin/bash'

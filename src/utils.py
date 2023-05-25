@@ -32,8 +32,6 @@ else:
     from queue import Queue, Empty
 
 
-RUNSTAT = " && (echo [`date +'%F %T'`] SUCCESS) || (echo [`date +'%F %T'`] ERROR)"
-
 QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
 
 
