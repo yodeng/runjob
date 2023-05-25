@@ -43,11 +43,9 @@ class Jobutils(object):
             self.logdir, "."+os.path.basename(self.logfile))
         raw_cmd = self.rawstring
         if self.groups and self.groups > 1 and len(self.rawstring.split("\n")) > 1:
-            if not os.path.isdir(self.logdir):
-                os.makedirs(self.logdir)
-            with open(self.stat_file + ".run", "w") as fo:
-                fo.write(self.rawstring.strip() + "\n")
-            raw_cmd = "/bin/bash -euxo pipefail " + self.stat_file + ".run"
+            raw_cmd = "/bin/bash -euxo pipefail -c " + \
+                "'%s'" % "; ".join([i.strip()
+                                   for i in self.rawstring.strip().split("\n") if i.strip()])
         if self.host == "sge":
             self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && " \
                        "({1}) && " \

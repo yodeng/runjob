@@ -156,7 +156,7 @@ class RunJob(object):
         for job in self.jobs[:]:
             lf = job.logfile
             job.subtimes = 0
-            job.remove_all_stat_files(remove_run=self.is_run)
+            job.remove_all_stat_files()
             if os.path.isfile(lf):
                 js = self.jobstatus(job)
                 if js != "success":
@@ -398,7 +398,7 @@ class RunJob(object):
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
             if job.host is not None and job.host in ["localhost", "local"]:
-                cmd = "echo 'Your job (\"%s\") has been submitted in localhost' && " % job.name + job.cmd
+                cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                     time.sleep(self.resubivs)
