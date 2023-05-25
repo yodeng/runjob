@@ -97,7 +97,9 @@ class Config(object):
         for s in c.sections():
             self.info[s].update(dict(c[s].items()))
 
-    def update_dict(self, **kwargs):
+    def update_dict(self, args=None, **kwargs):
+        if args and hasattr(args, "__dict__"):
+            self.info["args"].update(args.__dict__)
         self.info["args"].update(kwargs)
 
     def write_config(self, configile):
