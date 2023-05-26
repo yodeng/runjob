@@ -391,16 +391,16 @@ class RunJob(object):
                 logcmd.write(job.rawstring+"\n")
                 job.set_status("submit")
             elif job.subtimes > 0:
-                logcmd.write("\n" + job.rawstring+"\n")
+                logcmd.write(style("\n-------- retry --------\n", fore="red", mode="bold") + job.rawstring+"\n")
                 job.set_status("resubmit")
             self.log_status(job)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
             if job.host is not None and job.host in ["localhost", "local"]:
+                job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
                 cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
-                    time.sleep(self.resubivs)
                 if job.workdir != self.workdir:
                     mkdir(job.workdir)
                     os.chdir(job.workdir)
@@ -412,6 +412,7 @@ class RunJob(object):
                               stderr=logcmd, env=os.environ)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
+                job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
                 call_cmd(["touch", job.stat_file + ".submit"])
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
@@ -421,7 +422,6 @@ class RunJob(object):
                     cmd += " -q " + " -q ".join(sge_queue)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
-                    time.sleep(self.resubivs)
                 sgeid, output = self.sge_qsub(cmd)
                 self.sge_jobid[job.jobname] = sgeid
                 logcmd.write(output)
@@ -469,7 +469,7 @@ class RunJob(object):
         self.check_already_success()
         self.is_run = True
         self.times = max(0, retry)
-        self.resubivs = max(ivs, 0)
+        self.retry_ivs = max(ivs, 0)
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
         if len(self.jobsgraph.graph) == 0:
@@ -631,7 +631,7 @@ def main():
                     level="debug" if args.debug else "info", name=__name__)
     runsge = RunJob(config=conf)
     try:
-        runsge.run(retry=args.resub, ivs=args.resubivs)
+        runsge.run(retry=args.retry, ivs=args.retry_ivs)
     except (JobFailedError, QsubError):
         sys.exit(10)
     except Exception as e:

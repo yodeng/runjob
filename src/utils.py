@@ -295,9 +295,9 @@ def common_parser():
                         help='log debug info.', default=False)
     common.add_argument("-l", "--log", type=str,
                         help='append log info to file. (default: stdout)', metavar="<file>")
-    common.add_argument('-r', '--resub', help="rebsub you job when error, 0 or minus means do not re-submit. (default: 0)",
+    common.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit. (default: 0)",
                         type=int, default=0, metavar="<int>")
-    common.add_argument('-ivs', '--resubivs', help="rebsub interval seconds. (default: 2)",
+    common.add_argument('-ivs', '--retry-ivs', help="re-run the error job after N seconds. (default: 2)",
                         type=int, default=2, metavar="<int>")
     common.add_argument("-f", "--force", default=False, action="store_true",
                         help="force to submit jobs even if already successed.")

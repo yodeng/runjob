@@ -110,7 +110,7 @@ def main():
     logger = getlog(logfile=args.log, level=args.debug and "debug" or "info")
     qjobs = qsub(config=conf)
     try:
-        qjobs.run(retry=args.resub, ivs=args.resubivs)
+        qjobs.run(retry=args.retry, ivs=args.retry_ivs)
     except (JobFailedError, QsubError):
         sys.exit(10)
     except Exception as e:

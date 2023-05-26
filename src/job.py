@@ -38,7 +38,7 @@ class Jobutils(object):
         except:
             pass
 
-    def raw2cmd(self):
+    def raw2cmd(self, sleep_sec=0):
         self.stat_file = os.path.join(
             self.logdir, "."+os.path.basename(self.logfile))
         raw_cmd = self.rawstring
@@ -46,6 +46,8 @@ class Jobutils(object):
             raw_cmd = "/bin/bash -euxo pipefail -c " + \
                 "'%s'" % "; ".join([i.strip()
                                    for i in self.rawstring.strip().split("\n") if i.strip()])
+        if sleep_sec > 0:
+            raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
         if self.host == "sge":
             self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && " \
                        "({1}) && " \
