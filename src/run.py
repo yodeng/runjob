@@ -44,7 +44,7 @@ class RunJob(object):
         self.conf = config
         self.jobfile = config.jobfile
         if not self.jobfile:
-            raise self.throw("Empty jobs input")
+            raise QsubError("Empty jobs input")
         self.queue = config.queue
         self.maxjob = config.num
         self.cpu = config.cpu or 1
@@ -391,7 +391,8 @@ class RunJob(object):
                 logcmd.write(job.rawstring+"\n")
                 job.set_status("submit")
             elif job.subtimes > 0:
-                logcmd.write(style("\n-------- retry --------\n", fore="red", mode="bold") + job.rawstring+"\n")
+                logcmd.write(style("\n-------- retry --------\n",
+                             fore="red", mode="bold") + job.rawstring+"\n")
                 job.set_status("resubmit")
             self.log_status(job)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
@@ -618,6 +619,8 @@ def main():
         parser.exit()
     if args.jobfile is None:
         parser.error("the following arguments are required: -j/--jobfile")
+    if not os.path.isfile(args.jobfile):
+        raise OSError("input job file %s not exists" % args.jobfile)
     if args.local:
         args.mode = "local"
     if not os.path.isdir(args.workdir):

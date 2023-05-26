@@ -104,6 +104,8 @@ def main():
     conf = load_config()
     if args.jobfile is None:
         parser.error("the following arguments are required: -j/--jobfile")
+    if not os.path.isfile(args.jobfile):
+        raise OSError("input job file %s not exists" % args.jobfile)
     if args.local:
         args.mode = "local"
     conf.update_dict(**args.__dict__)
