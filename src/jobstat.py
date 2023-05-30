@@ -33,7 +33,7 @@ def main():
     has_qstat = os.getenv("SGE_ROOT")
     username = os.getenv("USER")
     if has_qstat:
-        with os.popen("qstat -u \* | grep -P '^[\d\s]'") as fi:
+        with os.popen("qstat -u \* | grep -P '^\d+\s+'") as fi:
             alljobs = fi.readlines()
         jobs = {}
         for j in alljobs:
