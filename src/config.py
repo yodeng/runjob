@@ -3,7 +3,11 @@ import sys
 import configparser
 
 from collections import defaultdict
-from collections.abc import Iterable
+
+if sys.version_info[0] == 3:
+    from collections.abc import Iterable
+else:
+    from collections import Iterable
 
 
 class Conf(configparser.ConfigParser):

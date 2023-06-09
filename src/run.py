@@ -51,7 +51,7 @@ class RunJob(object):
         self.mem = config.memory or 1
         self.groups = config.groups or 1
         self.strict = config.strict or False
-        self.workdir = config.workdir or os.getcwd()
+        self.workdir = os.path.abspath(config.workdir or os.getcwd())
         self.sgefile = ShellFile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
                                  logdir=config.logdir, workdir=self.workdir)
         self.logdir = self.sgefile.logdir

@@ -347,7 +347,7 @@ class ShellFile(object):
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
         self.has_sge = is_sge_submit()
-        self.workdir = workdir or os.getcwd()
+        self.workdir = os.path.abspath(workdir or os.getcwd())
         self.temp = None
         if isinstance(jobfile, (tuple, list)):
             self.temp = os.path.basename(tempfile.mktemp(prefix="runjob_"))
@@ -430,7 +430,7 @@ class ShellJob(Jobutils):
         self.host = self.sf.mode
         self.cmd0 = cmd
         self.groups = None
-        self.workdir = self.sf.workdir
+        self.workdir = os.path.abspath(self.sf.workdir)
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
