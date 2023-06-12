@@ -85,7 +85,7 @@ class RunJob(object):
         self.sub_rate = Fraction(
             self.conf.max_submit or 30).limit_denominator()
         self.sge_jobid = {}
-        self.maxjob = self.maxjob or len(self.jobs)
+        self.maxjob = int(self.maxjob or len(self.jobs))
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
 
     def reset(self):
