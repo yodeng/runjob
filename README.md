@@ -41,7 +41,7 @@ conda install -c bioconda runjob
 
 ## User Guide
 
-All manual instruction for runjob can be found in [here](https://runjob.readthedocs.io/en/latest/).
+All manual can be found [here](https://runjob.readthedocs.io/en/latest/).
 
 ## Usage
 
@@ -57,7 +57,7 @@ You can run a quick test like this:
 
 ## License
 
-runjob is distributed under the BSD 3-clause licence.  
+runjob is distributed under the [MIT license](./LICENSE).
 
 ## Contact
 
