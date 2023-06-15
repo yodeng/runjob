@@ -595,7 +595,8 @@ class RunJob(object):
             total_jobs, sub_jobs, suc_jobs, err_jobs, wt_jobs)
         if hasattr(self, "sgefile") and not self.sgefile.temp:
             sum_info += "in file '%s' " % os.path.abspath(self.jfile)
-        self.writestates(os.path.join(self.logdir, "job.status.txt"))
+        self.writestates(os.path.join(
+            self.logdir, "job_%s.status.txt" % self.name))
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
         self.finished = True
         if self.is_success:
