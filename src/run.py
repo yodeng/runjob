@@ -87,6 +87,7 @@ class RunJob(object):
         self.sge_jobid = {}
         self.maxjob = int(self.maxjob or len(self.jobs))
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
+        self.init_time_stamp = now()
 
     def reset(self):
         self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
@@ -464,6 +465,7 @@ class RunJob(object):
         if self.is_run:
             self.logger.warning("not allowed for job has run")
             return
+        self.run_time_stamp = now()
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in self.jobs]))
         self.logger.info("All logs can be found in %s directory", self.logdir)
@@ -565,6 +567,7 @@ class RunJob(object):
 
     def writestates(self, outstat):
         summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
+        elaps = now() - self.run_time_stamp
         with open(outstat, "w") as fo:
             fo.write(str(dict(Counter(summary.values()))) + "\n")
             fo.write("# Detail:\n")
@@ -574,6 +577,7 @@ class RunJob(object):
             for k, v in sorted(sumout.items()):
                 fo.write(
                     k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
+            fo.write("\n# Time Elapse: %s\n" % seconds2human(elaps))
 
     def clean_resource(self):
         h = ParseSingal(obj=self)

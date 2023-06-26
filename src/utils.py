@@ -220,6 +220,12 @@ def now():
     return time.time()
 
 
+def seconds2human(s):
+    m, s = divmod(s, 60)
+    h, m = divmod(int(m), 60)
+    return "{:d}:{:02d}:{:04.2f}".format(h, m, s)
+
+
 def mkdir(*path):
     for p in path:
         if not os.path.isdir(p):
