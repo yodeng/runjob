@@ -52,6 +52,8 @@ class Packages(object):
                 if f.endswith("version.py"):
                     self.version_file = os.path.join(self.source_dir, f)
                     break
+        if not os.path.isfile(self.version_file):
+            raise OSError("version not found")
         with open(self.version_file) as fi:
             c = fi.read()
         exec(compile(c, self.version_file, "exec"), v)

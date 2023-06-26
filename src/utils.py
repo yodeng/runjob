@@ -303,7 +303,7 @@ def common_parser():
                         help='append log info to file. (default: stdout)', metavar="<file>")
     common.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit. (default: 0)",
                         type=int, default=0, metavar="<int>")
-    common.add_argument('-ivs', '--retry-ivs', help="re-run the error job after N seconds. (default: 2)",
+    common.add_argument('-ivs', '--retry-ivs', help="re-run the error job after N seconds. (default: %(default)s)",
                         type=int, default=2, metavar="<int>")
     common.add_argument("-f", "--force", default=False, action="store_true",
                         help="force to submit jobs even if already successed.")
@@ -322,8 +322,8 @@ def common_parser():
 def runsgeArgparser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel jobs from a specific shell scripts runing in localhost, SGE or BatchCompute.", parents=[common_parser()])
-    parser.add_argument("-wd", "--workdir", type=str, help="work dir. (default: %s)" %
-                        os.path.abspath(os.getcwd()), default=os.path.abspath(os.getcwd()), metavar="<workdir>")
+    parser.add_argument("-wd", "--workdir", type=str, help="work dir. (default: %(default)s)",
+                        default=os.path.abspath(os.getcwd()), metavar="<workdir>")
     parser.add_argument("-N", "--jobname", type=str,
                         help="job name. (default: basename of the jobfile)", metavar="<jobname>")
     parser.add_argument("-lg", "--logdir", type=str,
