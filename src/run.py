@@ -255,7 +255,8 @@ class RunJob(object):
             elif os.path.isfile(job.stat_file+".error"):
                 status = "error"
             elif os.path.isfile(job.stat_file+".run"):
-                status = "run"
+                if not job.is_end:
+                    status = "run"
         elif os.path.isfile(logfile):
             with os.popen('tail -n 1 %s' % logfile) as fi:
                 sta = fi.read().strip()
@@ -284,6 +285,10 @@ class RunJob(object):
                     status = "run"
             else:
                 status = "run"
+            if job.host.startswith("local") and hasattr(self, "localprocess") and jobname in self.localprocess:
+                ret = self.localprocess[jobname].poll()
+                if ret and ret < 0:
+                    status = "kill"
             if not self.is_run and status == "success":
                 job.logcmd = ""
                 with open(logfile) as fi:
@@ -324,9 +329,10 @@ class RunJob(object):
                 with rate_limiter:
                     try:
                         js = self.jobstatus(jb)
-                    except:
+                    except Exception as e:
                         self.logger.error(
                             "check job status error: %s", jb.name)
+                        self.logger.exception(e)
                         continue
                     if js == "success":
                         self.deletejob(jb)
@@ -344,7 +350,7 @@ class RunJob(object):
                         else:
                             self.jobqueue.get(jb)
                             self.submit(jb)
-                    elif js == "exit":
+                    elif js in ["exit", "kill"]:
                         self.deletejob(jb)
                         self.jobqueue.get(jb)
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
