@@ -257,7 +257,7 @@ class RunJob(object):
             elif os.path.isfile(job.stat_file+".run"):
                 if not job.is_end:
                     status = "run"
-        elif os.path.isfile(logfile):
+        elif os.path.isfile(logfile):  # local submit or sge submit(not running yet)
             with os.popen('tail -n 1 %s' % logfile) as fi:
                 sta = fi.read().strip()
                 stal = sta.split()
@@ -315,9 +315,29 @@ class RunJob(object):
         if sub_rate:
             self.sub_rate = Fraction(sub_rate).limit_denominator()
 
+    def _list_check_sge(self, period=5, sleep=10):
+        rate_limiter = RateLimiter(max_calls=1, period=period)
+        time.sleep(5)
+        while not self.finished:
+            for jb in self.jobqueue.queue:
+                jobname = jb.jobname
+                with rate_limiter:
+                    if jb.host != "sge" or jobname not in self.sge_jobid or jb.status != "run":
+                        continue
+                    jobid = self.sge_jobid[jobname]
+                    try:
+                        _ = check_output(["qstat",  "-j", jobid], stderr=PIPE)
+                    except:
+                        if self.is_run and not jb.is_end and os.path.isfile(jb.stat_file+".run"):
+                            jb.set_kill()
+                            self.log_status(jb)
+            time.sleep(sleep)
+
     def jobcheck(self):
-        p = RunThread(self._jobcheck)
-        p.start()
+        watch = RunThread(self._jobcheck)
+        watch.start()
+        list_sge = RunThread(self._list_check_sge)
+        list_sge.start()
 
     def _jobcheck(self):
         if self.mode == "batchcompute":
