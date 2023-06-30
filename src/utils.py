@@ -19,6 +19,7 @@ from fractions import Fraction
 from collections import Counter
 from functools import total_ordering
 from subprocess import check_output, call, Popen, PIPE
+from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser
 
 from ratelimiter import RateLimiter
 
@@ -228,7 +229,7 @@ def seconds2human(s):
 
 def mkdir(*path):
     for p in path:
-        if not os.path.isdir(p):
+        if not isdir(p):
             try:
                 os.makedirs(p)
             except:
@@ -236,10 +237,10 @@ def mkdir(*path):
 
 
 def is_entry_cmd():
-    prog = os.path.abspath(os.path.realpath(sys.argv[0]))
-    return os.path.basename(prog) in \
+    prog = abspath(realpath(sys.argv[0]))
+    return basename(prog) in \
         list(pkg_resources.get_entry_map(__package__).values())[0].keys() \
-        and os.path.join(sys.prefix, "bin", os.path.basename(prog)) == prog
+        and join(sys.prefix, "bin", basename(prog)) == prog
 
 
 def terminate_process(pid):
@@ -273,11 +274,11 @@ def show_help_on_empty_command():
 
 def is_sge_submit():
     if os.getenv("SGE_ROOT") and which("qconf"):
-        hostname = os.path.splitext(socket.gethostname())[0]
+        hostname = splitext(socket.gethostname())[0]
         try:
             with os.popen("qconf -ss") as fi:
                 for line in fi:
-                    if line.strip() == hostname or os.path.splitext(line.strip())[0] == hostname:
+                    if line.strip() == hostname or splitext(line.strip())[0] == hostname:
                         return True
         except:
             return False
@@ -323,7 +324,7 @@ def runsgeArgparser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel jobs from a specific shell scripts runing in localhost, SGE or BatchCompute.", parents=[common_parser()])
     parser.add_argument("-wd", "--workdir", type=str, help="work dir. (default: %(default)s)",
-                        default=os.path.abspath(os.getcwd()), metavar="<workdir>")
+                        default=abspath(os.getcwd()), metavar="<workdir>")
     parser.add_argument("-N", "--jobname", type=str,
                         help="job name. (default: basename of the jobfile)", metavar="<jobname>")
     parser.add_argument("-lg", "--logdir", type=str,

@@ -51,7 +51,7 @@ class RunJob(object):
         self.mem = config.memory or 1
         self.groups = config.groups or 1
         self.strict = config.strict or False
-        self.workdir = os.path.abspath(config.workdir or os.getcwd())
+        self.workdir = abspath(config.workdir or os.getcwd())
         self.sgefile = ShellFile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
                                  logdir=config.logdir, workdir=self.workdir)
         self.logdir = self.sgefile.logdir
@@ -158,7 +158,7 @@ class RunJob(object):
             lf = job.logfile
             job.subtimes = 0
             job.remove_all_stat_files()
-            if os.path.isfile(lf):
+            if isfile(lf):
                 js = self.jobstatus(job)
                 if js != "success":
                     os.remove(lf)
@@ -249,15 +249,15 @@ class RunJob(object):
                     status = "stop"
                 elif sta == "Waiting":
                     status = "wait"
-        elif job.host and job.host == "sge" and self.is_run and not os.path.isfile(job.stat_file+".submit"):
-            if os.path.isfile(job.stat_file+".success"):
+        elif job.host and job.host == "sge" and self.is_run and not isfile(job.stat_file+".submit"):
+            if isfile(job.stat_file+".success"):
                 status = "success"
-            elif os.path.isfile(job.stat_file+".error"):
+            elif isfile(job.stat_file+".error"):
                 status = "error"
-            elif os.path.isfile(job.stat_file+".run"):
+            elif isfile(job.stat_file+".run"):
                 if not job.is_end:
                     status = "run"
-        elif os.path.isfile(logfile):  # local submit or sge submit(not running yet)
+        elif isfile(logfile):  # local submit or sge submit(not running yet)
             with os.popen('tail -n 1 %s' % logfile) as fi:
                 sta = fi.read().strip()
                 stal = sta.split()
@@ -328,7 +328,7 @@ class RunJob(object):
                     try:
                         _ = check_output(["qstat",  "-j", jobid], stderr=PIPE)
                     except:
-                        if self.is_run and not jb.is_end and os.path.isfile(jb.stat_file+".run"):
+                        if self.is_run and not jb.is_end and isfile(jb.stat_file+".run"):
                             jb.set_kill()
                             self.log_status(jb)
             time.sleep(sleep)
@@ -512,7 +512,7 @@ class RunJob(object):
             region = REGION.get(self.conf.args.region.upper(), CN_BEIJING)
             client = Client(region, access_key_id, access_key_secret)
             quotas = client.get_quotas().AvailableClusterInstanceType
-            cfg_path = os.path.join(os.path.dirname(__file__), "ins_type.json")
+            cfg_path = join(dirname(__file__), "ins_type.json")
             with open(cfg_path) as fi:
                 self.conf.it_conf = json.load(fi)
             availableTypes = [i for i in quotas if i in self.conf.it_conf]
@@ -624,8 +624,8 @@ class RunJob(object):
         sum_info = "All jobs (total: %d, submited: %d, success: %d, error: %d, wait: %d) " % (
             total_jobs, sub_jobs, suc_jobs, err_jobs, wt_jobs)
         if hasattr(self, "sgefile") and not self.sgefile.temp:
-            sum_info += "in file '%s' " % os.path.abspath(self.jfile)
-        self.writestates(os.path.join(
+            sum_info += "in file '%s' " % abspath(self.jfile)
+        self.writestates(join(
             self.logdir, "job_%s.status.txt" % self.name))
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
         self.finished = True
@@ -650,16 +650,16 @@ def main():
         parser.exit()
     if args.jobfile is None:
         parser.error("the following arguments are required: -j/--jobfile")
-    if not os.path.isfile(args.jobfile):
+    if not isfile(args.jobfile):
         raise OSError("input job file %s not exists" % args.jobfile)
     if args.local:
         args.mode = "local"
-    if not os.path.isdir(args.workdir):
+    if not isdir(args.workdir):
         os.makedirs(args.workdir)
     os.chdir(args.workdir)
     if args.logdir is None:
-        args.logdir = "runjob_"+os.path.basename(args.jobfile) + "_log_dir"
-    args.logdir = os.path.join(args.workdir, args.logdir)
+        args.logdir = "runjob_"+basename(args.jobfile) + "_log_dir"
+    args.logdir = join(args.workdir, args.logdir)
     conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log,
                     level="debug" if args.debug else "info", name=__name__)

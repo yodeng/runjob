@@ -39,8 +39,8 @@ class Jobutils(object):
             pass
 
     def raw2cmd(self, sleep_sec=0):
-        self.stat_file = os.path.join(
-            self.logdir, "."+os.path.basename(self.logfile))
+        self.stat_file = join(
+            self.logdir, "."+basename(self.logfile))
         raw_cmd = self.rawstring
         if self.groups and self.groups > 1 and len(self.rawstring.split("\n")) > 1:
             raw_cmd = "/bin/bash -euxo pipefail -c " + \
@@ -147,11 +147,11 @@ class Jobfile(object):
 
     def __init__(self, jobfile, mode=None):
         self.has_sge = is_sge_submit()
-        self._path = os.path.abspath(jobfile)
-        if not os.path.exists(self._path):
+        self._path = abspath(jobfile)
+        if not exists(self._path):
             raise OSError("No such file: %s" % self._path)
-        self._pathdir = os.path.dirname(self._path)
-        self.logdir = os.path.join(self._pathdir, "log")
+        self._pathdir = dirname(self._path)
+        self.logdir = join(self._pathdir, "log")
         self.workdir = os.getcwd()
         if self.has_sge:
             self.mode = mode or "sge"
@@ -202,8 +202,8 @@ class Jobfile(object):
                     line = line[line.index("#"):]
                 line = line.strip()
                 if line.startswith("log_dir"):
-                    self.logdir = os.path.normpath(
-                        os.path.join(self._pathdir, line.split()[-1]))
+                    self.logdir = normpath(
+                        join(self._pathdir, line.split()[-1]))
                     continue
                 if line == "job_begin":
                     if len(job) and job[-1] == "job_end":
@@ -317,7 +317,7 @@ class Job(Jobutils):
             self.throw("No cmd in %s job" % self.name)
         self.rawstring = self.cmd.strip()
         self.cmd0 = self.cmd.strip()
-        self.logfile = os.path.join(self.logdir, self.name + ".log")
+        self.logfile = join(self.logdir, self.name + ".log")
         self.subtimes = 0
         self.raw2cmd()
         self.workdir = os.getcwd()
@@ -347,21 +347,21 @@ class ShellFile(object):
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
         self.has_sge = is_sge_submit()
-        self.workdir = os.path.abspath(workdir or os.getcwd())
+        self.workdir = abspath(workdir or os.getcwd())
         self.temp = None
         if isinstance(jobfile, (tuple, list)):
-            self.temp = os.path.basename(tempfile.mktemp(prefix="runjob_"))
-            tmp_jobfile = os.path.join(self.workdir, self.temp)
-            if not os.path.isdir(self.workdir):
+            self.temp = basename(tempfile.mktemp(prefix="runjob_"))
+            tmp_jobfile = join(self.workdir, self.temp)
+            if not isdir(self.workdir):
                 os.makedirs(self.workdir)
             with open(tmp_jobfile, "w") as fo:
                 for line in jobfile:
                     fo.write(line+"\n")
             jobfile = tmp_jobfile
-        self._path = os.path.abspath(jobfile)
-        if not os.path.exists(self._path):
+        self._path = abspath(jobfile)
+        if not exists(self._path):
             raise OSError("No such file: %s" % self._path)
-        self._pathdir = os.path.dirname(self._path)
+        self._pathdir = dirname(self._path)
         self.mode = mode
         # "sge", "local", "localhost", "batchcompute"
         if self.mode not in ["sge", "local", "localhost", "batchcompute"]:
@@ -376,16 +376,16 @@ class ShellFile(object):
             self.mode = "localhost"
         if logdir is None:
             if self.temp:
-                self.logdir = os.path.join(self.workdir, "runjob_log_dir")
+                self.logdir = join(self.workdir, "runjob_log_dir")
             else:
-                self.logdir = os.path.join(
-                    self.workdir, "runjob_%s_log_dir" % os.path.basename(self._path))
+                self.logdir = join(
+                    self.workdir, "runjob_%s_log_dir" % basename(self._path))
         else:
-            self.logdir = os.path.abspath(logdir)
-        if not os.path.isdir(self.logdir):
+            self.logdir = abspath(logdir)
+        if not isdir(self.logdir):
             os.makedirs(self.logdir)
         if name is None:
-            name = os.path.basename(self._path)
+            name = basename(self._path)
         if name[0].isdigit():
             name = "job_" + name
         self.name = name
@@ -402,7 +402,7 @@ class ShellFile(object):
                 if line.startswith("#") or not line.strip():
                     continue
                 jobs.append(ShellJob(self, n, line))
-        if self.temp and os.path.isfile(self._path):
+        if self.temp and isfile(self._path):
             os.remove(self._path)
         return jobs
 
@@ -413,7 +413,7 @@ class ShellJob(Jobutils):
         self.sf = sgefile
         self.logdir = self.sf.logdir
         self._path = self.sf._path
-        prefix = os.path.basename(self._path)
+        prefix = basename(self._path)
         name = self.sf.name
         self.cpu = 0
         self.mem = 0
@@ -423,14 +423,14 @@ class ShellJob(Jobutils):
         self.jobname = self.name = name + "_%05d" % self.linenum
         if self.sf.temp and name is not None:
             prefix = name
-        self.logfile = os.path.join(
+        self.logfile = join(
             self.logdir, prefix + "_%05d.log" % self.linenum)
         self.subtimes = 0
         self.status = None
         self.host = self.sf.mode
         self.cmd0 = cmd
         self.groups = None
-        self.workdir = os.path.abspath(self.sf.workdir)
+        self.workdir = abspath(self.sf.workdir)
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
@@ -467,9 +467,9 @@ class ShellJob(Jobutils):
     def forceToLocal(self, jobname="", removelog=False):
         self.host = "localhost"
         self.name = self.jobname = jobname
-        self.logfile = os.path.join(self.logdir, os.path.basename(
+        self.logfile = join(self.logdir, basename(
             self._path) + "_%s.log" % jobname)
-        if removelog and os.path.isfile(self.logfile):
+        if removelog and isfile(self.logfile):
             os.remove(self.logfile)
         self.rawstring = self.cmd0.strip()
         self.raw2cmd()

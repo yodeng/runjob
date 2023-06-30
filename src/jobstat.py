@@ -60,7 +60,7 @@ def main():
             users = os.popen(
                 "awk -F : '{if($3 > 499){print $1}}' /etc/passwd").read().split()
         except:
-            users = map(lambda x: os.path.basename(
+            users = map(lambda x: basename(
                 x), os.popen('ls -d /home/*').read().split())
         allpids = psutil.pids()
         jobs = {}
@@ -110,18 +110,18 @@ def main():
     if len(sys.argv) == 2:
         jobfile = sys.argv[1]
         submit = 0
-        if os.path.isfile(jobfile):
+        if isfile(jobfile):
             try:
                 jf = Jobfile(jobfile)
                 jobs = jf.jobs()
                 norun = []
                 for jn in jf.alljobnames:
-                    if not os.path.isfile(os.path.join(jf.logdir, jn + ".log")):
+                    if not isfile(join(jf.logdir, jn + ".log")):
                         norun.append(jn)
                     else:
                         submit += 1
-                logdir = os.path.abspath(os.path.join(
-                    os.path.dirname(jobfile), jf.logdir))
+                logdir = abspath(join(
+                    dirname(jobfile), jf.logdir))
             except:
                 statfile = jobfile
                 stat = {}
@@ -167,19 +167,19 @@ def main():
                 print(style("-"*47, mode="bold"))
                 return
 
-        elif os.path.isdir(jobfile):
-            logdir = os.path.abspath(jobfile)
+        elif isdir(jobfile):
+            logdir = abspath(jobfile)
         else:
             raise OSError("No such file or directory %s." % jobfile)
 
-        if not os.path.isdir(logdir):
+        if not isdir(logdir):
             return
             #raise OSError("No such log_dir %s" % logdir)
         if submit == 0:
             submit = len([i for i in os.listdir(
                 logdir) if i.endswith(".log")])
 
-        fs = [os.path.join(logdir, i) for i in os.listdir(logdir)]
+        fs = [join(logdir, i) for i in os.listdir(logdir)]
         # submit = int(os.popen("awk 'FNR==2' " + " ".join(fs) + " | wc -l ").read().strip())
         submit = 0
         stat = []
@@ -205,7 +205,7 @@ def main():
         print(style("{0:<20} {1:>5}".format("success:", len(success))))
         print(style("{0:<20} {1:>5}".format(
             "error:", len(error)), mode="bold", fore="red"))
-        if os.path.isfile(jobfile):
+        if isfile(jobfile):
             if len(norun):
                 print(style("{0:<20} {1:>5}".format(
                     "wait:", len(norun))), ", ".join(norun))
