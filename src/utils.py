@@ -295,16 +295,16 @@ def common_parser():
     common.add_argument("-n", "--num", type=int,
                         help="the max job number runing at the same time. (default: all of the jobfile, max 1000)", metavar="<int>")
     common.add_argument("-s", "--startline", type=int,
-                        help="which line number(1-base) be used for the first job. (default: 1)", metavar="<int>", default=1)
+                        help="which line number(1-base) be used for the first job. (default: %(default)s)", metavar="<int>", default=1)
     common.add_argument("-e", "--endline", type=int,
                         help="which line number (include) be used for the last job. (default: last line of the jobfile)", metavar="<int>")
     common.add_argument('-d', '--debug', action='store_true',
                         help='log debug info.', default=False)
     common.add_argument("-l", "--log", type=str,
                         help='append log info to file. (default: stdout)', metavar="<file>")
-    common.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit. (default: 0)",
+    common.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit. (default: %(default)s)",
                         type=int, default=0, metavar="<int>")
-    common.add_argument('-ivs', '--retry-ivs', help="re-run the error job after N seconds. (default: %(default)s)",
+    common.add_argument('-ivs', '--retry-ivs', help="retry the error job after N seconds. (default: %(default)s)",
                         type=int, default=2, metavar="<int>")
     common.add_argument("-f", "--force", default=False, action="store_true",
                         help="force to submit jobs even if already successed.")
@@ -312,9 +312,9 @@ def common_parser():
                         help="submit your jobs in localhost, same as '--mode local'.")
     common.add_argument("--strict", action="store_true", default=False,
                         help="use strict to run, means if any errors, clean all jobs and exit.")
-    common.add_argument('--max-check', help="maximal number of job status checks per second, default is 3, fractions allowed. (default: 3)",
+    common.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed. (default: %(default)s)",
                         type=float, default=3, metavar="<float>")
-    common.add_argument('--max-submit', help="maximal number of jobs submited per second, default is 30, fractions allowed. (default: 30)",
+    common.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed. (default: %(default)s)",
                         type=float, default=30, metavar="<float>")
     show_help_on_empty_command()
     return p
@@ -330,13 +330,13 @@ def runsgeArgparser():
     parser.add_argument("-lg", "--logdir", type=str,
                         help='the output log dir. (default: "%s/runjob_*_log_dir")' % os.getcwd(), metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
-                        help="groups number of lines to a new jobs. (default: 1)", metavar="<int>")
+                        help="groups number of lines to a new jobs. (default: %(default)s)", metavar="<int>")
     parser.add_argument('--init', help="command before all jobs, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--mode', type=str, default="sge", choices=[
-                        "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, if no sge installed, always localhost. (default: sge)")
+                        "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, if no sge installed, always localhost. (default: %(default)s)")
     parser.add_argument('-ini', '--ini',
                         help="input configfile for configurations search.", metavar="<configfile>")
     parser.add_argument("-config", '--config',   action='store_true',
@@ -345,9 +345,9 @@ def runsgeArgparser():
     sge.add_argument("-q", "--queue", type=str, help="the queue your job running, multi queue can be sepreated by whitespace. (default: all accessed queue)",
                      nargs="*", metavar="<queue>")
     sge.add_argument("-m", "--memory", type=int,
-                     help="the memory used per command (GB). (default: 1)", default=1, metavar="<int>")
+                     help="the memory used per command (GB). (default: %(default)s)", default=1, metavar="<int>")
     sge.add_argument("-c", "--cpu", type=int,
-                     help="the cpu numbers you job used. (default: 1)", default=1, metavar="<int>")
+                     help="the cpu numbers you job used. (default: %(default)s)", default=1, metavar="<int>")
     batchcmp = parser.add_argument_group("batchcompute arguments")
     batchcmp.add_argument("-om", "--out-maping", type=str,
                           help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved.', metavar="<dir>")
@@ -356,7 +356,7 @@ def runsgeArgparser():
     batchcmp.add_argument('--access-key-secret', type=str,
                           help="AccessKeySecret while access oss.", metavar="<str>")
     batchcmp.add_argument('--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
-                                                                            'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: beijing)")
+                                                                            'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: %(default)s)")
     return parser
 
 
@@ -366,7 +366,7 @@ def runjobArgparser():
     parser.add_argument('-i', '--injname', help="job names you need to run. (default: all job names of the jobfile)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
-                        "sge", "local", "localhost"], help="the mode to submit your jobs, if no sge installed, always localhost. (default: sge)")
+                        "sge", "local", "localhost"], help="the mode to submit your jobs, if no sge installed, always localhost. (default: %(default)s)")
     return parser
 
 
