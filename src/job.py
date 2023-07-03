@@ -72,6 +72,11 @@ class Jobutils(object):
         )
         return cmd
 
+    def update_queue(self, queue=None):
+        if queue:
+            self.queue = set(self.queue)
+            self.queue.update(queue)
+
     @property
     def is_fail(self):
         return self.status in ["kill", "error", "exit"]
@@ -111,7 +116,7 @@ class Jobutils(object):
         return hash(self.name)
 
     @staticmethod
-    def cmd2job(cmd="", name="", host=None, mem=1, cpu=1, queue=[]):
+    def cmd2job(cmd="", name="", host=None, mem=1, cpu=1, queue=None):
         '''
         @cmd <str or list>: required
         @name <str>: required
@@ -132,7 +137,7 @@ class Jobutils(object):
         ''').strip()
         if not cmd or not name:
             raise JobRuleError("cmd and name required")
-        if len(queue):
+        if queue:
             queue = " -q " + " -q ".join(queue)
         else:
             queue = ""
@@ -251,7 +256,7 @@ class Job(Jobutils):
         self.checkrule()
         cmd = False
         self.groups = None
-        self.queue = []
+        self.queue = set()
         for j in self.rules:
             j = j.strip()
             if not j or j.startswith("#"):
@@ -276,7 +281,7 @@ class Job(Jobutils):
                     elif i in ["-m", "--memory"]:
                         self.mem = max(int(args[i+1]), 1)
                     elif i in ["-q", "--queue"]:
-                        self.queue.append(args[n+1])
+                        self.queue.add(args[n+1])
                     elif i == "-l":
                         res = args[n+1].split(",")
                         for r in res:
@@ -417,7 +422,7 @@ class ShellJob(Jobutils):
         name = self.sf.name
         self.cpu = 0
         self.mem = 0
-        self.queue = None
+        self.queue = set()
         self.out_maping = None
         self.linenum = linenum + 1
         self.jobname = self.name = name + "_%05d" % self.linenum

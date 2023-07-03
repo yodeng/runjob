@@ -324,7 +324,7 @@ class RunJob(object):
                 with rate_limiter:
                     if jb.host != "sge" or jobname not in self.sge_jobid or jb.status != "run":
                         continue
-                    jobid = self.sge_jobid[jobname]
+                    jobid = self.sge_jobid.get(jobname, jobname)
                     try:
                         _ = check_output(["qstat",  "-j", jobid], stderr=PIPE)
                     except:
@@ -444,10 +444,10 @@ class RunJob(object):
                 call_cmd(["touch", job.stat_file + ".submit"])
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
-                sge_queue = job.queue or self.queue
+                job.update_queue(self.queue)
                 cmd = job.qsub_cmd(jobmem, jobcpu)
-                if sge_queue:
-                    cmd += " -q " + " -q ".join(sge_queue)
+                if job.queue:
+                    cmd += " -q " + " -q ".join(job.queue)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                 sgeid, output = self.sge_qsub(cmd)
