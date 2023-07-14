@@ -17,7 +17,7 @@ from threading import Thread
 from datetime import datetime
 from fractions import Fraction
 from collections import Counter
-from functools import total_ordering
+from functools import total_ordering, wraps
 from subprocess import check_output, call, Popen, PIPE
 from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser
 
@@ -166,6 +166,22 @@ class RunThread(Thread):
             self.func(*(self.args))
         except Exception as e:
             raise e
+
+
+class DummyFile(object):
+    def write(self, x):
+        pass
+
+
+def mute(fn):
+    @wraps(fn)
+    def wrapper(self, *args, **kwargs):
+        sys.stdout = DummyFile()
+        try:
+            return fn(self, *args, **kwargs)
+        finally:
+            sys.stdout = sys.__stdout__
+    return wrapper
 
 
 def getlog(logfile=None, level="info", name=None):

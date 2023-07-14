@@ -1,5 +1,5 @@
 from .utils import getlog as log
-from .utils import JobQueue, QsubError, JobFailedError
+from .utils import JobQueue, QsubError, JobFailedError, mute
 from .loger import Formatter
 from ._version import __version__
 from .qsub import qsub as runjob
