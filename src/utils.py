@@ -184,6 +184,40 @@ def mute(fn):
     return wrapper
 
 
+class MaxRetryError(Exception):
+    pass
+
+
+def retry(max_num=3, wait_sleep=5, callback=None):
+    def outer_wrapper(func):
+        @wraps(func)
+        def inner_wrapper(*args, **kwargs):
+            try_num = 0
+            log = logging.getLogger()
+            while try_num < max_num+1:
+                try_num += 1
+                try:
+                    if try_num > 1:
+                        log.warning("retry %s", try_num-1)
+                    res = func(*args, **kwargs)
+                except Exception as e:
+                    if try_num > 1:
+                        log.error("retry %s error, %s", try_num-1, e)
+                    else:
+                        log.error(e)
+                    time.sleep(wait_sleep)
+                    continue
+                else:
+                    break
+            else:
+                raise MaxRetryError("max retry %s error" % max_num)
+            if callback:
+                return callback(res)
+            return res
+        return inner_wrapper
+    return outer_wrapper
+
+
 def getlog(logfile=None, level="info", name=None):
     logger = logging.getLogger(name)
     if level.lower() == "info":
