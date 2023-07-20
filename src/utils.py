@@ -17,7 +17,7 @@ from threading import Thread
 from datetime import datetime
 from fractions import Fraction
 from collections import Counter
-from functools import total_ordering, wraps
+from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
 from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser
 
@@ -182,6 +182,48 @@ def mute(fn):
         finally:
             sys.stdout = sys.__stdout__
     return wrapper
+
+
+class MaxRetryError(Exception):
+    pass
+
+
+def retry(func=None, max_num=3, wait_sleep=5, callback=None):
+    def wrapper(func, *args, **kwargs):
+        try_num = 0
+        log = logging.getLogger()
+        while try_num < max_num+1:
+            try_num += 1
+            try:
+                if try_num > 1:
+                    log.warning("retry %s", try_num-1)
+                res = func(*args, **kwargs)
+            except Exception as e:
+                if try_num > 1:
+                    log.error("retry %s error, %s", try_num-1, e)
+                else:
+                    log.error(e)
+                if try_num <= max_num:
+                    time.sleep(wait_sleep)
+                continue
+            else:
+                break
+        else:
+            raise MaxRetryError("max retry %s error" % max_num)
+        if callback:
+            return callback(res)
+        return res
+    # Without arguments `func` is passed directly to the decorator
+    if func is not None:
+        if not callable(func):
+            raise TypeError(
+                "Not a callable. Did you use a non-keyword argument?")
+        return wraps(func)(partial(wrapper, func))
+     # With arguments, we need to return a function that accepts the function
+
+    def decorator(func):
+        return wraps(func)(partial(wrapper, func))
+    return decorator
 
 
 def getlog(logfile=None, level="info", name=None):
