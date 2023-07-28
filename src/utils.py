@@ -188,10 +188,16 @@ class MaxRetryError(Exception):
     pass
 
 
-def retry(func=None, max_num=3, wait_sleep=5, callback=None):
-    def wrapper(func, *args, **kwargs):
+def retry(func=None, *, max_num=3, delay=5, callback=None):
+    if func is None:
+        return partial(retry, max_num=max_num, delay=delay, callback=callback)
+    elif not callable(func):
+        raise TypeError("Not a callable. Did you use a non-keyword argument?")
+    log = logging.getLogger()
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
         try_num = 0
-        log = logging.getLogger()
         while try_num < max_num+1:
             try_num += 1
             try:
@@ -204,7 +210,7 @@ def retry(func=None, max_num=3, wait_sleep=5, callback=None):
                 else:
                     log.error(e)
                 if try_num <= max_num:
-                    time.sleep(wait_sleep)
+                    time.sleep(delay)
                 continue
             else:
                 break
@@ -213,17 +219,7 @@ def retry(func=None, max_num=3, wait_sleep=5, callback=None):
         if callback:
             return callback(res)
         return res
-    # Without arguments `func` is passed directly to the decorator
-    if func is not None:
-        if not callable(func):
-            raise TypeError(
-                "Not a callable. Did you use a non-keyword argument?")
-        return wraps(func)(partial(wrapper, func))
-     # With arguments, we need to return a function that accepts the function
-
-    def decorator(func):
-        return wraps(func)(partial(wrapper, func))
-    return decorator
+    return wrapper
 
 
 def getlog(logfile=None, level="info", name=None):
