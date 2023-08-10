@@ -3,6 +3,7 @@ import re
 import sys
 import pdb
 import time
+import types
 import socket
 import signal
 import psutil
@@ -11,6 +12,7 @@ import argparse
 import textwrap
 import threading
 import traceback
+import contextlib
 import pkg_resources
 
 from threading import Thread
@@ -27,7 +29,9 @@ from .loger import *
 from .config import which
 from ._version import __version__
 
-if sys.version_info[0] < 3:
+PY3 = sys.version_info.major == 3
+
+if not PY3:
     from Queue import Queue, Empty
 else:
     from queue import Queue, Empty
@@ -173,15 +177,27 @@ class DummyFile(object):
         pass
 
 
-def mute(fn):
-    @wraps(fn)
-    def wrapper(self, *args, **kwargs):
-        sys.stdout = DummyFile()
-        try:
-            return fn(self, *args, **kwargs)
-        finally:
-            sys.stdout = sys.__stdout__
-    return wrapper
+class mute(object):
+
+    def __init__(self, func):
+        wraps(func)(self)
+
+    def __call__(self, *args, **kwargs):  # wrapper function
+        if sys.version_info >= (3, 5):
+            with open(os.devnull, 'w') as devnull:
+                with contextlib.redirect_stdout(devnull):
+                    return self.__wrapped__(*args, **kwargs)
+        else:
+            sys.stdout = DummyFile()
+            try:
+                return self.__wrapped__(*args, **kwargs)
+            finally:
+                sys.stdout = sys.__stdout__
+
+    def __get__(self, instance, cls):  # wrapper instance method
+        if instance is None:
+            return self
+        return types.MethodType(self, instance)
 
 
 class MaxRetryError(Exception):
