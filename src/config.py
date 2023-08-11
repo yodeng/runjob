@@ -26,7 +26,7 @@ class Dict(dict):
         return self.get(name, which(name))
 
     def __setattr__(self, name, value=None):
-        super(Dict, self).__setattr__(name, value)
+        self[name] = value
 
     def __getstate__(self):
         return self.__dict__
@@ -41,7 +41,7 @@ class Dict(dict):
 class Defaultdict(defaultdict, Dict):
 
     def __getattr__(self, name):
-        return super(Defaultdict, self).get(name)
+        return defaultdict.__getitem__(self, name)
 
 
 class ConfigType(type):
