@@ -329,6 +329,8 @@ class RunJob(object):
                         _ = check_output(["qstat",  "-j", jobid], stderr=PIPE)
                     except:
                         if self.is_run and not jb.is_end and isfile(jb.stat_file+".run"):
+                            time.sleep(1)
+                            self.jobstatus(jb)
                             jb.set_kill()
                             self.log_status(jb)
             time.sleep(sleep)
@@ -616,13 +618,13 @@ class RunJob(object):
     def sumstatus(self):
         if not hasattr(self, "jobs") or not len(self.jobs) or self.finished:
             return
-        err_jobs = sum(j.is_fail for j in self.jobs)
+        fail_jobs = sum(j.is_fail for j in self.jobs)
         suc_jobs = sum(j.is_success for j in self.jobs)
         wt_jobs = sum(j.is_wait for j in self.jobs)
         total_jobs = len(self.jobs) + len(self.has_success)
         sub_jobs = len(self.jobs) - wt_jobs
-        sum_info = "All jobs (total: %d, submited: %d, success: %d, error: %d, wait: %d) " % (
-            total_jobs, sub_jobs, suc_jobs, err_jobs, wt_jobs)
+        sum_info = "All jobs (total: %d, submited: %d, success: %d, fail: %d, wait: %d) " % (
+            total_jobs, sub_jobs, suc_jobs, fail_jobs, wt_jobs)
         if hasattr(self, "sgefile") and not self.sgefile.temp:
             sum_info += "in file '%s' " % abspath(self.jfile)
         self.writestates(join(
