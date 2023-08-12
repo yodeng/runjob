@@ -321,16 +321,16 @@ class RunJob(object):
         while not self.finished:
             for jb in self.jobqueue.queue:
                 jobname = jb.jobname
+                if jb.host != "sge" or jobname not in self.sge_jobid or jb.status != "run":
+                    continue
                 with rate_limiter:
-                    if jb.host != "sge" or jobname not in self.sge_jobid or jb.status != "run":
-                        continue
                     jobid = self.sge_jobid.get(jobname, jobname)
                     try:
                         _ = check_output(["qstat",  "-j", jobid], stderr=PIPE)
                     except:
                         if self.is_run and not jb.is_end and isfile(jb.stat_file+".run"):
                             time.sleep(1)
-                            self.jobstatus(jb)
+                            _ = self.jobstatus(jb)
                             jb.set_kill()
                             self.log_status(jb)
             time.sleep(sleep)
@@ -398,7 +398,6 @@ class RunJob(object):
             self.qdel(name=name)
             for jb in self.jobqueue.queue:
                 jb.remove_all_stat_files()
-                self.log_kill(jb)
         else:
             if jb.jobname in self.localprocess:
                 p = self.localprocess.pop(jb.jobname)
@@ -407,7 +406,6 @@ class RunJob(object):
                 p.wait()
             if jb.host == "sge":
                 self.qdel(jobname=jb.jobname)
-            self.log_kill(jb)
             jb.remove_all_stat_files()
 
     def submit(self, job):
@@ -582,6 +580,7 @@ class RunJob(object):
         for j, p in self.localprocess.copy().items():
             jb = self.totaljobdict[j]
             self.deletejob(jb)
+            self.log_kill(jb)
 
     def throw(self, msg=""):
         self.err_msg = msg
