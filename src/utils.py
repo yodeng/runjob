@@ -382,6 +382,8 @@ def common_parser():
                         help="submit your jobs in localhost, same as '--mode local'.")
     common.add_argument("--strict", action="store_true", default=False,
                         help="use strict to run, means if any errors, clean all jobs and exit.")
+    common.add_argument("--quiet", action="store_true", default=False,
+                        help="suppress all output and logging")
     common.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed. (default: %(default)s)",
                         type=float, default=3, metavar="<float>")
     common.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed. (default: %(default)s)",

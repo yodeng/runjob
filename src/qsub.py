@@ -10,9 +10,9 @@ from .config import load_config
 
 class qsub(RunJob):
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, **kwargs):
         '''
-        all attribute of config:
+        all attribute of config or kwargs:
             @jobfile <file, list>: required
             @mode <str>: default: sge
             @queue <list>: default: all access queue
@@ -24,8 +24,15 @@ class qsub(RunJob):
             @max_check <int>: default: 3
             @max_submit <int>: default: 30
             @loglevel <int>: default: None
+            @quiet <bool>: default False
+            @retry <int>: retry times, default: 0
+            @retry_ivs <int>: retryivs sec, default: 2
+            @sec <int>: submit epoch ivs, default: 2
         '''
-        self.conf = config
+        self.conf = config = config or load_config()
+        for k, v in kwargs.items():
+            setattr(self.conf.info.args, k, v)
+        self.quiet = config.quiet
         self.jobfile = config.jobfile
         self.queue = config.queue
         self.maxjob = config.num
@@ -38,6 +45,9 @@ class qsub(RunJob):
         self.jobs = jf.jobs(
             config.injname, config.startline or 1, config.endline)
         self.logdir = jf.logdir
+        self.retry = config.retry or 0
+        self.retry_ivs = config.retry_ivs or 2
+        self.sec = config.sec or 2
         self._init()
 
     def _init(self):
@@ -112,8 +122,10 @@ def main():
     logger = getlog(logfile=args.log, level=args.debug and "debug" or "info")
     qjobs = qsub(config=conf)
     try:
-        qjobs.run(retry=args.retry, ivs=args.retry_ivs)
-    except (JobFailedError, QsubError):
+        qjobs.run()
+    except (JobFailedError, QsubError) as e:
+        if args.quiet:
+            raise e
         sys.exit(10)
     except Exception as e:
         raise e

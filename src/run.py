@@ -20,9 +20,9 @@ from .config import load_config, print_config
 
 class RunJob(object):
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, **kwargs):
         '''
-        all attribute of config:
+        all attribute of config or kwargs:
             @jobfile <file, list>: required
             @jobname <str>: default: basename(jobfile)
             @mode <str>: default: sge
@@ -40,11 +40,18 @@ class RunJob(object):
             @max_check <int>: default: 3
             @max_submit <int>: default: 30
             @loglevel <int>: default: None
+            @quiet <bool>: default False
+            @retry <int>: retry times, default: 0
+            @retry_ivs <int>: retryivs sec, default: 2
+            @sec <int>: submit epoch ivs, default: 2
         '''
-        self.conf = config
+        self.conf = config = config or load_config()
+        for k, v in kwargs.items():
+            setattr(self.conf.info.args, k, v)
         self.jobfile = config.jobfile
         if not self.jobfile:
             raise QsubError("Empty jobs input")
+        self.quiet = config.quiet
         self.queue = config.queue
         self.maxjob = config.num
         self.cpu = config.cpu or 1
@@ -60,6 +67,9 @@ class RunJob(object):
             start=config.startline or 1, end=config.endline)
         self.mode = self.sgefile.mode
         self.name = self.sgefile.name
+        self.retry = config.retry or 0
+        self.retry_ivs = config.retry_ivs or 2
+        self.sec = config.sec or 2
         self._init()
 
     def _init(self):
@@ -482,11 +492,8 @@ class RunJob(object):
             self.throw(output.decode())
         return jobid, output.decode()
 
-    def run(self, retry=0, ivs=2, sec=2):
+    def run(self):
         '''
-        @retry: retry times, default: 0
-        @ivs: retry ivs sec, default: 2
-        @sec: submit epoch ivs, default: 2
         '''
         if self.is_run:
             self.logger.warning("not allowed for job has run")
@@ -497,8 +504,8 @@ class RunJob(object):
         self.logger.info("All logs can be found in %s directory", self.logdir)
         self.check_already_success()
         self.is_run = True
-        self.times = max(0, retry)
-        self.retry_ivs = max(ivs, 0)
+        self.times = max(0, self.retry)
+        self.retry_ivs = max(self.retry_ivs, 0)
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
         if len(self.jobsgraph.graph) == 0:
@@ -529,11 +536,15 @@ class RunJob(object):
             for jb in self.pending_jobs(*subjobs):
                 with sub_rate_limiter:
                     self.submit(jb)
-            time.sleep(sec)
+            time.sleep(self.sec)
         self.clean_jobs()
         self.sumstatus()
         if not self.is_success:
-            raise JobFailedError("jobs failed")
+            fail_jobs = self.fail_jobs
+            names = [j.jobname for j in fail_jobs]
+            logs = [j.logfile for j in fail_jobs]
+            raise JobFailedError(
+                "jobs (%s) failed, please check in logs: %s" % (", ".join(names), logs))
 
     def pending_jobs(self, *names):
         jobs = []
@@ -545,6 +556,8 @@ class RunJob(object):
 
     @property
     def logger(self):
+        if self.quiet:
+            logging.disable()
         return logging.getLogger(__name__)
 
     def clean_jobs(self):
@@ -614,10 +627,14 @@ class RunJob(object):
     def is_success(self):
         return all(j.is_success for j in self.jobs)
 
+    @property
+    def fail_jobs(self):
+        return [j for j in self.jobs if j.is_fail]
+
     def sumstatus(self):
         if not hasattr(self, "jobs") or not len(self.jobs) or self.finished:
             return
-        fail_jobs = sum(j.is_fail for j in self.jobs)
+        fail_jobs = len(self.fail_jobs)
         suc_jobs = sum(j.is_success for j in self.jobs)
         wt_jobs = sum(j.is_wait for j in self.jobs)
         total_jobs = len(self.jobs) + len(self.has_success)
@@ -638,6 +655,13 @@ class RunJob(object):
             sum_info += "finished, but there are unsuccessful job."
             self.logger.error(sum_info)
             self.logger.error(job_counter)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:
+            raise exc_type(exc_val)
 
 
 def main():
@@ -666,8 +690,10 @@ def main():
                     level="debug" if args.debug else "info", name=__name__)
     runsge = RunJob(config=conf)
     try:
-        runsge.run(retry=args.retry, ivs=args.retry_ivs)
-    except (JobFailedError, QsubError):
+        runsge.run()
+    except (JobFailedError, QsubError) as e:
+        if args.quiet:
+            raise e
         sys.exit(10)
     except Exception as e:
         raise e
