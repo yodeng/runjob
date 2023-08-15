@@ -20,7 +20,7 @@ class Conf(configparser.ConfigParser):
         return optionstr
 
 
-class Dict(dict):
+class AttrDict(dict):
     '''A dictionary with attribute-style access. It maps attribute access to
     the real dictionary. '''
 
@@ -35,16 +35,13 @@ class Dict(dict):
         return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
 
     def __setitem__(self, key, value):
-        return super(Dict, self).__setitem__(key, value)
+        return super(AttrDict, self).__setitem__(key, value)
 
     def __getitem__(self, name):
-        try:
-            return super(Dict, self).__getitem__(name)
-        except KeyError:
-            return which(name)
+        return super(AttrDict, self).__getitem__(name)
 
     def __delitem__(self, name):
-        return super(Dict, self).__delitem__(name)
+        return super(AttrDict, self).__delitem__(name)
 
     __getattr__ = __getitem__
 
@@ -53,16 +50,18 @@ class Dict(dict):
     __delattr__ = __delitem__
 
     def copy(self):
-        return Dict(self)
+        return AttrDict(self)
 
 
-class AttrDictDefault(Dict):
+class Dict(AttrDict):
     '''A dictionary with attribute-style access. It maps attribute access to
     the real dictionary. Returns a default entry if key is not found. '''
 
     def __init__(self, *args, default=None, **kwargs):
-        super(AttrDictDefault, self).__init__(*args, **kwargs)
-        self.__dict__["_default"] = default
+        super(Dict, self).__init__(*args, **kwargs)
+        self.__dict__["_default"] = default or which
+        if not callable(self.__dict__["_default"]):
+            raise TypeError("default argument must be callable or None")
 
     def __repr__(self):
         return "%s(%s, %r)" % (self.__class__.__name__, dict.__repr__(self),
@@ -70,18 +69,20 @@ class AttrDictDefault(Dict):
 
     def __getitem__(self, name):
         try:
-            return dict.__getitem__(self, name)
+            return super(Dict, self).__getitem__(name)
         except KeyError:
-            return self.__dict__["_default"]
+            return self.__dict__["_default"](name)
 
     __getattr__ = __getitem__
 
     def copy(self):
-        return self.__class__(self, self.__dict__["_default"])
+        return self.__class__(self, default=self.__dict__["_default"])
 
     def get(self, name, default=None):
-        df = default or self.__dict__["_default"]
-        return super(AttrDictDefault, self).get(name, df)
+        try:
+            return super(Dict, self).__getitem__(name)
+        except KeyError:
+            return default
 
 
 class ConfigType(type):
@@ -161,6 +162,23 @@ class Config(defaultdict, Dict):
                     fo.write("%s = %s\n" % (k, v))
                 fo.write("\n")
 
+    def print_config(self):
+        print("Configuration files to search (order by order):")
+        for cf in self.search_order:
+            print(" - %s" % abspath(cf))
+        print("\nAvailable Config:")
+        for k, info in sorted(self.items()):
+            if not info or type(info) != Dict:
+                continue
+            print("[%s]" % k)
+            for v, p in sorted(info.items()):
+                if "secret" in v:
+                    try:
+                        p = hide_key(p)
+                    except:
+                        pass
+                print(" - %s : %s" % (v, p))
+
     def update_executable_bin(self):
         '''
         only directory join(sys.prefix, "bin") 
@@ -176,7 +194,7 @@ class Config(defaultdict, Dict):
     def search_order(self):
         return self.cf[::-1]
 
-    def __getattr__(self, name):
+    def __getitem__(self, name):
         res = super(Config, self).__getitem__(name)
         if type(res) != Dict or res:
             return res
@@ -191,6 +209,8 @@ class Config(defaultdict, Dict):
         if len(values) == 1 or len(set(values.values())) == 1:
             return list(values.values())[0]
         return values.args or values  # args first
+
+    __getattr__ = __getitem__
 
 
 def which(program, paths=None):
@@ -246,21 +266,7 @@ def load_config(home=None, default=None, **kwargs):
 
 
 def print_config(conf):
-    print("Configuration files to search (order by order):")
-    for cf in conf.search_order:
-        print(" - %s" % abspath(cf))
-    print("\nAvailable Config:")
-    for k, info in sorted(conf.items()):
-        if not info or type(info) != Dict:
-            continue
-        print("[%s]" % k)
-        for v, p in sorted(info.items()):
-            if "secret" in v:
-                try:
-                    p = hide_key(p)
-                except:
-                    pass
-            print(" - %s : %s" % (v, p))
+    conf.print_config()
 
 
 def hide_key(s):
