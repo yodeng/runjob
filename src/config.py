@@ -21,27 +21,87 @@ class Conf(configparser.ConfigParser):
 
 
 class Dict(dict):
+    '''A dictionary with attribute-style access. It maps attribute access to
+    the real dictionary. '''
 
-    def __getattr__(self, name):
-        return self.get(name, which(name))
-
-    def __setattr__(self, name, value=None):
-        self[name] = value
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
 
     def __getstate__(self):
-        return self.__dict__
+        return self.__dict__.items()
 
-    def __setstate__(self, data):
-        return self.__init__(data)
+    def __setstate__(self, items):
+        for key, val in items:
+            self.__dict__[key] = val
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, dict(self))
+        return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
+
+    def __setitem__(self, key, value):
+        return super(Dict, self).__setitem__(key, value)
+
+    def __getitem__(self, name):
+        try:
+            return super(Dict, self).__getitem__(name)
+        except KeyError:
+            return which(name)
+
+    def __delitem__(self, name):
+        return super(Dict, self).__delitem__(name)
+
+    __getattr__ = __getitem__
+
+    __setattr__ = __setitem__
+
+    __delattr__ = __delitem__
+
+    def copy(self):
+        return Dict(self)
 
 
-class Defaultdict(defaultdict, Dict):
+class AttrDictDefault(dict):
+    '''A dictionary with attribute-style access. It maps attribute access to
+    the real dictionary. Returns a default entry if key is not found. '''
 
-    def __getattr__(self, name):
-        return defaultdict.__getitem__(self, name)
+    def __init__(self, init={}, default=None):
+        dict.__init__(self, init)
+        self.__dict__["_default"] = default
+
+    def __getstate__(self):
+        return self.__dict__.items()
+
+    def __setstate__(self, items):
+        for key, val in items:
+            self.__dict__[key] = val
+
+    def __repr__(self):
+        return "%s(%s, %r)" % (self.__class__.__name__, dict.__repr__(self),
+                               self.__dict__["_default"])
+
+    def __setitem__(self, key, value):
+        return super(AttrDictDefault, self).__setitem__(key, value)
+
+    def __getitem__(self, name):
+        try:
+            return super(AttrDictDefault, self).__getitem__(name)
+        except KeyError:
+            return self.__dict__["_default"]
+
+    def __delitem__(self, name):
+        return super(AttrDictDefault, self).__delitem__(name)
+
+    __getattr__ = __getitem__
+
+    __setattr__ = __setitem__
+
+    __delattr__ = __delitem__
+
+    def copy(self):
+        return self.__class__(self, self.__dict__["_default"])
+
+    def get(self, name, default=None):
+        df = default or self.__dict__["_default"]
+        return super(AttrDictDefault, self).get(name, df)
 
 
 class ConfigType(type):
@@ -57,17 +117,19 @@ class ConfigType(type):
         return self._instance
 
 
-class Config(object):
+class Config(defaultdict, Dict):
 
-    def __init__(self, config_file=None, init_envs=False):
+    def __init__(self, config_file=None, init_envs=False, bin_dir=None):
         '''
         The `config_file` argument must be file-path or iterable. If `config_file` is iterable, returning one line at a time, and `name` attribute must be needed for file path.
         Return `Config` object
         '''
+        super(Config, self).__init__(Dict)
+        self.info = self
         self.cf = []
-        self.info = Defaultdict(Dict)
-        self.info.bin = self.info.software
-        self.info.database = self.info.db = self.info.data
+        self.bin = self.software
+        self.database = self.db = self.data
+        self.bin_dir = bin_dir or join(sys.prefix, "bin")
         if init_envs:
             self.update_executable_bin()
         if config_file is None:
@@ -75,21 +137,22 @@ class Config(object):
         if not isinstance(config_file, (str, bytes)) and isinstance(config_file, Iterable) and hasattr(config_file, "name"):
             self._path = abspath(config_file.name)
             self.cf.append(self._path)
-            self._config = Conf()
-            self._config.read_file(config_file)
+            self.__config = Conf()
+            self.__config.read_file(config_file)
         else:
             self._path = abspath(config_file)
             self.cf.append(self._path)
             if not isfile(self._path):
                 return
-            self._config = Conf()
-            self._config.read(self._path)
-        for s in self._config.sections():
-            for k, v in self._config[s].items():
-                self.info[s][k] = v
+            self.__config = Conf()
+            self.__config.read(self._path)
+        for s in self.__config.sections():
+            for k, v in self.__config[s].items():
+                self[s][k] = v
 
     def get(self, section, name):
-        return self.info[section].get(name, None)
+        '''default value: None'''
+        return self[section].get(name, None)
 
     def update_config(self, config):
         if not isinstance(config, (str, bytes)) and isinstance(config, Iterable) and hasattr(config, "name"):
@@ -103,53 +166,48 @@ class Config(object):
             c = Conf()
             c.read(config)
         for s in c.sections():
-            self.info[s].update(dict(c[s].items()))
+            self[s].update(dict(c[s].items()))
 
     def update_dict(self, args=None, **kwargs):
         if args and hasattr(args, "__dict__"):
-            self.info["args"].update(args.__dict__)
-        self.info["args"].update(kwargs)
+            self["args"].update(args.__dict__)
+        self["args"].update(kwargs)
 
     def write_config(self, configile):
         with open(configile, "w") as fo:
-            for s, info in self.info.items():
+            for s, info in self.items():
                 fo.write("[%s]\n" % s)
                 for k, v in info.items():
                     fo.write("%s = %s\n" % (k, v))
                 fo.write("\n")
 
     def update_executable_bin(self):
-        bindir = abspath(dirname(sys.executable))
-        for bin_path in os.listdir(bindir):
-            exe_path = join(bindir, bin_path)
+        '''
+        only directory join(sys.prefix, "bin") 
+        '''
+        for bin_path in os.listdir(self.bin_dir):
+            exe_path = join(self.bin_dir, bin_path)
             if is_exe(exe_path):
                 bin_key = bin_path.replace("-", "").replace("_", "")
                 if not self.get("software", bin_key):
-                    self.info["software"][bin_key] = exe_path
-
-    def __str__(self):
-        return self.info.__str__()
-
-    __repr__ = __str__
-
-    __metaclass__ = ConfigType
-
-    def __call__(self):
-        return self.info
+                    self["software"][bin_key] = exe_path
 
     @property
     def search_order(self):
         return self.cf[::-1]
 
     def __getattr__(self, name):
-        if self.info.get(name) is not None:
-            return self.info.get(name)
+        res = super(Config, self).__getitem__(name)
+        if type(res) != Dict or res:
+            return res
         values = Dict()
-        for k, v in self.info.items():
+        for k, v in self.items():
+            if type(v) != Dict:
+                continue
             if v.get(name) is not None:
                 values[k] = v.get(name)
-        if not len(values):
-            return
+        if not values:
+            return res
         if len(values) == 1 or len(set(values.values())) == 1:
             return list(values.values())[0]
         return values
@@ -212,8 +270,8 @@ def print_config(conf):
     for cf in conf.search_order:
         print(" - %s" % abspath(cf))
     print("\nAvailable Config:")
-    for k, info in sorted(conf.info.items()):
-        if not len(info):
+    for k, info in sorted(conf.items()):
+        if not info or type(info) != Dict:
             continue
         print("[%s]" % k)
         for v, p in sorted(info.items()):
