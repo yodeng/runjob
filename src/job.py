@@ -225,7 +225,7 @@ class Jobfile(object):
         self.totaljobs = jobs
         self.alljobnames = [j.name for j in jobs]
         thisjobs = []
-        if names is not None:
+        if names:
             for jn in jobs:
                 name = jn.name
                 for namereg in names:
@@ -233,7 +233,7 @@ class Jobfile(object):
                         thisjobs.append(jn)
                         break
             return thisjobs
-        jobend = len(jobs) if end is None else end
+        jobend = not end and len(jobs) or end
         thisjobs = self.totaljobs[start-1:jobend]
         return thisjobs
 
@@ -379,7 +379,7 @@ class ShellFile(object):
                 self.mode = "localhost"
         if self.mode == "sge" and not self.has_sge:
             self.mode = "localhost"
-        if logdir is None:
+        if not logdir:
             if self.temp:
                 self.logdir = join(self.workdir, "runjob_log_dir")
             else:
@@ -389,7 +389,7 @@ class ShellFile(object):
             self.logdir = abspath(logdir)
         if not isdir(self.logdir):
             os.makedirs(self.logdir)
-        if name is None:
+        if not name:
             name = basename(self._path)
         if name[0].isdigit():
             name = "job_" + name
@@ -401,7 +401,7 @@ class ShellFile(object):
             for n, line in enumerate(fi):
                 if n < start-1:
                     continue
-                elif end is not None and n > end-1:
+                elif end and n > end-1:
                     continue
                 line = line.strip().strip("&")
                 if line.startswith("#") or not line.strip():
@@ -426,7 +426,7 @@ class ShellJob(Jobutils):
         self.out_maping = None
         self.linenum = linenum + 1
         self.jobname = self.name = name + "_%05d" % self.linenum
-        if self.sf.temp and name is not None:
+        if self.sf.temp and name:
             prefix = name
         self.logfile = join(
             self.logdir, prefix + "_%05d.log" % self.linenum)

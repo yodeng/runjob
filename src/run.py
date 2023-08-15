@@ -86,7 +86,7 @@ class RunJob(object):
         self.__add_depency_for_wait()
         self.__group_jobs()
         self.init_callback()
-        if self.conf.loglevel is not None:
+        if self.conf.loglevel:
             self.logger.setLevel(self.conf.loglevel)
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob

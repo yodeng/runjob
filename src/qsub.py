@@ -63,7 +63,7 @@ class qsub(RunJob):
         self.jobsgraph = dag.DAG()
         self.has_success = []
         self.__create_graph()
-        if self.conf.loglevel is not None:
+        if self.conf.loglevel:
             self.logger.setLevel(self.conf.loglevel)
         self.check_rate = Fraction(
             self.conf.max_check or 3).limit_denominator()
