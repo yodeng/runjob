@@ -210,7 +210,7 @@ class Config(defaultdict, Dict):
             return res
         if len(values) == 1 or len(set(values.values())) == 1:
             return list(values.values())[0]
-        return values
+        return values.args or values  # args first
 
 
 def which(program, paths=None):
