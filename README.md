@@ -15,7 +15,7 @@ runjob is a program for managing a group of related jobs running on a compute cl
 
 ## Software Requirements
 
-python >=2.7.10, <3.11
+python >=3.5
 
 ## Installation
 
