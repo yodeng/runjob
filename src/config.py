@@ -24,9 +24,6 @@ class Dict(dict):
     '''A dictionary with attribute-style access. It maps attribute access to
     the real dictionary. '''
 
-    def __init__(self, *args, **kwargs):
-        dict.__init__(self, *args, **kwargs)
-
     def __getstate__(self):
         return self.__dict__.items()
 
@@ -59,42 +56,25 @@ class Dict(dict):
         return Dict(self)
 
 
-class AttrDictDefault(dict):
+class AttrDictDefault(Dict):
     '''A dictionary with attribute-style access. It maps attribute access to
     the real dictionary. Returns a default entry if key is not found. '''
 
-    def __init__(self, init={}, default=None):
-        dict.__init__(self, init)
+    def __init__(self, *args, default=None, **kwargs):
+        super(AttrDictDefault, self).__init__(*args, **kwargs)
         self.__dict__["_default"] = default
-
-    def __getstate__(self):
-        return self.__dict__.items()
-
-    def __setstate__(self, items):
-        for key, val in items:
-            self.__dict__[key] = val
 
     def __repr__(self):
         return "%s(%s, %r)" % (self.__class__.__name__, dict.__repr__(self),
                                self.__dict__["_default"])
 
-    def __setitem__(self, key, value):
-        return super(AttrDictDefault, self).__setitem__(key, value)
-
     def __getitem__(self, name):
         try:
-            return super(AttrDictDefault, self).__getitem__(name)
+            return dict.__getitem__(self, name)
         except KeyError:
             return self.__dict__["_default"]
 
-    def __delitem__(self, name):
-        return super(AttrDictDefault, self).__delitem__(name)
-
     __getattr__ = __getitem__
-
-    __setattr__ = __setitem__
-
-    __delattr__ = __delitem__
 
     def copy(self):
         return self.__class__(self, self.__dict__["_default"])
