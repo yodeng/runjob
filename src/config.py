@@ -2,7 +2,6 @@ import os
 import sys
 import configparser
 
-from collections import defaultdict
 from os.path import isfile, exists, join, abspath, realpath, split, expanduser, dirname
 
 if sys.version_info[0] == 3:
@@ -71,7 +70,12 @@ class Dict(AttrDict):
         try:
             return super(Dict, self).__getitem__(name)
         except KeyError:
-            return self.__dict__["_default"](name)
+            df = self.__dict__["_default"](name)
+            if df:
+                return df
+            d = Dict(default=self.__dict__["_default"])
+            super(Dict, self).__setitem__(name, d)
+            return d
 
     __getattr__ = __getitem__
 
@@ -83,6 +87,14 @@ class Dict(AttrDict):
             return super(Dict, self).__getitem__(name)
         except KeyError:
             return default
+
+    def __getvalue__(self, name):
+        try:
+            return super(Dict, self).__getitem__(name)
+        except KeyError:
+            d = Dict(default=self.__dict__["_default"])
+            super(Dict, self).__setitem__(name, d)
+            return d
 
 
 class ConfigType(type):
@@ -98,14 +110,14 @@ class ConfigType(type):
         return self._instance
 
 
-class Config(defaultdict, Dict):
+class Config(Dict):
 
     def __init__(self, config_file=None, init_envs=False, bin_dir=None):
         '''
         The `config_file` argument must be file-path or iterable. If `config_file` is iterable, returning one line at a time, and `name` attribute must be needed for file path.
         Return `Config` object
         '''
-        super(Config, self).__init__(Dict)
+        super(Config, self).__init__()
         self.info = self
         self.cf = []
         self.bin = self.software
@@ -195,14 +207,14 @@ class Config(defaultdict, Dict):
         return self.cf[::-1]
 
     def __getitem__(self, name):
-        res = super(Config, self).__getitem__(name)
+        res = super(Config, self).__getvalue__(name)
         if type(res) != Dict or res:
             return res
         values = Dict()
         for k, v in self.items():
             if type(v) != Dict:
                 continue
-            if v.get(name) is not None:
+            if v.get(name):
                 values[k] = v.get(name)
         if not values:
             return res
