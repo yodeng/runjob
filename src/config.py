@@ -54,13 +54,11 @@ class AttrDict(dict):
 
 class Dict(AttrDict):
     '''A dictionary with attribute-style access. It maps attribute access to
-    the real dictionary. Returns a default entry if key is not found. '''
+    the real dictionary. Returns a `which(entry)` if key is not found. '''
 
-    def __init__(self, *args, default=None, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(Dict, self).__init__(*args, **kwargs)
-        self.__dict__["_default"] = default or which
-        if not callable(self.__dict__["_default"]):
-            raise TypeError("default argument must be callable or None")
+        self.__dict__["_default"] = which
 
     def __repr__(self):
         return "%s(%s, %r)" % (self.__class__.__name__, dict.__repr__(self),
@@ -71,28 +69,22 @@ class Dict(AttrDict):
             return super(Dict, self).__getitem__(name)
         except KeyError:
             df = self.__dict__["_default"](name)
-            if df:
+            if df is not None:
                 return df
-            d = Dict(default=self.__dict__["_default"])
+            d = Dict()
             super(Dict, self).__setitem__(name, d)
             return d
 
     __getattr__ = __getitem__
 
     def copy(self):
-        return self.__class__(self, default=self.__dict__["_default"])
+        return self.__class__(self)
 
-    def get(self, name, default=None):
+    def getvalue(self, name):
         try:
             return super(Dict, self).__getitem__(name)
         except KeyError:
-            return default
-
-    def __getvalue__(self, name):
-        try:
-            return super(Dict, self).__getitem__(name)
-        except KeyError:
-            d = Dict(default=self.__dict__["_default"])
+            d = Dict()
             super(Dict, self).__setitem__(name, d)
             return d
 
@@ -207,7 +199,7 @@ class Config(Dict):
         return self.cf[::-1]
 
     def __getitem__(self, name):
-        res = super(Config, self).__getvalue__(name)
+        res = self.getvalue(name)
         if type(res) != Dict or res:
             return res
         values = Dict()
