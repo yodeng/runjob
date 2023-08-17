@@ -80,7 +80,7 @@ class Dict(AttrDict):
     def copy(self):
         return self.__class__(self)
 
-    def getvalue(self, name):
+    def _getvalue(self, name):
         try:
             return super(Dict, self).__getitem__(name)
         except KeyError:
@@ -135,9 +135,15 @@ class Config(Dict):
             for k, v in self.__config[s].items():
                 self[s][k] = v
 
-    def get(self, section, name):
+    def rget(self, *keys, default=None):
         '''default value: None'''
-        return self[section].get(name, None)
+        v = self
+        for k in keys:
+            try:
+                v = v.get(k, default)
+            except AttributeError as e:
+                raise e
+        return v
 
     def update_config(self, config):
         if not isinstance(config, (str, bytes)) and isinstance(config, Iterable) and hasattr(config, "name"):
@@ -191,7 +197,7 @@ class Config(Dict):
             exe_path = join(self.bin_dir, bin_path)
             if is_exe(exe_path):
                 bin_key = bin_path.replace("-", "").replace("_", "")
-                if not self.get("software", bin_key):
+                if not self.rget("software", bin_key):
                     self["software"][bin_key] = exe_path
 
     @property
@@ -199,7 +205,7 @@ class Config(Dict):
         return self.cf[::-1]
 
     def __getitem__(self, name):
-        res = self.getvalue(name)
+        res = self._getvalue(name)
         if type(res) != Dict or res:
             return res
         values = Dict()

@@ -257,12 +257,12 @@ def batchStat():
         print_config(conf)
         sys.exit()
     region = REGION.get(args.region.upper(), CN_BEIJING)
-    access_key_id = conf.get("args", "access_key_id")
-    access_key_secret = conf.get("args", "access_key_secret")
+    access_key_id = conf.rget("args", "access_key_id")
+    access_key_secret = conf.rget("args", "access_key_secret")
     if access_key_id is None:
-        access_key_id = conf.get("OSS", "access_key_id")
+        access_key_id = conf.rget("OSS", "access_key_id")
     if access_key_secret is None:
-        access_key_secret = conf.get("OSS", "access_key_secret")
+        access_key_secret = conf.rget("OSS", "access_key_secret")
     if access_key_secret is None or access_key_id is None:
         sys.exit("No access to connect OSS")
     client = Client(region, access_key_id, access_key_secret)

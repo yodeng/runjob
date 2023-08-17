@@ -42,20 +42,20 @@ class Cluster(RClient):
     def __init__(self, config=None):
         super(Cluster, self).__init__(config)
         cluster = AutoCluster()
-        cluster.ImageId = self.conf.get("Cluster", "ImageId")
+        cluster.ImageId = self.conf.rget("Cluster", "ImageId")
         cluster.ReserveOnFail = False
         cluster.ResourceType = "OnDemand"
-        cluster.InstanceType = self.conf.get("Cluster", "InstanceType")
+        cluster.InstanceType = self.conf.rget("Cluster", "InstanceType")
         configs = Configs()
-        if self.conf.get("Cluster", "CidrBlock") is not None and self.conf.get("Cluster", "VpcId") is not None:
+        if self.conf.rget("Cluster", "CidrBlock") is not None and self.conf.rget("Cluster", "VpcId") is not None:
             networks = Networks()
             vpc = VPC()
-            vpc.CidrBlock = self.conf.get("Cluster", "CidrBlock")
-            vpc.VpcId = self.conf.get("Cluster", "VpcId")
+            vpc.CidrBlock = self.conf.rget("Cluster", "CidrBlock")
+            vpc.VpcId = self.conf.rget("Cluster", "VpcId")
             networks.VPC = vpc
             configs.Networks = networks
-        if self.conf.get("Cluster", "system_disk") is not None:
-            configs.add_system_disk(size=int(self.conf.get(
+        if self.conf.rget("Cluster", "system_disk") is not None:
+            configs.add_system_disk(size=int(self.conf.rget(
                 "Cluster", "system_disk")), type_='cloud_efficiency')
         else:
             configs.add_system_disk(size=40, type_='cloud_efficiency')
@@ -65,8 +65,8 @@ class Cluster(RClient):
 
     def AddClusterMount(self, writeable=True):
         self.oss_mount_entry = {
-            "Source": self.conf.get("OSS", "ossSrc"),
-            "Destination": self.conf.get("OSS", "mountPath"),
+            "Source": self.conf.rget("OSS", "ossSrc"),
+            "Destination": self.conf.rget("OSS", "mountPath"),
             "WriteSupport": writeable,
         }
         self.cluster.Configs.Mounts.add_entry(self.oss_mount_entry)
@@ -78,25 +78,25 @@ class Task(object):
     def __init__(self, cluster=None):
         self.job_desc = JobDescription()
         self.task_dag = DAG()
-        self.stdout = cluster.conf.get("Task", "stdoutlog")
-        self.stderr = cluster.conf.get("Task", "stderrlog")
+        self.stdout = cluster.conf.rget("Task", "stdoutlog")
+        self.stderr = cluster.conf.rget("Task", "stderrlog")
         if not self.stdout.endswith("/"):
             self.stdout += "/"
         if not self.stderr.endswith("/"):
             self.stderr += "/"
-        self.timeout = int(cluster.conf.get("Task", "timeout"))
+        self.timeout = int(cluster.conf.rget("Task", "timeout"))
         self.cluster = cluster
 
     def AddOneTask(self, job=None, outdir=""):
-        jobcpu = job.cpu if job.cpu else self.cluster.conf.get("args", "cpu")
-        jobmem = job.mem if job.mem else self.cluster.conf.get(
+        jobcpu = job.cpu if job.cpu else self.cluster.conf.rget("args", "cpu")
+        jobmem = job.mem if job.mem else self.cluster.conf.rget(
             "args", "memory")
-        insType = self.cluster.conf.get("Cluster", "InstanceType")
+        insType = self.cluster.conf.rget("Cluster", "InstanceType")
         if insType is not None:
             if self.cluster.conf.it_conf[insType]["cpu"] < int(jobcpu) or self.cluster.conf.it_conf[insType]["memory"] < int(jobmem):
                 insType = self.get_instance_type(int(jobcpu), int(jobmem))
                 self.cluster.conf.logger.info("job %s %s InstanceType not match cpu or memory necessary, used %s insteaded",
-                                              job.name, self.cluster.conf.get("Cluster", "InstanceType"),  insType)
+                                              job.name, self.cluster.conf.rget("Cluster", "InstanceType"),  insType)
         else:
             insType = self.get_instance_type(int(jobcpu), int(jobmem))
         self.cluster.cluster.InstanceType = insType
@@ -108,10 +108,10 @@ class Task(object):
         task.Timeout = self.timeout
         task.MaxRetryCount = 0
         task.AutoCluster = self.cluster.cluster
-        if self.cluster.conf.get("Task", "DOCKER_IMAGE"):
-            task.Parameters.Command.EnvVars["BATCH_COMPUTE_DOCKER_IMAGE"] = self.cluster.conf.get(
+        if self.cluster.conf.rget("Task", "DOCKER_IMAGE"):
+            task.Parameters.Command.EnvVars["BATCH_COMPUTE_DOCKER_IMAGE"] = self.cluster.conf.rget(
                 "Task", "DOCKER_IMAGE")
-            task.Parameters.Command.EnvVars["BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH"] = self.cluster.conf.get(
+            task.Parameters.Command.EnvVars["BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH"] = self.cluster.conf.rget(
                 "Task", "DOCKER_REGISTRY_OSS_PATH")
             task.Mounts = self.cluster.cluster.Configs.Mounts
             self.cluster.cluster.Configs.Mounts = Mounts()

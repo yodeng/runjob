@@ -194,7 +194,7 @@ class RunJob(object):
 
     def init_callback(self):
         for name in ["init", "call_back"]:
-            cmd = self.conf.get("args", name)
+            cmd = self.conf.rget("args", name)
             if not cmd:
                 continue
             job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
