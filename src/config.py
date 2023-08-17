@@ -2,6 +2,7 @@ import os
 import sys
 import configparser
 
+from copy import copy
 from os.path import isfile, exists, join, abspath, realpath, split, expanduser, dirname
 
 if sys.version_info[0] == 3:
@@ -49,7 +50,7 @@ class AttrDict(dict):
     __delattr__ = __delitem__
 
     def copy(self):
-        return AttrDict(self)
+        return self.__class__(self)
 
 
 class Dict(AttrDict):
@@ -76,9 +77,6 @@ class Dict(AttrDict):
             return d
 
     __getattr__ = __getitem__
-
-    def copy(self):
-        return self.__class__(self)
 
     def _getvalue(self, name):
         try:
@@ -203,6 +201,11 @@ class Config(Dict):
     @property
     def search_order(self):
         return self.cf[::-1]
+
+    def copy(self):
+        c = copy(self)
+        c.info = c
+        return c
 
     def __getitem__(self, name):
         res = self._getvalue(name)
