@@ -2,7 +2,7 @@
 
 [![OSCS Status](https://www.oscs1024.com/platform/badge/yodeng/runjob.svg?size=small)](https://www.oscs1024.com/project/yodeng/runjob?ref=badge_small)
 [![PyPI version](https://img.shields.io/pypi/v/runjob.svg?logo=pypi&logoColor=FFE873)](https://pypi.python.org/pypi/runjob)
-[![Downloads](https://pepy.tech/badge/runjob)](https://pepy.tech/project/runjob)
+[![Downloads](https://static.pepy.tech/badge/runjob)](https://pepy.tech/project/runjob)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](https://anaconda.org/bioconda/runjob)
 
 ## Summary

@@ -493,8 +493,6 @@ class RunJob(object):
         return jobid, output.decode()
 
     def run(self):
-        '''
-        '''
         if self.is_run:
             self.logger.warning("not allowed for job has run")
             return

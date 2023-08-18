@@ -32,6 +32,7 @@ REGION = {
 
 
 class RClient(object):
+
     def __init__(self, config=None):
         self.conf = config
         self.client = config.client
@@ -75,6 +76,7 @@ class Cluster(RClient):
 
 
 class Task(object):
+
     def __init__(self, cluster=None):
         self.job_desc = JobDescription()
         self.task_dag = DAG()
