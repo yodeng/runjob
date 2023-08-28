@@ -402,7 +402,7 @@ def runsgeArgparser():
     parser.add_argument("-lg", "--logdir", type=str,
                         help='the output log dir. (default: "%s/runjob_*_log_dir")' % os.getcwd(), metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
-                        help="groups number of lines to a new jobs. (default: %(default)s)", metavar="<int>")
+                        help="N lines to consume a new job group. (default: %(default)s)", metavar="<int>")
     parser.add_argument('--init', help="command before all jobs, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
@@ -454,3 +454,74 @@ def shellJobArgparser(arglist):
     parser.add_argument('--mode', type=str)
     parser.add_argument("--local", default=False, action="store_true")
     return parser.parse_known_args(arglist)[0]
+
+
+class AppDirs(object):
+    """Convenience wrapper for getting application dirs."""
+
+    def __init__(self, appname=None, version=None):
+        self.appname = appname
+        self.version = version
+
+    @property
+    def user_data_dir(self):
+        path = os.getenv('XDG_DATA_HOME', os.path.expanduser("~/.local/share"))
+        return self.__user_dir(path)
+
+    @property
+    def site_data_dir(self):
+        path = os.getenv('XDG_DATA_DIRS',
+                         os.pathsep.join(['/usr/local/share', '/usr/share']))
+        return self.__site_dir(path)
+
+    @property
+    def site_config_dir(self):
+        path = os.getenv('XDG_CONFIG_DIRS', '/etc/xdg')
+        return self.__site_dir(path)
+
+    @property
+    def user_config_dir(self):
+        path = os.getenv('XDG_CONFIG_HOME', os.path.expanduser("~/.config"))
+        return self.__user_dir(path)
+
+    @property
+    def user_cache_dir(self):
+        path = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+        return self.__user_dir(path)
+
+    @property
+    def user_state_dir(self):
+        path = os.getenv('XDG_STATE_HOME',
+                         os.path.expanduser("~/.local/state"))
+        return self.__user_dir(path)
+
+    @property
+    def user_log_dir(self):
+        return os.path.join(self.user_cache_dir, "log")
+
+    def __user_dir(self, path):
+        if self.appname:
+            path = os.path.join(path, self.appname)
+        if self.appname and self.version:
+            path = os.path.join(path, self.version)
+        return path
+
+    def __site_dir(self, path, multipath=False):
+        pathlist = [os.path.expanduser(x.rstrip(os.sep))
+                    for x in path.split(os.pathsep)]
+        appname = self.appname
+        version = self.version
+        if appname:
+            if version:
+                appname = os.path.join(appname, version)
+            pathlist = [os.sep.join([x, appname]) for x in pathlist]
+        if multipath:
+            path = os.pathsep.join(pathlist)
+        else:
+            path = pathlist[0]
+        return path
+
+
+def user_config_dir(app=__package__, version=""):
+    app = AppDirs(app, version)
+    return app.user_config_dir
