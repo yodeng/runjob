@@ -111,13 +111,19 @@ class qsub(RunJob):
 def main():
     parser = runjobArgparser()
     args = parser.parse_args()
-    conf = load_config()
-    if args.jobfile is None:
-        parser.error("the following arguments are required: -j/--jobfile")
-    if not isfile(args.jobfile):
-        raise OSError("input job file %s not exists" % args.jobfile)
+    if args.jobfile.isatty():
+        parser.print_help()
+        return
+    if args.jobfile is sys.stdin:
+        jobfile = args.jobfile.readlines()
+        args.jobfile.close()
+        args.jobfile = jobfile
+    else:
+        args.jobfile.close()
+        args.jobfile = args.jobfile.name
     if args.local:
         args.mode = "local"
+    conf = load_config()
     conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log, level=args.debug and "debug" or "info")
     qjobs = qsub(config=conf)

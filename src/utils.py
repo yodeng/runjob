@@ -360,8 +360,8 @@ def common_parser():
     common = p.add_argument_group("common arguments")
     common.add_argument('-v', '--version',
                         action='version', version="v" + __version__)
-    common.add_argument("-j", "--jobfile", type=str,
-                        help="the input jobfile. " + style("(required)", fore="green", mode="bold"), metavar="<jobfile>")
+    common.add_argument("-j", "--jobfile", type=argparse.FileType('r'), nargs="?", default=sys.stdin,
+                        help="input jobfile, if empty stdin is used. " + style("(required)", fore="green", mode="bold"), metavar="<jobfile>")
     common.add_argument("-n", "--num", type=int,
                         help="the max job number runing at the same time. (default: all of the jobfile, max 1000)", metavar="<int>")
     common.add_argument("-s", "--startline", type=int,
@@ -388,19 +388,18 @@ def common_parser():
                         type=float, default=3, metavar="<float>")
     common.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed. (default: %(default)s)",
                         type=float, default=30, metavar="<float>")
-    show_help_on_empty_command()
     return p
 
 
 def runsgeArgparser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel jobs from a specific shell scripts runing in localhost, SGE or BatchCompute.", parents=[common_parser()])
+        description="%(prog)s is a tool for managing parallel tasks from a specific shell scripts runing in localhost, sge or batchcompute.", parents=[common_parser()])
     parser.add_argument("-wd", "--workdir", type=str, help="work dir. (default: %(default)s)",
                         default=abspath(os.getcwd()), metavar="<workdir>")
     parser.add_argument("-N", "--jobname", type=str,
                         help="job name. (default: basename of the jobfile)", metavar="<jobname>")
     parser.add_argument("-lg", "--logdir", type=str,
-                        help='the output log dir. (default: "%s/runjob_*_log_dir")' % os.getcwd(), metavar="<logdir>")
+                        help='the output log dir. (default: "%s/%s_*_log_dir")' % (os.getcwd(), "%(prog)s"), metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
                         help="N lines to consume a new job group. (default: %(default)s)", metavar="<int>")
     parser.add_argument('--init', help="command before all jobs, will be running in localhost.",
@@ -429,16 +428,20 @@ def runsgeArgparser():
                           help="AccessKeySecret while access oss.", metavar="<str>")
     batchcmp.add_argument('--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
                                                                             'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: %(default)s)")
+    parser.description = style(
+        parser.description, fore="red", mode="underline")
     return parser
 
 
 def runjobArgparser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel jobs from a job file running in localhost or SGE cluster.",  parents=[common_parser()])
+        description="%(prog)s is a tool for managing parallel tasks from a specific job file running in localhost or sge cluster.",  parents=[common_parser()])
     parser.add_argument('-i', '--injname', help="job names you need to run. (default: all job names of the jobfile)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
                         "sge", "local", "localhost"], help="the mode to submit your jobs, if no sge installed, always localhost. (default: %(default)s)")
+    parser.description = style(
+        parser.description, fore="red", mode="underline")
     return parser
 
 

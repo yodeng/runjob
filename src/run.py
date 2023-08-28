@@ -35,7 +35,7 @@ class RunJob(object):
             @groups <int>: default: 1
             @strict <bool>: default: False
             @force <bool>: default: False
-            @logdir <dir>: defalut: "%s/runjob_*_log_dir" % os.getcwd()
+            @logdir <dir>: defalut: "%s/run*_*_log_dir"
             @workdir <dir>: default: os.getcwd()
             @max_check <int>: default: 3
             @max_submit <int>: default: 30
@@ -44,7 +44,7 @@ class RunJob(object):
             @retry <int>: retry times, default: 0
             @retry_ivs <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
-        '''
+        ''' % os.getcwd()
         self.conf = config = config or load_config()
         for k, v in kwargs.items():
             setattr(self.conf.info.args, k, v)
@@ -665,24 +665,33 @@ class RunJob(object):
 def main():
     parser = runsgeArgparser()
     args = parser.parse_args()
+    if args.jobfile.isatty():
+        parser.print_help()
+        return
     conf = load_config()
     if args.ini:
         conf.update_config(args.ini)
     if args.config:
         print_config(conf)
-        parser.exit()
-    if args.jobfile is None:
-        parser.error("the following arguments are required: -j/--jobfile")
-    if not isfile(args.jobfile):
-        raise OSError("input job file %s not exists" % args.jobfile)
+        return
     if args.local:
         args.mode = "local"
+    if args.jobfile is sys.stdin:
+        jobfile = args.jobfile.readlines()
+        args.jobfile.close()
+        args.jobfile = jobfile
+    else:
+        args.jobfile.close()
+        args.jobfile = args.jobfile.name
+        if args.logdir is None:
+            args.logdir = parser.prog + "_" + \
+                basename(args.jobfile) + "_log_dir"
+    if args.logdir:
+        args.logdir = join(args.workdir, args.logdir)
+    else:
+        args.logdir = join(args.workdir, parser.prog + "_log_dir")
     if not isdir(args.workdir):
         os.makedirs(args.workdir)
-    os.chdir(args.workdir)
-    if args.logdir is None:
-        args.logdir = "runjob_"+basename(args.jobfile) + "_log_dir"
-    args.logdir = join(args.workdir, args.logdir)
     conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log,
                     level="debug" if args.debug else "info", name=__name__)

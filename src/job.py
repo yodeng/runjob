@@ -152,12 +152,22 @@ class Jobfile(object):
 
     def __init__(self, jobfile, mode=None):
         self.has_sge = is_sge_submit()
+        self.workdir = os.getcwd()
+        self.temp = None
+        if isinstance(jobfile, (tuple, list)):
+            self.temp = basename(tempfile.mktemp(prefix=__package__ + "_"))
+            tmp_jobfile = join(self.workdir, self.temp)
+            if not isdir(self.workdir):
+                os.makedirs(self.workdir)
+            with open(tmp_jobfile, "w") as fo:
+                for line in jobfile:
+                    fo.write(line.rstrip()+"\n")
+            jobfile = tmp_jobfile
         self._path = abspath(jobfile)
         if not exists(self._path):
             raise OSError("No such file: %s" % self._path)
-        self._pathdir = dirname(self._path)
+        self._pathdir = self.temp and self.workdir or dirname(self._path)
         self.logdir = join(self._pathdir, "log")
-        self.workdir = os.getcwd()
         if self.has_sge:
             self.mode = mode or "sge"
         else:
@@ -235,6 +245,8 @@ class Jobfile(object):
             return thisjobs
         jobend = not end and len(jobs) or end
         thisjobs = self.totaljobs[start-1:jobend]
+        if self.temp and isfile(self._path):
+            os.remove(self._path)
         return thisjobs
 
     def throw(self, msg):
@@ -355,13 +367,13 @@ class ShellFile(object):
         self.workdir = abspath(workdir or os.getcwd())
         self.temp = None
         if isinstance(jobfile, (tuple, list)):
-            self.temp = basename(tempfile.mktemp(prefix="runjob_"))
+            self.temp = basename(tempfile.mktemp(prefix=__package__ + "_"))
             tmp_jobfile = join(self.workdir, self.temp)
             if not isdir(self.workdir):
                 os.makedirs(self.workdir)
             with open(tmp_jobfile, "w") as fo:
                 for line in jobfile:
-                    fo.write(line+"\n")
+                    fo.write(line.rstrip()+"\n")
             jobfile = tmp_jobfile
         self._path = abspath(jobfile)
         if not exists(self._path):
@@ -381,16 +393,19 @@ class ShellFile(object):
             self.mode = "localhost"
         if not logdir:
             if self.temp:
-                self.logdir = join(self.workdir, "runjob_log_dir")
+                self.logdir = join(self.workdir, __package__ + "_log_dir")
             else:
                 self.logdir = join(
-                    self.workdir, "runjob_%s_log_dir" % basename(self._path))
+                    self.workdir, __package__ + "_%s_log_dir" % basename(self._path))
         else:
             self.logdir = abspath(logdir)
         if not isdir(self.logdir):
             os.makedirs(self.logdir)
         if not name:
-            name = basename(self._path)
+            if self.temp:
+                name = basename(self.logdir).split("_")[0]
+            else:
+                name = basename(self._path)
         if name[0].isdigit():
             name = "job_" + name
         self.name = name
