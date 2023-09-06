@@ -1,4 +1,5 @@
 import os
+import io
 import re
 import sys
 import pdb
@@ -269,6 +270,9 @@ def style(string, mode='', fore='', back=''):
     return '%s%s%s' % (style, string, end)
 
 
+REQUIRED = style("(required)", fore="green", mode="bold")
+
+
 def get_job_state(state):
     s = state.lower() if state else state
     if s == 'running':
@@ -361,7 +365,7 @@ def common_parser():
     common.add_argument('-v', '--version',
                         action='version', version="v" + __version__)
     common.add_argument("-j", "--jobfile", type=argparse.FileType('r'), nargs="?", default=sys.stdin,
-                        help="input jobfile, if empty stdin is used. " + style("(required)", fore="green", mode="bold"), metavar="<jobfile>")
+                        help="input jobfile, if empty, stdin is used. " + REQUIRED, metavar="<jobfile>")
     common.add_argument("-n", "--num", type=int,
                         help="the max job number runing at the same time. (default: all of the jobfile, max 1000)", metavar="<int>")
     common.add_argument("-s", "--startline", type=int,
@@ -393,7 +397,10 @@ def common_parser():
 
 def runsgeArgparser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel tasks from a specific shell scripts runing in localhost, sge or batchcompute.", parents=[common_parser()])
+        description="%(prog)s is a tool for managing parallel tasks from a specific shell scripts runing in localhost, sge or batchcompute.",
+        parents=[common_parser()],
+        formatter_class=CustomHelpFormatter,
+        allow_abbrev=False)
     parser.add_argument("-wd", "--workdir", type=str, help="work dir. (default: %(default)s)",
                         default=abspath(os.getcwd()), metavar="<workdir>")
     parser.add_argument("-N", "--jobname", type=str,
@@ -435,7 +442,10 @@ def runsgeArgparser():
 
 def runjobArgparser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel tasks from a specific job file running in localhost or sge cluster.",  parents=[common_parser()])
+        description="%(prog)s is a tool for managing parallel tasks from a specific job file running in localhost or sge cluster.",
+        parents=[common_parser()],
+        formatter_class=CustomHelpFormatter,
+        allow_abbrev=False)
     parser.add_argument('-i', '--injname', help="job names you need to run. (default: all job names of the jobfile)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
@@ -528,3 +538,66 @@ class AppDirs(object):
 def user_config_dir(app=__package__, version=""):
     app = AppDirs(app, version)
     return app.user_config_dir
+
+
+class CustomHelpFormatter(argparse.HelpFormatter):
+
+    def _get_help_string(self, action):
+        """Place default and required value in help string."""
+        h = action.help
+
+        # Remove any formatting used for Sphinx argparse hints.
+        h = h.replace('``', '')
+
+        if '%(default)' not in action.help:
+            if action.default != '' and action.default != [] and \
+                    action.default is not None and \
+                    not isinstance(action.default, bool) and \
+                    not isinstance(action.default, io.IOBase):
+                if action.default is not argparse.SUPPRESS:
+                    defaulting_nargs = [
+                        argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+
+                    if action.option_strings or action.nargs in defaulting_nargs:
+                        if '\n' in h:
+                            lines = h.splitlines()
+                            lines[0] += ' (default: %(default)s)'
+                            h = '\n'.join(lines)
+                        else:
+                            h += ' (default: %(default)s)'
+        if "required" not in action.help and hasattr(action, "required") and action.required:
+            h += " " + REQUIRED
+        return h
+
+    def _format_action_invocation(self, action):
+        """Removes duplicate ALLCAPS with positional arguments."""
+        if not action.option_strings:
+            default = self._get_default_metavar_for_positional(action)
+            metavar, = self._metavar_formatter(action, default)(1)
+            return metavar
+
+        else:
+            parts = []
+
+            # if the Optional doesn't take a value, format is:
+            #    -s, --long
+            if action.nargs == 0:
+                parts.extend(action.option_strings)
+
+            # if the Optional takes a value, format is:
+            #    -s ARGS, --long ARGS
+            else:
+                default = self._get_default_metavar_for_optional(action)
+                args_string = self._format_args(action, default)
+                for option_string in action.option_strings:
+                    parts.append(option_string)
+
+                return '%s %s' % (', '.join(parts), args_string)
+
+            return ', '.join(parts)
+
+    def _get_default_metavar_for_optional(self, action):
+        return action.dest.upper()
+
+    def _get_default_metavar_for_positional(self, action):
+        return action.dest
