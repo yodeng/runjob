@@ -1,6 +1,7 @@
 import os
 import sys
 import sysconfig
+import subprocess
 
 from setuptools import setup
 from functools import partial
@@ -58,6 +59,31 @@ class Packages(object):
             c = fi.read()
         exec(compile(c, self.version_file, "exec"), v)
         return v["__version__"]
+
+    @property
+    def git_version(self):
+        git_hash = ''
+        try:
+            p = subprocess.Popen(
+                ['git', 'log', '-1', '--format="%H %aI"'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=os.path.dirname(__file__),
+            )
+        except FileNotFoundError:
+            pass
+        else:
+            out, err = p.communicate()
+            if p.returncode == 0:
+                git_hash, git_date = (
+                    out.decode('utf-8')
+                    .strip()
+                    .replace('"', '')
+                    .split('T')[0]
+                    .replace('-', '')
+                    .split()
+                )
+        return git_hash
 
     @property
     def requirements(self):
