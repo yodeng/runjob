@@ -49,6 +49,7 @@ class qsub(RunJob):
         self.retry_ivs = config.retry_ivs or 2
         self.sec = config.sec or 2
         self._init()
+        self.lock = Lock()
 
     def _init(self):
         self.jobnames = [j.name for j in self.jobs]

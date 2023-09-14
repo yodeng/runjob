@@ -16,10 +16,10 @@ import traceback
 import contextlib
 import pkg_resources
 
-from threading import Thread
 from datetime import datetime
 from fractions import Fraction
 from collections import Counter
+from threading import Thread, Lock
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
 from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser

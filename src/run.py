@@ -71,6 +71,7 @@ class RunJob(object):
         self.retry_ivs = config.retry_ivs or 2
         self.sec = config.sec or 2
         self._init()
+        self.lock = Lock()
 
     def _init(self):
         self.totaljobdict = {j.jobname: j for j in self.jobs}
@@ -98,6 +99,8 @@ class RunJob(object):
         self.maxjob = int(self.maxjob or len(self.jobs))
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.init_time_stamp = now()
+        if self.quiet:
+            logging.disable()
 
     def reset(self):
         self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
@@ -334,22 +337,23 @@ class RunJob(object):
                 if jb.host != "sge" or jobname not in self.sge_jobid or jb.status != "run":
                     continue
                 with rate_limiter:
-                    jobid = self.sge_jobid.get(jobname, jobname)
-                    try:
-                        _ = check_output(["qstat",  "-j", jobid], stderr=PIPE)
-                    except:
-                        if self.is_run and not jb.is_end and isfile(jb.stat_file+".run"):
-                            time.sleep(1)
-                            _ = self.jobstatus(jb)
-                            jb.set_kill()
-                            self.log_status(jb)
+                    jobid = self.sge_jobid.get(jobname)
+                    if jobid and jobid.isdigit():
+                        try:
+                            _ = check_output(
+                                ["qstat",  "-j", jobid], stderr=PIPE)
+                        except Exception as err:
+                            self.logger.debug(err)
+                            if self.is_run and not jb.is_end and isfile(jb.stat_file+".run"):
+                                time.sleep(period)
+                                _ = self.jobstatus(jb)
+                                jb.set_kill()
+                                self.log_status(jb)
             time.sleep(sleep)
 
     def jobcheck(self):
-        watch = RunThread(self._jobcheck)
-        watch.start()
-        list_sge = RunThread(self._list_check_sge)
-        list_sge.start()
+        RunThread(self._jobcheck).start()
+        RunThread(self._list_check_sge).start()
 
     def _jobcheck(self):
         if self.mode == "batchcompute":
@@ -404,19 +408,20 @@ class RunJob(object):
                 self.sge_jobid.pop(jobname)
 
     def deletejob(self, jb=None, name=""):
-        if name:
-            self.qdel(name=name)
-            for jb in self.jobqueue.queue:
+        with self.lock:
+            if name:
+                self.qdel(name=name)
+                for jb in self.jobqueue.queue:
+                    jb.remove_all_stat_files()
+            else:
+                if jb.jobname in self.localprocess:
+                    p = self.localprocess.pop(jb.jobname)
+                    if p.poll() is None:
+                        terminate_process(p.pid)
+                    p.wait()
+                if jb.host == "sge":
+                    self.qdel(jobname=jb.jobname)
                 jb.remove_all_stat_files()
-        else:
-            if jb.jobname in self.localprocess:
-                p = self.localprocess.pop(jb.jobname)
-                if p.poll() is None:
-                    terminate_process(p.pid)
-                p.wait()
-            if jb.host == "sge":
-                self.qdel(jobname=jb.jobname)
-            jb.remove_all_stat_files()
 
     def submit(self, job):
         if not self.is_run or job.do_not_submit:
@@ -554,8 +559,6 @@ class RunJob(object):
 
     @property
     def logger(self):
-        if self.quiet:
-            logging.disable()
         return logging.getLogger(__name__)
 
     def clean_jobs(self):
