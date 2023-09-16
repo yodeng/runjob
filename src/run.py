@@ -399,7 +399,7 @@ class RunJob(object):
     # Override these methods to implement other subclass
     def _qdel(self, name="", jobname=""):
         if name:
-            call_cmd(['qdel', "%s_%d*" % (name, os.getpid())])
+            call_cmd(['qdel', "*_%d*" % os.getpid()])
             self.sge_jobid.clear()
         if jobname:
             jobid = self.sge_jobid.get(jobname, jobname)

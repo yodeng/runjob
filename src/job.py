@@ -433,7 +433,6 @@ class ShellJob(Jobutils):
         self.sf = sgefile
         self.logdir = self.sf.logdir
         self._path = self.sf._path
-        prefix = basename(self._path)
         name = self.sf.name
         self.cpu = 0
         self.mem = 0
@@ -441,8 +440,7 @@ class ShellJob(Jobutils):
         self.out_maping = None
         self.linenum = linenum + 1
         self.jobname = self.name = name + "_%05d" % self.linenum
-        if self.sf.temp and name:
-            prefix = name
+        prefix = self.sf.temp and name or basename(self._path)
         self.logfile = join(
             self.logdir, prefix + "_%05d.log" % self.linenum)
         self.subtimes = 0
@@ -466,7 +464,7 @@ class ShellJob(Jobutils):
                     args.mode = "local"
                 if args.mode and args.mode in ["sge", "local", "localhost", "batchcompute"]:
                     self.host = args.mode
-                if args.jobname:
+                if args.jobname and not args.jobname[0].isdigit():
                     self.jobname = self.name = args.jobname
                 if self.host == "local":
                     self.host = "localhost"
