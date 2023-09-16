@@ -46,7 +46,14 @@ class QsubError(Exception):
 
 
 class JobFailedError(Exception):
-    pass
+
+    def __init__(self, msg="", jobnames=None, logfiles=None):
+        self.msg = msg
+        self.failed_jobnames = jobnames
+        self.failed_logs = logfiles
+
+    def __str__(self):
+        return self.msg
 
 
 class JobRuleError(Exception):
