@@ -546,8 +546,7 @@ class RunJob(object):
             fail_jobs = self.fail_jobs
             names = [j.jobname for j in fail_jobs]
             logs = [j.logfile for j in fail_jobs]
-            raise JobFailedError(
-                "jobs (%s) failed, please check in logs: %s" % (", ".join(names), logs))
+            raise JobFailedError(jobs=self.fail_jobs)
 
     def pending_jobs(self, *names):
         jobs = []

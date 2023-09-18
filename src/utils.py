@@ -41,19 +41,23 @@ else:
 QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
 
 
-class QsubError(Exception):
-    pass
-
-
 class JobFailedError(Exception):
 
-    def __init__(self, msg="", jobnames=None, logfiles=None):
+    def __init__(self, msg="", jobs=None):
         self.msg = msg
-        self.failed_jobnames = jobnames
-        self.failed_logs = logfiles
+        self.failed_jobs = jobs and [j for j in jobs if j.is_fail]
 
     def __str__(self):
-        return self.msg
+        if self.msg:
+            return self.msg
+        fj = self.failed_jobs
+        fj_names = [j.jobname for j in fj]
+        fj_logs = [j.logfile for j in fj]
+        return "{} jobs {} failed, please check in logs: {}".format(len(fj), fj_names, fj_logs)
+
+
+class QsubError(Exception):
+    pass
 
 
 class JobRuleError(Exception):
