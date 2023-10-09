@@ -257,7 +257,9 @@ def getlog(logfile=None, level="info", name=None):
     elif level.lower() == "debug":
         logger.setLevel(logging.DEBUG)
     if logfile is None:
-        h = logging.StreamHandler()
+        if logger.hasHandlers():
+            return logger
+        h = logging.StreamHandler(sys.stdout)
     else:
         h = logging.FileHandler(logfile, mode='w')
     h.setFormatter(Formatter())
