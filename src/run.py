@@ -233,8 +233,7 @@ class RunJob(object):
         '''
         may be status delay
         '''
-        if not jb.is_killed:
-            jb.set_kill()
+        jb.set_kill()
         # if jb.is_killed:
         #    self.log_status(jb)
 
@@ -408,20 +407,19 @@ class RunJob(object):
                 self.sge_jobid.pop(jobname)
 
     def deletejob(self, jb=None, name=""):
-        with self.lock:
-            if name:
-                self.qdel(name=name)
-                for jb in self.jobqueue.queue:
-                    jb.remove_all_stat_files()
-            else:
-                if jb.jobname in self.localprocess:
-                    p = self.localprocess.pop(jb.jobname)
-                    if p.poll() is None:
-                        terminate_process(p.pid)
-                    p.wait()
-                if jb.host == "sge":
-                    self.qdel(jobname=jb.jobname)
+        if name:
+            self.qdel(name=name)
+            for jb in self.jobqueue.queue:
                 jb.remove_all_stat_files()
+        else:
+            if jb.jobname in self.localprocess:
+                p = self.localprocess.pop(jb.jobname)
+                if p.poll() is None:
+                    terminate_process(p.pid)
+                p.wait()
+            if jb.host == "sge":
+                self.qdel(jobname=jb.jobname)
+            jb.remove_all_stat_files()
 
     def submit(self, job):
         if not self.is_run or job.do_not_submit:
@@ -540,8 +538,7 @@ class RunJob(object):
                 with sub_rate_limiter:
                     self.submit(jb)
             time.sleep(self.sec)
-        self.clean_jobs()
-        self.sumstatus()
+        self.safe_exit()
         if not self.is_success:
             fail_jobs = self.fail_jobs
             names = [j.jobname for j in fail_jobs]
@@ -597,9 +594,7 @@ class RunJob(object):
 
     def throw(self, msg=""):
         self.err_msg = msg
-        self.clean_jobs()
-        self.logger.error(self.err_msg)
-        self.sumstatus()
+        self.safe_exit()
         if threading.current_thread().name == 'MainThread':
             raise QsubError(self.err_msg)
         else:
@@ -622,6 +617,13 @@ class RunJob(object):
     def clean_resource(self):
         h = ParseSingal(obj=self)
         h.start()
+
+    def safe_exit(self):
+        with self.lock:
+            self.clean_jobs()
+            if self.err_msg:
+                self.logger.error(self.err_msg)
+            self.sumstatus()
 
     @property
     def is_success(self):

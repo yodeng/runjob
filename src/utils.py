@@ -143,17 +143,16 @@ class ParseSingal(Thread):
     def run(self):
         time.sleep(1)
 
-    def clean_up(self):
-        self.obj.clean_jobs()
-        self.obj.sumstatus()
+    def _exit(self):
+        self.obj.safe_exit()
 
     def signal_handler(self, signum, frame):
-        self.clean_up()
+        self._exit()
         # os._exit(signum)  # Force Exit
         sys.exit(signum)    # SystemExit Exception
 
     def signal_handler_us(self, signum, frame):
-        self.clean_up()
+        self._exit()
         raise QsubError(self.obj.err_msg)
 
 
