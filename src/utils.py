@@ -147,11 +147,13 @@ class ParseSingal(Thread):
         self.obj.safe_exit()
 
     def signal_handler(self, signum, frame):
+        self.obj.signaled = True
         self._exit()
         # os._exit(signum)  # Force Exit
         sys.exit(signum)    # SystemExit Exception
 
     def signal_handler_us(self, signum, frame):
+        self.obj.signaled = True
         self._exit()
         raise QsubError(self.obj.err_msg)
 

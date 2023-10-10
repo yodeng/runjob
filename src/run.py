@@ -78,6 +78,7 @@ class RunJob(object):
         self.jobnames = [j.name for j in self.jobs]
         self.is_run = False
         self.finished = False
+        self.signaled = False
         self.err_msg = ""
         self.reseted = False
         self.localprocess = {}
@@ -229,14 +230,6 @@ class RunJob(object):
         if not job.is_wait:
             getattr(self.logger, level)("job %s status %s", name, job.status)
 
-    def log_kill(self, jb):
-        '''
-        may be status delay
-        '''
-        jb.set_kill()
-        # if jb.is_killed:
-        #    self.log_status(jb)
-
     def jobstatus(self, job):
         jobname = job.jobname
         status = job.status
@@ -292,7 +285,8 @@ class RunJob(object):
                         if info.startswith("error") or ("error" in info and "Job is in error" in info):
                             status = "error"
                     except:
-                        status = "error"
+                        if not self.signaled:
+                            status = "error"
                 else:
                     status = "run"
             else:
@@ -314,7 +308,8 @@ class RunJob(object):
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run:
             job.set_status(status)
-            self.log_status(job)
+            if not self.signaled:
+                self.log_status(job)
             if job.host == "batchcompute":
                 with open(logfile, "a") as fo:
                     fo.write("[%s] %s\n" % (
@@ -565,7 +560,7 @@ class RunJob(object):
                 self.qdel(name=self.name)
             for jb in self.jobqueue.queue:
                 jb.remove_all_stat_files()
-                self.log_kill(jb)
+                jb.set_kill()
         elif self.mode == "batchcompute":
             user = getpass.getuser()
             for jb in self.jobqueue.queue:
@@ -590,7 +585,7 @@ class RunJob(object):
         for j, p in self.localprocess.copy().items():
             jb = self.totaljobdict[j]
             self.deletejob(jb)
-            self.log_kill(jb)
+            jb.set_kill()
 
     def throw(self, msg=""):
         self.err_msg = msg

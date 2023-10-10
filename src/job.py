@@ -14,7 +14,7 @@ from .utils import *
 class Jobutils(object):
 
     def set_status(self, status=None):
-        if not self.is_success:
+        if not self.is_success and not self.is_killed:
             self.status = status
 
     def set_kill(self):

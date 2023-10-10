@@ -57,6 +57,7 @@ class qsub(RunJob):
         self.orders = self.jf.orders()
         self.is_run = False
         self.finished = False
+        self.signaled = False
         self.err_msg = ""
         self.reseted = False
         self.localprocess = {}
