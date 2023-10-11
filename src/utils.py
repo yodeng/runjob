@@ -396,6 +396,8 @@ def common_parser():
                         type=int, default=2, metavar="<int>")
     common.add_argument("-f", "--force", default=False, action="store_true",
                         help="force to submit jobs even if already successed.")
+    common.add_argument("--dot", action="store_true", default=False,
+                        help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
     common.add_argument("--local", default=False, action="store_true",
                         help="submit your jobs in localhost, same as '--mode local'.")
     common.add_argument("--strict", action="store_true", default=False,

@@ -125,6 +125,8 @@ def main():
         args.jobfile = args.jobfile.name
     if args.local:
         args.mode = "local"
+    if args.dot:
+        args.quiet = True
     conf = load_config()
     conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log, level=args.debug and "debug" or "info")

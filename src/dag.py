@@ -2,6 +2,7 @@
 # coding:utf-8
 
 from copy import copy
+from textwrap import dedent
 from collections import deque, OrderedDict
 
 
@@ -171,3 +172,26 @@ class DAG(object):
 
     def size(self):
         return len(self.graph)
+
+    def dot(self):
+        nodes = "\t{" + ", ".join(sorted(self.all_nodes)) + "}"
+        edges = sorted([
+            "\t{} -> {}".format(node, "{" + ", ".join(deps) + "}")
+            for node, deps in self.graph.items()
+            if deps
+        ])
+        return dedent(
+            """\
+            digraph {name} {{
+                graph[bgcolor=white, margin=0];
+                node[shape=box, style=rounded, fontname=sans, \
+                fontsize=10, penwidth=1];
+                edge[penwidth=1, color=grey];
+            {nodes}
+            {edges}
+            }}\
+            """
+        ).format(name=__package__ + "_dag", edges="\n".join(edges), nodes=nodes)
+
+    def __str__(self):
+        return self.dot()

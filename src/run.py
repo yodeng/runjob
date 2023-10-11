@@ -100,8 +100,6 @@ class RunJob(object):
         self.maxjob = int(self.maxjob or len(self.jobs))
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.init_time_stamp = now()
-        if self.quiet:
-            logging.disable()
 
     def reset(self):
         self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
@@ -505,7 +503,11 @@ class RunJob(object):
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
         if len(self.jobsgraph.graph) == 0:
+            self.logger.warning("no jobs need to submit")
             return
+        if self.conf.rget("args", "dot"):
+            print(self.jobsgraph)
+            sys.exit()
         if not self.reseted:
             self.clean_resource()
         mkdir(self.logdir, self.workdir)
@@ -550,6 +552,8 @@ class RunJob(object):
 
     @property
     def logger(self):
+        if self.quiet:
+            logging.disable()
         return logging.getLogger(__name__)
 
     def clean_jobs(self):
@@ -691,6 +695,8 @@ def main():
         args.logdir = join(args.workdir, parser.prog + "_log_dir")
     if not isdir(args.workdir):
         os.makedirs(args.workdir)
+    if args.dot:
+        args.quiet = True
     conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log,
                     level="debug" if args.debug else "info", name=__name__)
