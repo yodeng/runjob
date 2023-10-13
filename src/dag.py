@@ -174,9 +174,11 @@ class DAG(object):
         return len(self.graph)
 
     def dot(self):
-        nodes = "\t{" + ", ".join(sorted(self.all_nodes)) + "}"
+        nodes = "\t{" + ", ".join(('"{}"'.format(i)
+                                  for i in sorted(self.all_nodes))) + "}"
         edges = sorted([
-            "\t{} -> {}".format(node, "{" + ", ".join(deps) + "}")
+            '\t"{}" -> {}'.format(node, "{" +
+                                  ", ".join(('"{}"'.format(i) for i in deps)) + "}")
             for node, deps in self.graph.items()
             if deps
         ])
