@@ -131,7 +131,7 @@ class Jobutils(object):
             host {host}
             sched_options{queue} -l vf={mem}g,p={cpu}
             cmd_begin
-                {cmd} 
+                {cmd}
             cmd_end
         job_end
         ''').strip()
@@ -148,127 +148,37 @@ class Jobutils(object):
         return job+"\n"
 
 
-class Jobfile(object):
-
-    def __init__(self, jobfile, mode=None):
-        self.has_sge = is_sge_submit()
-        self.workdir = os.getcwd()
-        self.temp = None
-        if isinstance(jobfile, (tuple, list)):
-            self.temp = basename(tempfile.mktemp(prefix=__package__ + "_"))
-            tmp_jobfile = join(self.workdir, self.temp)
-            if not isdir(self.workdir):
-                os.makedirs(self.workdir)
-            with open(tmp_jobfile, "w") as fo:
-                for line in jobfile:
-                    fo.write(line.rstrip()+"\n")
-            jobfile = tmp_jobfile
-        self._path = abspath(jobfile)
-        if not exists(self._path):
-            raise OSError("No such file: %s" % self._path)
-        self._pathdir = self.temp and self.workdir or dirname(self._path)
-        self.logdir = join(self._pathdir, "log")
-        if self.has_sge:
-            self.mode = mode or "sge"
-        else:
-            self.mode = "localhost"
-        if "local" in self.mode:
-            self.mode = "localhost"
-
-    def orders(self):
-        orders = {}
-        with open(self._path) as fi:
-            for line in fi:
-                if not line.strip() or line.startswith("#"):
-                    continue
-                if line.startswith("order"):
-                    line = line.split()
-                    if "after" in line:
-                        idx = line.index("after")
-                        o1 = line[1:idx]
-                        o2 = line[idx+1:]
-                    elif "before" in line:
-                        idx = line.index("before")
-                        o1 = line[idx+1:]
-                        o2 = line[1:idx]
-                    for o in o1:
-                        if o in self.alljobnames:
-                            for i in o2:
-                                if i not in self.alljobnames:
-                                    self.throw("order names (%s) not in job, (%s)" % (
-                                        i, " ".join(line)))
-                                else:
-                                    if i == o:
-                                        continue
-                                    orders.setdefault(o, set()).add(i)
-                        else:
-                            self.throw("order names (%s) not in job, (%s)" % (
-                                o, " ".join(line)))
-        return orders
-
-    def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
-        jobs = []
-        job = []
-        with open(self._path) as fi:
-            for line in fi:
-                if not line.strip() or line.strip().startswith("#"):
-                    continue
-                if "#" in line:
-                    line = line[line.index("#"):]
-                line = line.strip()
-                if line.startswith("log_dir"):
-                    self.logdir = normpath(
-                        join(self._pathdir, line.split()[-1]))
-                    continue
-                if line == "job_begin":
-                    if len(job) and job[-1] == "job_end":
-                        jobs.append(Job(self, job))
-                        job = [line, ]
-                    else:
-                        job.append(line)
-                elif line.startswith("order"):
-                    continue
-                else:
-                    job.append(line)
-            if len(job):
-                jobs.append(Job(self, job))
-        self.totaljobs = jobs
-        self.alljobnames = [j.name for j in jobs]
-        thisjobs = []
-        if names:
-            for jn in jobs:
-                name = jn.name
-                for namereg in names:
-                    if re.search(namereg, name):
-                        thisjobs.append(jn)
-                        break
-            return thisjobs
-        jobend = not end and len(jobs) or end
-        thisjobs = self.totaljobs[start-1:jobend]
-        if self.temp and isfile(self._path):
-            os.remove(self._path)
-        return thisjobs
-
-    def throw(self, msg):
-        raise JobOrderError(msg)
-
-
 class Job(Jobutils):
 
-    def __init__(self, jobfile, rules):
-        self.rules = rules
-        self.jf = jobfile
-        self.logdir = self.jf.logdir
-        self._path = self.jf._path
+    def __init__(self):
+        self.rules = None
+        self.jobfile = None
+        self.logdir = None
+        self._path = None
         self.name = None
         self.status = None
         self.sched_options = None
-        self.cmd = []
-        self.host = self.jf.mode
-        self.checkrule()
-        cmd = False
+        self.cmd = None
+        self.host = None
         self.groups = None
+        self.cpu = 0
+        self.mem = 0
         self.queue = set()
+        self.subtimes = 0
+        self.workdir = os.getcwd()
+        self.out_maping = None
+        self.cmd = ""
+        self.cmd0 = ""
+
+    def from_rules(self, jobfile=None, rules=None):
+        self.rules = rules
+        self.jobfile = jobfile
+        self.logdir = self.jobfile.logdir
+        self._path = self.jobfile._path
+        self.host = self.jobfile.mode
+        self.checkrule()
+        _cmd = False
+        cmds = []
         for j in self.rules:
             j = j.strip()
             if not j or j.startswith("#"):
@@ -279,7 +189,7 @@ class Job(Jobutils):
                 name = re.split("\s", j, 1)[1].strip()
                 name = re.sub("\s+", "_", name)
                 if name.lower() == "none":
-                    raise self.throw("None name in %s" % j)
+                    raise JobRuleError("None name in %s" % j)
                 self.name = name
             elif j.startswith("status"):
                 self.status = j.split()[-1]
@@ -306,149 +216,49 @@ class Job(Jobutils):
             elif j.startswith("host"):
                 self.host = j.split()[-1]
             elif j == "cmd_begin":
-                cmd = True
+                _cmd = True
                 continue
             elif j == "cmd_end":
-                cmd = False
+                _cmd = False
                 continue
-            elif cmd:
-                self.cmd.append(j.strip())
+            elif _cmd:
+                cmds.append(j.strip())
             elif j.startswith("cmd"):
-                self.cmd.append(" ".join(j.split()[1:]))
+                cmds.append(" ".join(j.split()[1:]))
             elif j.startswith("memory"):
                 self.sched_options += " -l h_vmem=" + j.split()[-1].upper()
             elif j.startswith("time"):
                 pass  # miss
                 # self.sched_options += " -l h_rt=" + j.split()[-1].upper()   # hh:mm:ss
-        if self.jf.has_sge:
-            if self.host not in ["sge", "localhost", "local"]:
-                self.host = "sge"
-        else:
+        if self.host not in ["sge", "localhost", "local"]:
+            self.host = "sge"
+        if self.jobfile.mode in ["localhost", "local"] or not self.jobfile.has_sge:
             self.host = "localhost"
-        if self.jf.mode in ["localhost", "local"]:
-            self.host = "localhost"
-        if len(self.cmd):
-            self.groups = len(self.cmd)
-            self.cmd = "\n".join(self.cmd)
-        else:
-            self.throw("No cmd in %s job" % self.name)
+        if not len(cmds):
+            raise JobRuleError("No cmd in %s job" % self.name)
+        self.groups = len(cmds)
+        self.cmd = "\n".join(cmds)
         self.rawstring = self.cmd.strip()
         self.cmd0 = self.cmd.strip()
         self.logfile = join(self.logdir, self.name + ".log")
-        self.subtimes = 0
         self.raw2cmd()
-        self.workdir = os.getcwd()
         self.jobname = self.name
         self.jobpidname = self.jobname + "_%d" % os.getpid()
+        return self
 
-    def checkrule(self):
-        rules = self.rules
-        if len(rules) <= 4:
-            self.throw("rules lack of elements")
-        if rules[0] != "job_begin" or rules[-1] != "job_end":
-            self.throw("No start or end in you rule")
-        if "cmd_begin" not in rules or "cmd_end" not in rules:
-            self.throw("No start or end in %s job" % "\n".join(rules))
-
-    def write(self, fo):
-        cmd = self.cmd.split("\n")
-        job = self.cmd2job(cmd=cmd, name=self.name, host=self.host,
-                           mem=self.mem, cpu=self.cpu, queue=self.queue)
-        fo.write(job)
-
-    def throw(self, msg):
-        raise JobRuleError(msg)
-
-
-class ShellFile(object):
-
-    def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
-        self.has_sge = is_sge_submit()
-        self.workdir = abspath(workdir or os.getcwd())
-        self.temp = None
-        if isinstance(jobfile, (tuple, list)):
-            self.temp = basename(tempfile.mktemp(prefix=__package__ + "_"))
-            tmp_jobfile = join(self.workdir, self.temp)
-            if not isdir(self.workdir):
-                os.makedirs(self.workdir)
-            with open(tmp_jobfile, "w") as fo:
-                for line in jobfile:
-                    fo.write(line.rstrip()+"\n")
-            jobfile = tmp_jobfile
-        self._path = abspath(jobfile)
-        if not exists(self._path):
-            raise OSError("No such file: %s" % self._path)
-        self._pathdir = dirname(self._path)
-        self.mode = mode
-        # "sge", "local", "localhost", "batchcompute"
-        if self.mode not in ["sge", "local", "localhost", "batchcompute"]:
-            if self.has_sge:
-                self.mode = "sge"
-            else:
-                self.mode = "localhost"
-        else:
-            if self.mode in ["local", "localhost"]:
-                self.mode = "localhost"
-        if self.mode == "sge" and not self.has_sge:
-            self.mode = "localhost"
-        if not logdir:
-            if self.temp:
-                self.logdir = join(self.workdir, __package__ + "_log_dir")
-            else:
-                self.logdir = join(
-                    self.workdir, __package__ + "_%s_log_dir" % basename(self._path))
-        else:
-            self.logdir = abspath(logdir)
-        if not isdir(self.logdir):
-            os.makedirs(self.logdir)
-        if not name:
-            if self.temp:
-                name = basename(self.logdir).split("_")[0]
-            else:
-                name = basename(self._path)
-        if name[0].isdigit():
-            name = "job_" + name
-        self.name = name
-
-    def jobshells(self, start=0, end=None):
-        jobs = []
-        with open(self._path) as fi:
-            for n, line in enumerate(fi):
-                if n < start-1:
-                    continue
-                elif end and n > end-1:
-                    continue
-                line = line.strip().strip("&")
-                if line.startswith("#") or not line.strip():
-                    continue
-                jobs.append(ShellJob(self, n, line))
-        if self.temp and isfile(self._path):
-            os.remove(self._path)
-        return jobs
-
-
-class ShellJob(Jobutils):
-
-    def __init__(self, sgefile, linenum=None, cmd=None):
-        self.sf = sgefile
-        self.logdir = self.sf.logdir
-        self._path = self.sf._path
-        name = self.sf.name
-        self.cpu = 0
-        self.mem = 0
-        self.queue = set()
-        self.out_maping = None
+    def from_cmd(self, sgefile, linenum=None, cmd=None):
+        self.jobfile = sgefile
+        self.logdir = self.jobfile.logdir
+        self._path = self.jobfile._path
+        name = self.jobfile.name
         self.linenum = linenum + 1
         self.jobname = self.name = name + "_%05d" % self.linenum
-        prefix = self.sf.temp and name or basename(self._path)
+        prefix = self.jobfile.temp and name or basename(self._path)
         self.logfile = join(
             self.logdir, prefix + "_%05d.log" % self.linenum)
-        self.subtimes = 0
-        self.status = None
-        self.host = self.sf.mode
+        self.host = self.jobfile.mode
         self.cmd0 = cmd
-        self.groups = None
-        self.workdir = abspath(self.sf.workdir)
+        self.workdir = abspath(self.jobfile.workdir)
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
@@ -481,6 +291,7 @@ class ShellJob(Jobutils):
             self.cmd = self.rawstring
             self.jobpidname = self.jobname.rsplit(
                 "_", 1)[0] + "_%d_%05d" % (os.getpid(), self.linenum)
+        return self
 
     def forceToLocal(self, jobname="", removelog=False):
         self.host = "localhost"
@@ -491,3 +302,163 @@ class ShellJob(Jobutils):
             os.remove(self.logfile)
         self.rawstring = self.cmd0.strip()
         self.raw2cmd()
+
+    def checkrule(self):
+        if self.rules:
+            if len(self.rules) <= 4:
+                raise JobRuleError("rules lack of elements")
+            if self.rules[0] != "job_begin" or self.rules[-1] != "job_end":
+                raise JobRuleError("No start or end in you rule")
+            if "cmd_begin" not in self.rules or "cmd_end" not in self.rules:
+                raise JobRuleError("No start or end in %s job" %
+                                   "\n".join(self.rules))
+
+    def get_job(self):
+        cmd = self.cmd.split("\n")
+        return self.cmd2job(cmd=cmd, name=self.name, host=self.host,
+                            mem=self.mem, cpu=self.cpu, queue=self.queue)
+
+
+class Jobfile(object):
+
+    def __init__(self, jobfile, mode=None, workdir=os.getcwd()):
+        self.has_sge = is_sge_submit()
+        self.workdir = abspath(workdir or os.getcwd())
+        self.temp = None
+        if isinstance(jobfile, (tuple, list)):
+            self.temp = basename(tempfile.mktemp(prefix=__package__ + "_"))
+            tmp_jobfile = join(self.workdir, self.temp)
+            if not isdir(self.workdir):
+                os.makedirs(self.workdir)
+            with open(tmp_jobfile, "w") as fo:
+                for line in jobfile:
+                    fo.write(line.rstrip()+"\n")
+            jobfile = tmp_jobfile
+        self._path = abspath(jobfile)
+        if not exists(self._path):
+            raise OSError("No such file: %s" % self._path)
+        self._pathdir = self.temp and self.workdir or dirname(self._path)
+        self.logdir = join(self._pathdir, "log")
+        self.mode = self.has_sge and (mode or "sge") or "localhost"
+        if "local" in self.mode:
+            self.mode = "localhost"
+
+    def orders(self):
+        orders = {}
+        with open(self._path) as fi:
+            for line in fi:
+                if not line.strip() or line.startswith("#"):
+                    continue
+                if line.startswith("order"):
+                    line = line.split()
+                    if "after" in line:
+                        idx = line.index("after")
+                        o1 = line[1:idx]
+                        o2 = line[idx+1:]
+                    elif "before" in line:
+                        idx = line.index("before")
+                        o1 = line[idx+1:]
+                        o2 = line[1:idx]
+                    for o in o1:
+                        if o in self.alljobnames:
+                            for i in o2:
+                                if i not in self.alljobnames:
+                                    raise JobOrderError("order names (%s) not in job, (%s)" % (
+                                        i, " ".join(line)))
+                                else:
+                                    if i == o:
+                                        continue
+                                    orders.setdefault(o, set()).add(i)
+                        else:
+                            raise JobOrderError("order names (%s) not in job, (%s)" % (
+                                o, " ".join(line)))
+        return orders
+
+    def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
+        jobs = []
+        job = []
+        with open(self._path) as fi:
+            for line in fi:
+                if not line.strip() or line.strip().startswith("#"):
+                    continue
+                if "#" in line:
+                    line = line[line.index("#"):]
+                line = line.strip()
+                if line.startswith("log_dir"):
+                    self.logdir = normpath(
+                        join(self._pathdir, line.split()[-1]))
+                    continue
+                if line == "job_begin":
+                    if len(job) and job[-1] == "job_end":
+                        jb = Job()
+                        jobs.append(jb.from_rules(self, job))
+                        job = [line, ]
+                    else:
+                        job.append(line)
+                elif line.startswith("order"):
+                    continue
+                else:
+                    job.append(line)
+            if len(job):
+                jb = Job()
+                jobs.append(jb.from_rules(self, job))
+        self.totaljobs = jobs
+        self.alljobnames = [j.name for j in jobs]
+        thisjobs = []
+        if names:
+            for jn in jobs:
+                name = jn.name
+                for namereg in names:
+                    if re.search(namereg, name):
+                        thisjobs.append(jn)
+                        break
+            return thisjobs
+        jobend = not end and len(jobs) or end
+        thisjobs = self.totaljobs[start-1:jobend]
+        if self.temp and isfile(self._path):
+            os.remove(self._path)
+        return thisjobs
+
+
+class Shellfile(Jobfile):
+
+    def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
+        super(Shellfile, self).__init__(jobfile, mode, workdir)
+        # "sge", "local", "localhost", "batchcompute"
+        if self.mode not in ["sge", "local", "localhost", "batchcompute"]:
+            self.mode = self.has_sge and "sge" or "localhost"
+        if not logdir:
+            if self.temp:
+                self.logdir = join(self.workdir, __package__ + "_log_dir")
+            else:
+                self.logdir = join(
+                    self.workdir, __package__ + "_%s_log_dir" % basename(self._path))
+        else:
+            self.logdir = abspath(logdir)
+        if not isdir(self.logdir):
+            os.makedirs(self.logdir)
+        if not name:
+            if self.temp:
+                name = basename(self.logdir).split("_")[0]
+            else:
+                name = basename(self._path)
+        if name[0].isdigit():
+            name = "job_" + name
+        self.name = name
+
+    def jobshells(self, start=0, end=None):
+        jobs = []
+        with open(self._path) as fi:
+            for n, line in enumerate(fi):
+                if n < start-1:
+                    continue
+                elif end and n > end-1:
+                    continue
+                line = line.strip().strip("&")
+                if line.startswith("#") or not line.strip():
+                    continue
+                jb = Job()
+                jobs.append(jb.from_cmd(self, n, line))
+        if self.temp and isfile(self._path):
+            os.remove(self._path)
+        return jobs

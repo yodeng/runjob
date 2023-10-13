@@ -133,14 +133,14 @@ class Config(Dict):
             for k, v in self.__config[s].items():
                 self[s][k] = v
 
-    def rget(self, *keys, default=None):
+    def rget(self, key, *keys, default=None):
         '''default value: None'''
-        v = self
+        v = self[key]
         for k in keys:
             try:
                 v = v.get(k, default)
             except AttributeError as e:
-                raise e
+                raise KeyError(k)
         return v
 
     def update_config(self, config):

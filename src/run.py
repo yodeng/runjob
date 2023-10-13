@@ -59,7 +59,7 @@ class RunJob(object):
         self.groups = config.groups or 1
         self.strict = config.strict or False
         self.workdir = abspath(config.workdir or os.getcwd())
-        self.sgefile = ShellFile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
+        self.sgefile = Shellfile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
                                  logdir=config.logdir, workdir=self.workdir)
         self.logdir = self.sgefile.logdir
         self.jfile = self.sgefile._path
@@ -102,7 +102,7 @@ class RunJob(object):
         self.init_time_stamp = now()
 
     def reset(self):
-        self.sgefile = ShellFile(self.jobfile, mode=self.mode, name=self.name,
+        self.sgefile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
                                  logdir=self.logdir, workdir=self.workdir)
         self.jobs = self.sgefile.jobshells(
             start=self.conf.startline or 1, end=self.conf.endline)
