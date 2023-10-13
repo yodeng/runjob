@@ -38,13 +38,13 @@ class qsub(RunJob):
         self.maxjob = config.num
         self.strict = config.strict or False
         self.workdir = config.workdir or os.getcwd()
-        self.jf = jf = Jobfile(self.jobfile, mode=config.mode or "sge")
-        self.jfile = self.jf._path
-        self.mode = jf.mode
+        self.jfile = jfile = Jobfile(self.jobfile, mode=config.mode or "sge")
+        self.jpath = self.jfile._path
+        self.mode = jfile.mode
         self.name = os.getpid()
-        self.jobs = jf.jobs(
+        self.jobs = jfile.jobs(
             config.injname, config.startline or 1, config.endline)
-        self.logdir = jf.logdir
+        self.logdir = jfile.logdir
         self.retry = config.retry or 0
         self.retry_ivs = config.retry_ivs or 2
         self.sec = config.sec or 2
@@ -53,8 +53,8 @@ class qsub(RunJob):
 
     def _init(self):
         self.jobnames = [j.name for j in self.jobs]
-        self.totaljobdict = {jf.name: jf for jf in self.jf.totaljobs}
-        self.orders = self.jf.orders()
+        self.totaljobdict = {jf.name: jf for jf in self.jfile.totaljobs}
+        self.orders = self.jfile.orders()
         self.is_run = False
         self.finished = False
         self.signaled = False
@@ -76,8 +76,8 @@ class qsub(RunJob):
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
 
     def reset(self):
-        self.jf = jf = Jobfile(self.jobfile, mode=self.mode)
-        self.jobs = jf.jobs(
+        self.jfile = jfile = Jobfile(self.jobfile, mode=self.mode)
+        self.jobs = jfile.jobs(
             self.conf.injname, self.conf.startline or 1, self.conf.endline)
         self._init()
         self.reseted = True
@@ -91,9 +91,9 @@ class qsub(RunJob):
         for jn in self.jobsgraph.all_nodes.copy():
             if jn not in self.jobnames:
                 self.jobsgraph.delete_node(jn)
-        if len(self.jf.alljobnames) != len(set(self.jf.alljobnames)):
+        if len(self.jfile.alljobnames) != len(set(self.jfile.alljobnames)):
             names = [i for i, j in Counter(
-                self.jf.alljobnames).items() if j > 1]
+                self.jfile.alljobnames).items() if j > 1]
             self.throw("duplicate job name: %s" % " ".join(names))
         if self.jobsgraph.size() == 0:
             for jb in self.jobs:

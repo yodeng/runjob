@@ -59,14 +59,14 @@ class RunJob(object):
         self.groups = config.groups or 1
         self.strict = config.strict or False
         self.workdir = abspath(config.workdir or os.getcwd())
-        self.sgefile = Shellfile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
-                                 logdir=config.logdir, workdir=self.workdir)
-        self.logdir = self.sgefile.logdir
-        self.jfile = self.sgefile._path
-        self.jobs = self.sgefile.jobshells(
+        self.jfile = Shellfile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
+                               logdir=config.logdir, workdir=self.workdir)
+        self.logdir = self.jfile.logdir
+        self.jpath = self.jfile._path
+        self.jobs = self.jfile.jobshells(
             start=config.startline or 1, end=config.endline)
-        self.mode = self.sgefile.mode
-        self.name = self.sgefile.name
+        self.mode = self.jfile.mode
+        self.name = self.jfile.name
         self.retry = config.retry or 0
         self.retry_ivs = config.retry_ivs or 2
         self.sec = config.sec or 2
@@ -102,9 +102,9 @@ class RunJob(object):
         self.init_time_stamp = now()
 
     def reset(self):
-        self.sgefile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
-                                 logdir=self.logdir, workdir=self.workdir)
-        self.jobs = self.sgefile.jobshells(
+        self.jfile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
+                               logdir=self.logdir, workdir=self.workdir)
+        self.jobs = self.jfile.jobshells(
             start=self.conf.startline or 1, end=self.conf.endline)
         self._init()
         self.reseted = True
@@ -144,7 +144,7 @@ class RunJob(object):
                         self.__make_groups(wait_groups[n:n+jb.groups])
                         i = jb.groups+n
                     else:
-                        self.throw('groups conflict in "%s" line number %d: "%s"' % (self.jfile,
+                        self.throw('groups conflict in "%s" line number %d: "%s"' % (self.jpath,
                                                                                      jb.linenum, jb.cmd0))
                 elif n >= i and (n-i) % self.groups == 0:
                     gs = []
@@ -199,7 +199,7 @@ class RunJob(object):
             cmd = self.conf.rget("args", name)
             if not cmd:
                 continue
-            job = ShellJob(self.sgefile, linenum=-1, cmd=cmd)
+            job = ShellJob(self.jfile, linenum=-1, cmd=cmd)
             job.forceToLocal(jobname=name, removelog=False)
             self.totaljobdict[name] = job
             if name == "init":
@@ -642,8 +642,8 @@ class RunJob(object):
         sub_jobs = len(self.jobs) - wt_jobs
         sum_info = "All jobs (total: %d, submited: %d, success: %d, fail: %d, wait: %d) " % (
             total_jobs, sub_jobs, suc_jobs, fail_jobs, wt_jobs)
-        if hasattr(self, "sgefile") and not self.sgefile.temp:
-            sum_info += "in file '%s' " % abspath(self.jfile)
+        if hasattr(self, "jfile") and not self.jfile.temp:
+            sum_info += "in file '%s' " % abspath(self.jpath)
         self.writestates(join(
             self.logdir, "job_%s.status.txt" % self.name))
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
