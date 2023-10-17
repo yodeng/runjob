@@ -18,13 +18,11 @@ import pkg_resources
 
 from datetime import datetime
 from fractions import Fraction
-from collections import Counter
 from threading import Thread, Lock
+from collections import Counter, deque
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
 from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser
-
-from ratelimiter import RateLimiter
 
 from .loger import *
 from .config import which
@@ -617,3 +615,70 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 
     def _get_default_metavar_for_positional(self, action):
         return action.dest
+
+
+class RateLimiter(object):
+    """Provides rate limiting for an operation with a configurable number of
+    requests for a time period.
+    """
+
+    def __init__(self, max_calls, period=1.0, callback=None):
+        """Initialize a RateLimiter object which enforces as much as max_calls
+        operations on period (eventually floating) number of seconds.
+        """
+        if period <= 0:
+            raise ValueError('Rate limiting period should be > 0')
+        if max_calls <= 0:
+            raise ValueError('Rate limiting number of calls should be > 0')
+
+        # We're using a deque to store the last execution timestamps, not for
+        # its maxlen attribute, but to allow constant time front removal.
+        self.calls = deque()
+
+        self.period = period
+        self.max_calls = max_calls
+        self.callback = callback
+        self._lock = Lock()
+
+        # Lock to protect creation of self._alock
+        self._init_lock = Lock()
+
+    def __call__(self, f):
+        """The __call__ function allows the RateLimiter object to be used as a
+        regular function decorator.
+        """
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            with self:
+                return f(*args, **kwargs)
+        return wrapped
+
+    def __enter__(self):
+        with self._lock:
+            # We want to ensure that no more than max_calls were run in the allowed
+            # period. For this, we store the last timestamps of each call and run
+            # the rate verification upon each __enter__ call.
+            if len(self.calls) >= self.max_calls:
+                until = time.time() + self.period - self._timespan
+                if self.callback:
+                    t = Thread(target=self.callback, args=(until,))
+                    t.daemon = True
+                    t.start()
+                sleeptime = until - time.time()
+                if sleeptime > 0:
+                    time.sleep(sleeptime)
+            return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        with self._lock:
+            # Store the last operation timestamp.
+            self.calls.append(time.time())
+
+            # Pop the timestamp list front (ie: the older calls) until the sum goes
+            # back below the period. This is our 'sliding period' window.
+            while self._timespan >= self.period:
+                self.calls.popleft()
+
+    @property
+    def _timespan(self):
+        return self.calls[-1] - self.calls[0]

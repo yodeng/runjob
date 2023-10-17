@@ -1,5 +1,4 @@
 psutil
-ratelimiter
 batchcompute
 prettytable
 configparser
