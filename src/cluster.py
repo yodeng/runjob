@@ -174,4 +174,4 @@ class Task(object):
 
     @property
     def loger(self):
-        return logging.getLogger()
+        return logging.getLogger(__package__)

@@ -554,7 +554,7 @@ class RunJob(object):
     def logger(self):
         if self.quiet:
             logging.disable()
-        return logging.getLogger(__name__)
+        return logging.getLogger(__package__)
 
     def clean_jobs(self):
         if self.mode == "sge":

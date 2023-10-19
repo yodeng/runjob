@@ -166,6 +166,7 @@ class RunThread(Thread):
         self.exception = None
         self.exc_traceback = ''
         self.daemon = True
+        self._stop_event = threading.Event()
 
     def run(self):
         try:
@@ -181,6 +182,13 @@ class RunThread(Thread):
             self.func(*(self.args))
         except Exception as e:
             raise e
+
+    def stop(self):
+        if not self.stopped():
+            self._stop_event.set()
+
+    def stopped(self):
+        return self._stop_event.is_set()
 
 
 class DummyFile(object):
@@ -220,7 +228,7 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
         return partial(retry, max_num=max_num, delay=delay, callback=callback)
     elif not callable(func):
         raise TypeError("Not a callable. Did you use a non-keyword argument?")
-    log = logging.getLogger()
+    log = logging.getLogger(__package__)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -249,7 +257,7 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
     return wrapper
 
 
-def getlog(logfile=None, level="info", name=None):
+def getlog(logfile=None, level="info", name=__package__):
     logger = logging.getLogger(name)
     if level.lower() == "info":
         logger.setLevel(logging.INFO)

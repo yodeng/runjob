@@ -31,8 +31,8 @@ class Context(metaclass=ConfigType):
             self._add_config(args.config)
         self.conf.update_dict(**args.__dict__)
 
-    def init_log(self):
-        self.log = getlog(level="info")
+    def init_log(self, name=__package__):
+        self.log = getlog(level="info", name=name)
         if self.args.debug:
             self.log.setLevel(logging.DEBUG)
         if self.args.quiet:
