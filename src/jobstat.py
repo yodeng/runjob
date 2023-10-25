@@ -266,7 +266,7 @@ def batchStat():
     if access_key_secret is None or access_key_id is None:
         sys.exit("No access to connect OSS")
     client = Client(region, access_key_id, access_key_secret)
-    logger = getlog(name=__name__)
+    logger = getlog(name=__package__)
     user = getpass.getuser()
     if args.job:
         try:

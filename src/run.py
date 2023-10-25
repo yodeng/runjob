@@ -60,10 +60,10 @@ class RunJob(object):
         self.strict = config.strict or False
         self.workdir = abspath(config.workdir or os.getcwd())
         self.jfile = Shellfile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
-                               logdir=config.logdir, workdir=self.workdir)
+                               logdir=config.logdir, workdir=self.workdir, config=config)
         self.logdir = self.jfile.logdir
         self.jpath = self.jfile._path
-        self.jobs = self.jfile.jobshells(
+        self.jobs = self.jfile.jobs(
             start=config.startline or 1, end=config.endline)
         self.mode = self.jfile.mode
         self.name = self.jfile.name
@@ -77,6 +77,7 @@ class RunJob(object):
         self.totaljobdict = {j.jobname: j for j in self.jobs}
         self.jobnames = [j.name for j in self.jobs]
         self.is_run = False
+        self.submited = False
         self.finished = False
         self.signaled = False
         self.err_msg = ""
@@ -104,7 +105,7 @@ class RunJob(object):
     def reset(self):
         self.jfile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
                                logdir=self.logdir, workdir=self.workdir)
-        self.jobs = self.jfile.jobshells(
+        self.jobs = self.jfile.jobs(
             start=self.conf.startline or 1, end=self.conf.endline)
         self._init()
         self.reseted = True
@@ -283,8 +284,7 @@ class RunJob(object):
                         if info.startswith("error") or ("error" in info and "Job is in error" in info):
                             status = "error"
                     except:
-                        if not self.signaled:
-                            status = "error"
+                        status = "error"
                 else:
                     status = "run"
             else:
@@ -303,8 +303,12 @@ class RunJob(object):
                             break
                         job.logcmd += line
                 job.logcmd = job.logcmd.strip()
+        if status == "run" and job.is_end and self.is_run and self.submited:
+            status = job.status
         self.logger.debug("job %s status %s", jobname, status)
-        if status != job.status and self.is_run:
+        if status != job.status and self.is_run and self.submited:
+            # if status == "run":  ## only timeout start from run status
+            # job.running_time = time.time()
             job.set_status(status)
             if not self.signaled:
                 self.log_status(job)
@@ -368,22 +372,43 @@ class RunJob(object):
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
                     elif js == "error":
                         self.deletejob(jb)
-                        if jb.subtimes >= self.times + 1:
-                            if self.strict:
-                                self.throw("Error jobs return (submit %d times), %s" % (
-                                    jb.subtimes, jb.logfile))
-                            self.jobqueue.get(jb)
-                            self.jobsgraph.delete_node_if_exists(
-                                jb.jobname)
+                        if not jb.timeout:
+                            if jb.subtimes >= self.times + 1:
+                                if self.strict:
+                                    self.throw("Error jobs return (submit %d times), %s" % (
+                                        jb.subtimes, jb.logfile))
+                                self.jobqueue.get(jb)
+                                self.jobsgraph.delete_node_if_exists(
+                                    jb.jobname)
+                            else:
+                                self.jobqueue.get(jb)
+                                self.submit(jb)
                         else:
-                            self.jobqueue.get(jb)
-                            self.submit(jb)
+                            if jb.max_runtime_retry > 0:
+                                self.jobqueue.get(jb)
+                                self.submit(jb)
+                                jb.max_runtime_retry -= 1
+                            else:
+                                if self.strict:
+                                    self.throw("Error jobs return (submit %d times), %s" % (
+                                        jb.subtimes, jb.logfile))
+                                self.jobqueue.get(jb)
+                                self.jobsgraph.delete_node_if_exists(
+                                    jb.jobname)
                     elif js in ["exit", "kill"]:
                         self.deletejob(jb)
                         self.jobqueue.get(jb)
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
                         if self.strict:
                             self.throw("Error job: %s, exit" % jb.jobname)
+                    # if only timeout start from run status, js == "run"
+                    elif js in ["run", "submit", "resubmit"]:
+                        if time.time() - jb.running_time > jb.max_runtime:
+                            jb.timeout = True
+                            jb.status = "error"
+                            jb.log_to_file("Timeout ERROR")
+                            self.logger.error(
+                                "job %s status timeout %s", jb.jobname, jb.status)
 
     def qdel(self, name="", jobname=""):
         self._qdel(name=name, jobname=jobname)
@@ -419,6 +444,8 @@ class RunJob(object):
             return
         logfile = job.logfile
         self.jobqueue.put(job, block=True, timeout=1080000)
+        job.timeout = False
+        job.running_time = time.time()
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
                 logcmd.write(job.rawstring+"\n")
@@ -460,8 +487,8 @@ class RunJob(object):
                 self.sge_jobid[job.jobname] = sgeid
                 logcmd.write(output)
             elif job.host == "batchcompute":
-                jobcpu = job.cpu if job.cpu else self.cpu
-                jobmem = job.mem if job.mem else self.mem
+                jobcpu = job.cpu or self.cpu
+                jobmem = job.mem or self.mem
                 c = Cluster(config=self.conf)
                 c.AddClusterMount()
                 task = Task(c)
@@ -476,6 +503,7 @@ class RunJob(object):
                 self.cloudjob[task.name] = task.id
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
             job.subtimes += 1
+        self.submited = True
 
     def sge_qsub(self, cmd):
         p = Popen(cmd.replace("`", "\`"), stderr=PIPE, stdout=PIPE, shell=True)
@@ -699,7 +727,7 @@ def main():
         args.quiet = True
     conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log,
-                    level="debug" if args.debug else "info", name=__name__)
+                    level="debug" if args.debug else "info", name=__package__)
     runsge = RunJob(config=conf)
     try:
         runsge.run()

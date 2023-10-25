@@ -147,10 +147,18 @@ class Jobutils(object):
                          mem=mem, cpu=cpu, queue=queue)
         return job+"\n"
 
+    def log_to_file(self, info=None):
+        if info:
+            with open(self.logfile, "a") as fo:
+                s = "[{0}] {1}".format(
+                    datetime.today().strftime("%F %X"), info)
+                fo.write(s.strip()+"\n")
+                fo.flush()
+
 
 class Job(Jobutils):
 
-    def __init__(self):
+    def __init__(self, config=None):
         self.rules = None
         self.jobfile = None
         self.logdir = None
@@ -169,6 +177,11 @@ class Job(Jobutils):
         self.out_maping = None
         self.cmd = ""
         self.cmd0 = ""
+        self.running_time = 0
+        self.max_runtime = config and config.max_runtime or sys.maxsize
+        self.max_runtime_retry = config and config.max_runtime_retry or 0
+        self.timeout = False
+        self.config = config
 
     def from_rules(self, jobfile=None, rules=None):
         self.rules = rules
@@ -265,7 +278,8 @@ class Job(Jobutils):
                 argstring = cmd.rsplit("//", 1)[1].strip().split()
                 # argsflag = ["queue", "memory", "cpu", "jobname", "out_maping", "mode"]
                 args = shellJobArgparser(argstring)
-                for i in ["queue", "memory", "cpu", "out_maping", "workdir", "groups"]:
+                for i in ["queue", "memory", "cpu", "out_maping", "workdir", "groups",
+                          "max_runtime", "max_runtime_retry"]:
                     if getattr(args, i):
                         setattr(self, i, getattr(args, i))
                 if getattr(args, "memory"):
@@ -321,7 +335,8 @@ class Job(Jobutils):
 
 class Jobfile(object):
 
-    def __init__(self, jobfile, mode=None, workdir=os.getcwd()):
+    def __init__(self, jobfile, mode=None, workdir=os.getcwd(), config=None):
+        self.config = config
         self.has_sge = is_sge_submit()
         self.workdir = abspath(workdir or os.getcwd())
         self.temp = None
@@ -390,7 +405,7 @@ class Jobfile(object):
                     continue
                 if line == "job_begin":
                     if len(job) and job[-1] == "job_end":
-                        jb = Job()
+                        jb = Job(self.config)
                         jobs.append(jb.from_rules(self, job))
                         job = [line, ]
                     else:
@@ -400,7 +415,7 @@ class Jobfile(object):
                 else:
                     job.append(line)
             if len(job):
-                jb = Job()
+                jb = Job(self.config)
                 jobs.append(jb.from_rules(self, job))
         self.totaljobs = jobs
         self.alljobnames = [j.name for j in jobs]
@@ -422,8 +437,8 @@ class Jobfile(object):
 
 class Shellfile(Jobfile):
 
-    def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None):
-        super(Shellfile, self).__init__(jobfile, mode, workdir)
+    def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None, config=None):
+        super(Shellfile, self).__init__(jobfile, mode, workdir, config=config)
         # "sge", "local", "localhost", "batchcompute"
         if self.mode not in ["sge", "local", "localhost", "batchcompute"]:
             self.mode = self.has_sge and "sge" or "localhost"
@@ -446,7 +461,7 @@ class Shellfile(Jobfile):
             name = "job_" + name
         self.name = name
 
-    def jobshells(self, start=0, end=None):
+    def jobs(self, start=0, end=None):
         jobs = []
         with open(self._path) as fi:
             for n, line in enumerate(fi):
@@ -457,7 +472,7 @@ class Shellfile(Jobfile):
                 line = line.strip().strip("&")
                 if line.startswith("#") or not line.strip():
                     continue
-                jb = Job()
+                jb = Job(self.config)
                 jobs.append(jb.from_cmd(self, n, line))
         if self.temp and isfile(self._path):
             os.remove(self._path)

@@ -396,9 +396,9 @@ def common_parser():
                         help='log debug info.', default=False)
     common.add_argument("-l", "--log", type=str,
                         help='append log info to file. (default: stdout)', metavar="<file>")
-    common.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit. (default: %(default)s)",
+    common.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit.",
                         type=int, default=0, metavar="<int>")
-    common.add_argument('-ivs', '--retry-ivs', help="retry the error job after N seconds. (default: %(default)s)",
+    common.add_argument('-ivs', '--retry-ivs', help="retry the error job after N seconds.",
                         type=int, default=2, metavar="<int>")
     common.add_argument("-f", "--force", default=False, action="store_true",
                         help="force to submit jobs even if already successed.")
@@ -410,10 +410,14 @@ def common_parser():
                         help="use strict to run, means if any errors, clean all jobs and exit.")
     common.add_argument("--quiet", action="store_true", default=False,
                         help="suppress all output and logging")
-    common.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed. (default: %(default)s)",
+    common.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
                         type=float, default=3, metavar="<float>")
-    common.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed. (default: %(default)s)",
+    common.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
                         type=float, default=30, metavar="<float>")
+    common.add_argument('--max-runtime', help="maximal seconds of running (include in sge queue) per job, (default: no-limiting)",
+                        type=int, default=sys.maxsize, metavar="<int>")
+    common.add_argument('--max-runtime-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
+                        type=int, default=0, metavar="<int>")
     return p
 
 
@@ -423,20 +427,20 @@ def runsgeArgparser():
         parents=[common_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
-    parser.add_argument("-wd", "--workdir", type=str, help="work dir. (default: %(default)s)",
+    parser.add_argument("-wd", "--workdir", type=str, help="work dir.",
                         default=abspath(os.getcwd()), metavar="<workdir>")
     parser.add_argument("-N", "--jobname", type=str,
                         help="job name. (default: basename of the jobfile)", metavar="<jobname>")
     parser.add_argument("-lg", "--logdir", type=str,
                         help='the output log dir. (default: "%s/%s_*_log_dir")' % (os.getcwd(), "%(prog)s"), metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
-                        help="N lines to consume a new job group. (default: %(default)s)", metavar="<int>")
+                        help="N lines to consume a new job group.", metavar="<int>")
     parser.add_argument('--init', help="command before all jobs, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     parser.add_argument('--mode', type=str, default="sge", choices=[
-                        "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, if no sge installed, always localhost. (default: %(default)s)")
+                        "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, if no sge installed, always localhost.")
     parser.add_argument('-ini', '--ini',
                         help="input configfile for configurations search.", metavar="<configfile>")
     parser.add_argument("-config", '--config',   action='store_true',
@@ -445,9 +449,9 @@ def runsgeArgparser():
     sge.add_argument("-q", "--queue", type=str, help="the queue your job running, multi queue can be sepreated by whitespace. (default: all accessed queue)",
                      nargs="*", metavar="<queue>")
     sge.add_argument("-m", "--memory", type=int,
-                     help="the memory used per command (GB). (default: %(default)s)", default=1, metavar="<int>")
+                     help="the memory used per command (GB).", default=1, metavar="<int>")
     sge.add_argument("-c", "--cpu", type=int,
-                     help="the cpu numbers you job used. (default: %(default)s)", default=1, metavar="<int>")
+                     help="the cpu numbers you job used.", default=1, metavar="<int>")
     batchcmp = parser.add_argument_group("batchcompute arguments")
     batchcmp.add_argument("-om", "--out-maping", type=str,
                           help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved.', metavar="<dir>")
@@ -456,7 +460,7 @@ def runsgeArgparser():
     batchcmp.add_argument('--access-key-secret', type=str,
                           help="AccessKeySecret while access oss.", metavar="<str>")
     batchcmp.add_argument('--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
-                                                                            'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: %(default)s)")
+                                                                            'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region.")
     parser.description = style(
         parser.description, fore="red", mode="underline")
     return parser
@@ -471,7 +475,7 @@ def runjobArgparser():
     parser.add_argument('-i', '--injname', help="job names you need to run. (default: all job names of the jobfile)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
-                        "sge", "local", "localhost"], help="the mode to submit your jobs, if no sge installed, always localhost. (default: %(default)s)")
+                        "sge", "local", "localhost"], help="the mode to submit your jobs, if no sge installed, always localhost.")
     parser.description = style(
         parser.description, fore="red", mode="underline")
     return parser
@@ -488,6 +492,8 @@ def shellJobArgparser(arglist):
     parser.add_argument("-wd", "--workdir", type=str)
     parser.add_argument('--mode', type=str)
     parser.add_argument("--local", default=False, action="store_true")
+    parser.add_argument('--max-runtime', type=int)
+    parser.add_argument('--max-runtime-retry', type=int)
     return parser.parse_known_args(arglist)[0]
 
 
@@ -571,7 +577,7 @@ class CustomHelpFormatter(argparse.HelpFormatter):
         # Remove any formatting used for Sphinx argparse hints.
         h = h.replace('``', '')
 
-        if '%(default)' not in action.help:
+        if '%(default)' not in action.help and "default:" not in action.help:
             if action.default != '' and action.default != [] and \
                     action.default is not None and \
                     not isinstance(action.default, bool) and \

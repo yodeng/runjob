@@ -38,7 +38,8 @@ class qsub(RunJob):
         self.maxjob = config.num
         self.strict = config.strict or False
         self.workdir = config.workdir or os.getcwd()
-        self.jfile = jfile = Jobfile(self.jobfile, mode=config.mode or "sge")
+        self.jfile = jfile = Jobfile(
+            self.jobfile, mode=config.mode or "sge", config=config)
         self.jpath = self.jfile._path
         self.mode = jfile.mode
         self.name = os.getpid()
@@ -56,6 +57,7 @@ class qsub(RunJob):
         self.totaljobdict = {jf.name: jf for jf in self.jfile.totaljobs}
         self.orders = self.jfile.orders()
         self.is_run = False
+        self.submited = False
         self.finished = False
         self.signaled = False
         self.err_msg = ""
@@ -129,7 +131,8 @@ def main():
         args.quiet = True
     conf = load_config()
     conf.update_dict(**args.__dict__)
-    logger = getlog(logfile=args.log, level=args.debug and "debug" or "info")
+    logger = getlog(logfile=args.log,
+                    level=args.debug and "debug" or "info", name=__package__)
     qjobs = qsub(config=conf)
     try:
         qjobs.run()
