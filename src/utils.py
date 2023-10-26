@@ -414,9 +414,11 @@ def common_parser():
                         type=float, default=3, metavar="<float>")
     common.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
                         type=float, default=30, metavar="<float>")
-    common.add_argument('--max-runtime', help="maximal seconds of running (include in sge queue) per job, (default: no-limiting)",
+    common.add_argument('--max-run-time', help="maximal seconds start from runing per job, (default: no-limiting)",
                         type=int, default=sys.maxsize, metavar="<int>")
-    common.add_argument('--max-runtime-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
+    common.add_argument('--max-wait-time', help="maximal seconds start from submit per job, (default: no-limiting)",
+                        type=int, default=sys.maxsize, metavar="<int>")
+    common.add_argument('--max-timeout-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
                         type=int, default=0, metavar="<int>")
     return p
 

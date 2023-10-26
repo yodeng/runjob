@@ -307,8 +307,8 @@ class RunJob(object):
             status = job.status
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run and self.submited:
-            # if status == "run":  ## only timeout start from run status
-            # job.running_time = time.time()
+            if status == "run":
+                job.run_time = time.time()
             job.set_status(status)
             if not self.signaled:
                 self.log_status(job)
@@ -384,10 +384,10 @@ class RunJob(object):
                                 self.jobqueue.get(jb)
                                 self.submit(jb)
                         else:
-                            if jb.max_runtime_retry > 0:
+                            if jb.max_timeout_retry > 0:
                                 self.jobqueue.get(jb)
                                 self.submit(jb)
-                                jb.max_runtime_retry -= 1
+                                jb.max_timeout_retry -= 1
                             else:
                                 if self.strict:
                                     self.throw("Error jobs return (submit %d times), %s" % (
@@ -401,9 +401,8 @@ class RunJob(object):
                         self.jobsgraph.delete_node_if_exists(jb.jobname)
                         if self.strict:
                             self.throw("Error job: %s, exit" % jb.jobname)
-                    # if only timeout start from run status, js == "run"
                     elif js in ["run", "submit", "resubmit"]:
-                        if time.time() - jb.running_time > jb.max_runtime:
+                        if time.time() - jb.submit_time > jb.max_wait_time or js == "run" and time.time() - jb.run_time > jb.max_run_time:
                             jb.timeout = True
                             jb.status = "error"
                             jb.log_to_file("Timeout ERROR")
@@ -445,7 +444,7 @@ class RunJob(object):
         logfile = job.logfile
         self.jobqueue.put(job, block=True, timeout=1080000)
         job.timeout = False
-        job.running_time = time.time()
+        job.submit_time = time.time()
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
                 logcmd.write(job.rawstring+"\n")

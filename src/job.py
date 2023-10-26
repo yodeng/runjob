@@ -177,9 +177,11 @@ class Job(Jobutils):
         self.out_maping = None
         self.cmd = ""
         self.cmd0 = ""
-        self.running_time = 0
-        self.max_runtime = config and config.max_runtime or sys.maxsize
-        self.max_runtime_retry = config and config.max_runtime_retry or 0
+        self.run_time = 0   # runing time
+        self.submit_time = 0  # submit time
+        self.max_run_time = config and config.max_run_time or sys.maxsize
+        self.max_wait_time = config and config.max_wait_time or sys.maxsize
+        self.max_timeout_retry = config and config.max_timeout_retry or 0
         self.timeout = False
         self.config = config
 
