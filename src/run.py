@@ -200,7 +200,8 @@ class RunJob(object):
             cmd = self.conf.rget("args", name)
             if not cmd:
                 continue
-            job = ShellJob(self.jfile, linenum=-1, cmd=cmd)
+            job = Job(self.conf)
+            job = job.from_cmd(self.jfile, linenum=-1, cmd=cmd)
             job.forceToLocal(jobname=name, removelog=False)
             self.totaljobdict[name] = job
             if name == "init":
