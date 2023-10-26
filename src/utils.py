@@ -675,12 +675,12 @@ class RateLimiter(object):
             # period. For this, we store the last timestamps of each call and run
             # the rate verification upon each __enter__ call.
             if len(self.calls) >= self.max_calls:
-                until = time.time() + self.period - self._timespan
+                until = now() + self.period - self._timespan
                 if self.callback:
                     t = Thread(target=self.callback, args=(until,))
                     t.daemon = True
                     t.start()
-                sleeptime = until - time.time()
+                sleeptime = until - now()
                 if sleeptime > 0:
                     time.sleep(sleeptime)
             return self
@@ -688,7 +688,7 @@ class RateLimiter(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         with self._lock:
             # Store the last operation timestamp.
-            self.calls.append(time.time())
+            self.calls.append(now())
 
             # Pop the timestamp list front (ie: the older calls) until the sum goes
             # back below the period. This is our 'sliding period' window.

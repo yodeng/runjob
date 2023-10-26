@@ -308,7 +308,7 @@ class RunJob(object):
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run and self.submited:
             if status == "run":
-                job.run_time = time.time()
+                job.run_time = now()
             job.set_status(status)
             if not self.signaled:
                 self.log_status(job)
@@ -402,7 +402,8 @@ class RunJob(object):
                         if self.strict:
                             self.throw("Error job: %s, exit" % jb.jobname)
                     elif js in ["run", "submit", "resubmit"]:
-                        if time.time() - jb.submit_time > jb.max_wait_time or js == "run" and time.time() - jb.run_time > jb.max_run_time:
+                        if now() - jb.submit_time > jb.max_wait_time or js == "run" and now() - jb.run_time > jb.max_run_time:
+                            self.deletejob(jb)
                             jb.timeout = True
                             jb.status = "error"
                             jb.log_to_file("Timeout ERROR")
@@ -444,7 +445,7 @@ class RunJob(object):
         logfile = job.logfile
         self.jobqueue.put(job, block=True, timeout=1080000)
         job.timeout = False
-        job.submit_time = time.time()
+        job.submit_time = now()
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
                 logcmd.write(job.rawstring+"\n")
