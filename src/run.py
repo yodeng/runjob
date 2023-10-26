@@ -403,7 +403,10 @@ class RunJob(object):
                         if self.strict:
                             self.throw("Error job: %s, exit" % jb.jobname)
                     elif js in ["run", "submit", "resubmit"]:
-                        if now() - jb.submit_time > jb.max_wait_time or js == "run" and now() - jb.run_time > jb.max_run_time:
+                        _now = now()
+                        if _now - jb.submit_time > jb.max_wait_sec or \
+                                js == "run" and _now - jb.run_time > jb.max_run_sec or \
+                                js != "run" and _now - jb.submit_time > jb.max_queue_sec:
                             self.deletejob(jb)
                             jb.timeout = True
                             jb.status = "error"

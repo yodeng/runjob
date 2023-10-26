@@ -420,9 +420,11 @@ def default_args():
 
 def timeout_action_args(parser):
     time_args = parser.add_argument_group("time control arguments")
-    time_args.add_argument('--max-run-time', help="maximal seconds start from runing per job, (default: no-limiting)",
+    time_args.add_argument('--max-queue-sec', help="maximal seconds between submit and running per job, (default: no-limiting)",
                            type=int, default=sys.maxsize, metavar="<int>")
-    time_args.add_argument('--max-wait-time', help="maximal seconds start from submit per job, (default: no-limiting)",
+    time_args.add_argument('--max-run-sec', help="maximal seconds start from running per job, (default: no-limiting)",
+                           type=int, default=sys.maxsize, metavar="<int>")
+    time_args.add_argument('--max-wait-sec', help="maximal seconds start from submit per job, (default: no-limiting)",
                            type=int, default=sys.maxsize, metavar="<int>")
     time_args.add_argument('--max-timeout-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
                            type=int, default=0, metavar="<int>")
