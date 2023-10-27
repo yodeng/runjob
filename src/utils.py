@@ -38,6 +38,22 @@ else:
 
 QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
 
+TIMEDELTA_REGEX = re.compile(r'^((?P<weeks>[\.\d]+?)w)? *'
+                             r'^((?P<days>[\.\d]+?)d)? *'
+                             r'((?P<hours>[\.\d]+?)h)? *'
+                             r'((?P<minutes>[\.\d]+?)m)? *'
+                             r'((?P<seconds>[\.\d]+?)s?)?$', re.IGNORECASE)
+
+MULTIPLIERS = {
+    # 'years': 60 * 60 * 24 * 365,
+    # 'months': 60 * 60 * 24 * 30,
+    'weeks': 60 * 60 * 24 * 7,
+    'days': 60 * 60 * 24,
+    'hours': 60 * 60,
+    'minutes': 60,
+    'seconds': 1
+}
+
 
 class JobFailedError(Exception):
 
@@ -321,6 +337,14 @@ def seconds2human(s):
     return "{:d}:{:02d}:{:04.2f}".format(h, m, s)
 
 
+def human2seconds(time_str):
+    "valid strings: '8h', '2d 8h 5m 2s', '2m4.3s'"
+    parts = TIMEDELTA_REGEX.match(str(time_str))
+    time_params = {name: float(param)
+                   for name, param in parts.groupdict().items() if param}
+    return int(sum(MULTIPLIERS[k]*v for k, v in time_params.items()))
+
+
 def mkdir(*path):
     for p in path:
         if not isdir(p):
@@ -420,12 +444,12 @@ def default_args():
 
 def timeout_action_args(parser):
     time_args = parser.add_argument_group("time control arguments")
-    time_args.add_argument('--max-queue-sec', help="maximal seconds between submit and running per job, (default: no-limiting)",
-                           type=int, default=sys.maxsize, metavar="<int>")
-    time_args.add_argument('--max-run-sec', help="maximal seconds start from running per job, (default: no-limiting)",
-                           type=int, default=sys.maxsize, metavar="<int>")
-    time_args.add_argument('--max-wait-sec', help="maximal seconds start from submit per job, (default: no-limiting)",
-                           type=int, default=sys.maxsize, metavar="<int>")
+    time_args.add_argument('--max-queue-time', help="maximal time (d/h/m/s) between submit and running per job, (default: no-limiting)",
+                           type=str, default=sys.maxsize, metavar="<float/str>")
+    time_args.add_argument('--max-run-time', help="maximal time (d/h/m/s) start from running per job, (default: no-limiting)",
+                           type=str, default=sys.maxsize, metavar="<float/str>")
+    time_args.add_argument('--max-wait-time', help="maximal time (d/h/m/s) start from submit per job, (default: no-limiting)",
+                           type=str, default=sys.maxsize, metavar="<float/str>")
     time_args.add_argument('--max-timeout-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
                            type=int, default=0, metavar="<int>")
 

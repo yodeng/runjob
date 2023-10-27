@@ -179,9 +179,12 @@ class Job(Jobutils):
         self.cmd0 = ""
         self.run_time = 0   # runing time
         self.submit_time = 0  # submit time
-        self.max_queue_sec = config and config.max_queue_sec or sys.maxsize
-        self.max_run_sec = config and config.max_run_sec or sys.maxsize
-        self.max_wait_sec = config and config.max_wait_sec or sys.maxsize
+        self.max_queue_sec = human2seconds(
+            config and config.max_queue_time or sys.maxsize)
+        self.max_run_sec = human2seconds(
+            config and config.max_run_time or sys.maxsize)
+        self.max_wait_sec = human2seconds(
+            config and config.max_wait_time or sys.maxsize)
         self.max_timeout_retry = config and config.max_timeout_retry or 0
         self.timeout = False
         self.config = config
