@@ -182,7 +182,7 @@ class RunJob(object):
                     os.remove(lf)
                     job.status = "wait"
                 else:
-                    if self.conf.force:
+                    if self.conf.force or getattr(job, "force", False):
                         self.logger.info(
                             "job %s status already success, but force to re-running", job.jobname)
                         os.remove(lf)

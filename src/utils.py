@@ -523,18 +523,7 @@ def runjobArgparser():
 
 
 def shellJobArgparser(arglist):
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-q", "--queue", type=str, nargs="*")
-    parser.add_argument("-m", "--memory", type=int)
-    parser.add_argument("-c", "--cpu", type=int)
-    parser.add_argument("-g", "--groups", type=int)
-    parser.add_argument("-n", "--jobname", type=str)
-    parser.add_argument("-om", "--out-maping", type=str)
-    parser.add_argument("-wd", "--workdir", type=str)
-    parser.add_argument('--mode', type=str)
-    parser.add_argument("--local", default=False, action="store_true")
-    parser.add_argument('--max-runtime', type=int)
-    parser.add_argument('--max-runtime-retry', type=int)
+    parser = runsgeArgparser()
     return parser.parse_known_args(arglist)[0]
 
 

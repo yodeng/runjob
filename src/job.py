@@ -282,13 +282,16 @@ class Job(Jobutils):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
                 argstring = cmd.rsplit("//", 1)[1].strip().split()
-                # argsflag = ["queue", "memory", "cpu", "jobname", "out_maping", "mode"]
-                args = shellJobArgparser(argstring)
-                for i in ["queue", "memory", "cpu", "out_maping", "workdir", "groups",
-                          "max_runtime", "max_runtime_retry"]:
-                    if getattr(args, i):
+                args = shellJobArgparser(sys.argv + argstring)
+                for i in ['force', 'local', 'max_timeout_retry', 'workdir', 'jobname',
+                          'groups', 'mode', 'queue', 'memory', 'cpu', 'out_maping']:
+                    if getattr(args, i, False):
                         setattr(self, i, getattr(args, i))
-                if getattr(args, "memory"):
+                for i in ['max_queue_time', 'max_run_time', 'max_wait_time']:
+                    k = i.replace("time", "sec")
+                    t = min(human2seconds(getattr(args, i)), getattr(self, k))
+                    setattr(self, k, t)
+                if getattr(args, "memory", None):
                     self.mem = getattr(args, "memory")
                 if args.local:
                     args.mode = "local"
@@ -298,6 +301,8 @@ class Job(Jobutils):
                     self.jobname = self.name = args.jobname
                 if self.host == "local":
                     self.host = "localhost"
+                if self.jobfile.mode.startswith("local"):
+                    self.host = self.jobfile.mode = "localhost"
             except:
                 pass
         else:
