@@ -28,8 +28,7 @@ from .config import load_config, print_config
 
 def main():
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
-        print(__doc__)
-        sys.exit(0)
+        sys.exit(__doc__)
     has_qstat = os.getenv("SGE_ROOT")
     username = os.getenv("USER")
     if has_qstat:

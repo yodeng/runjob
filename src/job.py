@@ -8,6 +8,7 @@ import getpass
 import tempfile
 
 from .utils import *
+from .parser import shell_job_parser
 
 
 @total_ordering
@@ -282,7 +283,7 @@ class Job(Jobutils):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
                 argstring = cmd.rsplit("//", 1)[1].strip().split()
-                args = shellJobArgparser(sys.argv + argstring)
+                args = shell_job_parser(sys.argv + argstring)
                 for i in ['force', 'local', 'max_timeout_retry', 'workdir', 'jobname',
                           'groups', 'mode', 'queue', 'memory', 'cpu', 'out_maping']:
                     if getattr(args, i, False):

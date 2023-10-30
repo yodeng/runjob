@@ -3,9 +3,10 @@
 
 from . import dag
 from .utils import *
-from .job import Jobfile
 from .run import RunJob
+from .job import Jobfile
 from .config import load_config
+from .parser import runjob_parser
 
 
 class qsub(RunJob):
@@ -113,7 +114,7 @@ class qsub(RunJob):
 
 
 def main():
-    parser = runjobArgparser()
+    parser = runjob_parser()
     args = parser.parse_args()
     if args.jobfile.isatty():
         parser.print_help()

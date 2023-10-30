@@ -14,7 +14,7 @@ from . import dag
 from .job import *
 from .utils import *
 from .cluster import *
-from ._version import __version__
+from .parser import runsge_parser
 from .config import load_config, print_config
 
 
@@ -698,7 +698,7 @@ class RunJob(object):
 
 
 def main():
-    parser = runsgeArgparser()
+    parser = runsge_parser()
     args = parser.parse_args()
     if args.jobfile.isatty():
         parser.print_help()
