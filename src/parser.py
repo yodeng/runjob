@@ -105,7 +105,7 @@ def default_parser():
     base.add_argument("--strict", action="store_true", default=False,
                       help="use strict to run, means if any errors, clean all jobs and exit.")
     base.add_argument("--quiet", action="store_true", default=False,
-                      help="suppress all output and logging")
+                      help="suppress all output and logging.")
     base.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
                       type=float, default=3, metavar="<float>")
     base.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
@@ -116,11 +116,11 @@ def default_parser():
 
 def timeout_parser(parser):
     time_args = parser.add_argument_group("time control arguments")
-    time_args.add_argument('--max-queue-time', help="maximal time (d/h/m/s) between submit and running per job, (default: no-limiting)",
+    time_args.add_argument('--max-queue-time', help="maximal time (d/h/m/s) between submit and running per job. (default: no-limiting)",
                            type=str, default=sys.maxsize, metavar="<float/str>")
-    time_args.add_argument('--max-run-time', help="maximal time (d/h/m/s) start from running per job, (default: no-limiting)",
+    time_args.add_argument('--max-run-time', help="maximal time (d/h/m/s) start from running per job. (default: no-limiting)",
                            type=str, default=sys.maxsize, metavar="<float/str>")
-    time_args.add_argument('--max-wait-time', help="maximal time (d/h/m/s) start from submit per job, (default: no-limiting)",
+    time_args.add_argument('--max-wait-time', help="maximal time (d/h/m/s) start from submit per job. (default: no-limiting)",
                            type=str, default=sys.maxsize, metavar="<float/str>")
     time_args.add_argument('--max-timeout-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
                            type=int, default=0, metavar="<int>")
