@@ -4,6 +4,7 @@
 import os
 import re
 import sys
+import shlex
 import getpass
 import tempfile
 
@@ -282,7 +283,7 @@ class Job(Jobutils):
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.rawstring = cmd.rsplit("//", 1)[0].strip()
             try:
-                argstring = cmd.rsplit("//", 1)[1].strip().split()
+                argstring = shlex.split(cmd.rsplit("//", 1)[1].strip())
                 args = shell_job_parser(argstring)
                 for i in ['force', 'local', 'max_timeout_retry', 'workdir', 'jobname',
                           'groups', 'mode', 'queue', 'memory', 'cpu', 'out_maping']:
@@ -320,7 +321,7 @@ class Job(Jobutils):
                 "_", 1)[0] + "_%d_%05d" % (os.getpid(), self.linenum)
         return self
 
-    def forceToLocal(self, jobname="", removelog=False):
+    def to_local(self, jobname="", removelog=False):
         self.host = "localhost"
         self.name = self.jobname = jobname
         self.logfile = join(self.logdir, basename(

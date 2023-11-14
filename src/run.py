@@ -202,7 +202,7 @@ class RunJob(object):
                 continue
             job = Job(self.conf)
             job = job.from_cmd(self.jfile, linenum=-1, cmd=cmd)
-            job.forceToLocal(jobname=name, removelog=False)
+            job.to_local(jobname=name, removelog=False)
             self.totaljobdict[name] = job
             if name == "init":
                 self.jobs.insert(0, job)
@@ -212,7 +212,7 @@ class RunJob(object):
                     self.jobsgraph.add_edge(name, j)
             else:
                 self.jobs.append(job)
-                f = [i for i, j in self.jobsgraph.graph.items() if not len(j)]
+                f = self.jobsgraph.end_nodes()
                 self.jobsgraph.add_node_if_not_exists(job.jobname)
                 for j in f:
                     self.jobsgraph.add_edge(j, name)

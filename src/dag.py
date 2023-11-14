@@ -124,10 +124,13 @@ class DAG(object):
     def ind_nodes(self, graph=None):
         if graph is None:
             graph = self.graph
-        dependent_nodes = set(
-            node for dependents in graph.values() for node in dependents
-        )
-        return [node for node in graph.keys() if node not in dependent_nodes]
+        nodes2 = set(n2 for n2s in graph.values() for n2 in n2s)
+        return [n1 for n1 in graph.keys() if n1 not in nodes2]
+
+    def end_nodes(self, graph=None):
+        if graph is None:
+            graph = self.graph
+        return [n1 for n1, n2 in graph.items() if not n2]
 
     def validate(self, graph=None):
         graph = graph if graph is not None else self.graph
@@ -197,3 +200,5 @@ class DAG(object):
 
     def __str__(self):
         return self.dot()
+
+    __repr__ = __str__
