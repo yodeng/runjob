@@ -365,7 +365,7 @@ class Jobfile(object):
             jobfile = tmp_jobfile
         self._path = abspath(jobfile)
         if not exists(self._path):
-            raise OSError("No such file: %s" % self._path)
+            raise IOError("No such file: %s" % self._path)
         self._pathdir = self.temp and self.workdir or dirname(self._path)
         self.logdir = join(self._pathdir, "log")
         self.mode = self.has_sge and (mode or "sge") or "localhost"

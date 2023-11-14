@@ -196,26 +196,38 @@ class RunJob(object):
                 job.status = "wait"
 
     def init_callback(self):
-        for name in ["init", "call_back"]:
-            cmd = self.conf.rget("args", name)
-            if not cmd:
-                continue
+        self.add_init(self.conf.rget("args", "init"))
+        self.add_callback(self.conf.rget("args", "call_back"))
+
+    def add_init(self, init=""):
+        if init:
+            if "init" in self.totaljobdict:
+                job = self.totaljobdict["init"]
+                return self.logger.error("init '%s' exists", job.rawstring)
             job = Job(self.conf)
-            job = job.from_cmd(self.jfile, linenum=-1, cmd=cmd)
-            job.to_local(jobname=name, removelog=False)
-            self.totaljobdict[name] = job
-            if name == "init":
-                self.jobs.insert(0, job)
-                f = self.jobsgraph.ind_nodes()
-                self.jobsgraph.add_node_if_not_exists(job.jobname)
-                for j in f:
-                    self.jobsgraph.add_edge(name, j)
-            else:
-                self.jobs.append(job)
-                f = self.jobsgraph.end_nodes()
-                self.jobsgraph.add_node_if_not_exists(job.jobname)
-                for j in f:
-                    self.jobsgraph.add_edge(j, name)
+            job = job.from_cmd(self.jfile, linenum=-1, cmd=init)
+            job.to_local(jobname="init", removelog=False)
+            self.totaljobdict["init"] = job
+            self.jobs.insert(0, job)
+            ind_nodes = self.jobsgraph.ind_nodes()
+            self.jobsgraph.add_node_if_not_exists(job.jobname)
+            for j in ind_nodes:
+                self.jobsgraph.add_edge("init", j)
+
+    def add_callback(self, callback=""):
+        if callback:
+            if "callback" in self.totaljobdict:
+                job = self.totaljobdict["callback"]
+                return self.logger.error("callback '%s' exists", job.rawstring)
+            job = Job(self.conf)
+            job = job.from_cmd(self.jfile, linenum=-1, cmd=callback)
+            job.to_local(jobname="callback", removelog=False)
+            self.totaljobdict["callback"] = job
+            self.jobs.append(job)
+            end_nodes = self.jobsgraph.end_nodes()
+            self.jobsgraph.add_node_if_not_exists(job.jobname)
+            for j in end_nodes:
+                self.jobsgraph.add_edge(j, "callback")
 
     def log_status(self, job):
         name = job.jobname
