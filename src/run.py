@@ -84,6 +84,7 @@ class RunJob(object):
         self.reseted = False
         self.localprocess = {}
         self.cloudjob = {}
+        self.sge_jobid = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
         self.__add_depency_for_wait()
@@ -97,7 +98,6 @@ class RunJob(object):
             self.conf.max_check or 3).limit_denominator()
         self.sub_rate = Fraction(
             self.conf.max_submit or 30).limit_denominator()
-        self.sge_jobid = {}
         self.maxjob = int(self.maxjob or len(self.jobs))
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.init_time_stamp = now()
@@ -232,11 +232,15 @@ class RunJob(object):
     def log_status(self, job):
         name = job.jobname
         if name in self.cloudjob:
-            name = self.cloudjob[name]
+            name += " (task-id: {})".format(self.cloudjob[name])
+        elif name in self.sge_jobid:
+            name += " (job-id: {})".format(self.sge_jobid[name])
+        elif name in self.localprocess:
+            name += " (pid: {})".format(self.localprocess[name].pid)
         if job.is_fail:
             level = "error"
         elif job.status == "resubmit":
-            level = "warn"
+            level = "warning"
         else:
             level = "info"
         if not job.is_wait:
@@ -470,7 +474,6 @@ class RunJob(object):
                 logcmd.write(style("\n-------- retry --------\n",
                              fore="red", mode="bold") + job.rawstring+"\n")
                 job.set_status("resubmit")
-            self.log_status(job)
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
             if job.host is not None and job.host in ["localhost", "local"]:
@@ -490,7 +493,7 @@ class RunJob(object):
                 self.localprocess[job.name] = p
             elif job.host == "sge":
                 job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
-                call_cmd(["touch", job.stat_file + ".submit"])
+                touch(job.stat_file + ".submit")
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 job.update_queue(self.queue)
@@ -517,6 +520,7 @@ class RunJob(object):
                     task.name, task.id, job.subtimes+1)
                 logcmd.write(info)
                 self.cloudjob[task.name] = task.id
+            self.log_status(job)
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
             job.subtimes += 1
         self.submited = True

@@ -355,6 +355,11 @@ def mkdir(*path):
                 pass
 
 
+def touch(fname, times=None):
+    with open(fname, 'a'):
+        os.utime(fname, times)
+
+
 def is_entry_cmd():
     prog = abspath(realpath(sys.argv[0]))
     return basename(prog) in \
