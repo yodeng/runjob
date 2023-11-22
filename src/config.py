@@ -162,6 +162,9 @@ class Config(Dict):
             self["args"].update(args.__dict__)
         self["args"].update(kwargs)
 
+    def update_args(self, args=None):
+        self.update_dict(args)
+
     def write_config(self, configile):
         with open(configile, "w") as fo:
             for s, info in self.items():
