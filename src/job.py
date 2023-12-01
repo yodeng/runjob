@@ -457,24 +457,21 @@ class Jobfile(object):
                     continue
                 if line == "job_begin":
                     if len(job) and job[-1] == "job_end":
-                        jb = Job(self.config)
-                        self.totaljobs.append(jb.from_rules(self, job))
+                        self.add_job(job, method="from_rules")
                         job = []
                 elif line.endswith(":"):
                     if len(job):
-                        jb = Job(self.config)
-                        self.totaljobs.append(jb.from_task(self, job))
+                        self.add_job(job, method="from_task")
                         job = []
                 elif line.startswith("order") or "->" in line or \
                         "<-" in line or (":" in line and not re.match("\s", _line)):
                     continue
                 job.append(line)
             if len(job):
-                jb = Job(self.config)
                 if job[0].endswith(":"):
-                    self.totaljobs.append(jb.from_task(self, job))
+                    self.add_job(job, method="from_task")
                 else:
-                    self.totaljobs.append(jb.from_rules(self, job))
+                    self.add_job(job, method="from_rules")
         thisjobs = []
         if names:
             for jn in self.totaljobs:
@@ -484,11 +481,14 @@ class Jobfile(object):
                         thisjobs.append(jn)
                         break
             return thisjobs
-        jobend = not end and len(self.totaljobs) or end
+        jobend = end or len(self.totaljobs)
         thisjobs = self.totaljobs[start-1:jobend]
         if self.temp and isfile(self._path):
             os.remove(self._path)
         return thisjobs
+
+    def add_job(self, *args, method=None):
+        self.totaljobs.append(getattr(Job(self.config), method)(self, *args))
 
     @property
     def alljobnames(self):
@@ -533,7 +533,6 @@ class Shellfile(Jobfile):
         self.name = name
 
     def jobs(self, start=0, end=None):
-        jobs = []
         with open(self._path) as fi:
             for n, line in enumerate(fi):
                 if n < start-1:
@@ -543,8 +542,7 @@ class Shellfile(Jobfile):
                 line = line.strip().strip("&")
                 if line.startswith("#") or not line.strip():
                     continue
-                jb = Job(self.config)
-                jobs.append(jb.from_cmd(self, n, line))
+                self.add_job(n, line, method="from_cmd")
         if self.temp and isfile(self._path):
             os.remove(self._path)
-        return jobs
+        return self.totaljobs.copy()
