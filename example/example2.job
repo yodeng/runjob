@@ -1,0 +1,25 @@
+log_dir ./          ## logdir
+
+jobA:
+    force: 1
+    args: -q all.q -l vf=1g,p=1   ## qsub resource define
+    echo hello from job jobA
+
+job:            ## only "task:" and "job:" allowed
+    name jobB    ## job name define
+    options -q all.q -l vf=1g,p=1   ## qsub resource define
+    echo hello from job jobB        ## command to run
+
+task:        ## only "task:" and "job:" allowed
+    name: jobC
+    force 1
+    qsub_args -q all.q -l vf=1g,p=1    ## qsub resource define
+    echo hello from job jobB
+
+jobD:            ## if no name define, this can be used jobname
+    sched_options -q all.q -l vf=1g,p=1  ## qsub resource define
+    cmd: echo hello from job jobB      ## command to run
+
+
+jobB : jobA         ## jobB depends on jobA
+jobD -> jobB jobC   ## jobD depends on jobB and jobC

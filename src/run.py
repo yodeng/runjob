@@ -113,7 +113,7 @@ class RunJob(object):
     def __add_depency_for_wait(self):
         cur_jobs, dep_jobs = [], []
         for j in self.jobs[:]:
-            if j.rawstring == "wait":
+            if j.raw_cmd == "wait":
                 if cur_jobs:
                     dep_jobs = cur_jobs[:]
                     cur_jobs = []
@@ -128,7 +128,7 @@ class RunJob(object):
         jobs_groups = []
         jgs = []
         for j in self.jobs[:]:
-            if j.rawstring == "wait":
+            if j.raw_cmd == "wait":
                 self.jobs.remove(j)
                 if jgs:
                     jobs_groups.append(jgs)
@@ -159,7 +159,7 @@ class RunJob(object):
         if len(jobs) > 1:
             j_header = jobs[0]
             for j in jobs[1:]:
-                j_header.rawstring += "\n" + j.rawstring
+                j_header.raw_cmd += "\n" + j.raw_cmd
                 if j in self.jobs:
                     self.jobs.remove(j)
                 self.jobsgraph.delete_node_if_exists(j.jobname)
@@ -176,7 +176,7 @@ class RunJob(object):
                 if js != "success":
                     os.remove(lf)
                     job.status = "wait"
-                elif hasattr(job, "logcmd") and job.logcmd.strip() != job.rawstring.strip():
+                elif hasattr(job, "logcmd") and job.logcmd.strip() != job.raw_cmd.strip():
                     self.logger.info(
                         "job %s status already success, but raw command changed, will re-running", job.jobname)
                     os.remove(lf)
@@ -203,7 +203,7 @@ class RunJob(object):
         if init:
             if "init" in self.totaljobdict:
                 job = self.totaljobdict["init"]
-                return self.logger.error("init '%s' exists", job.rawstring)
+                return self.logger.error("init '%s' exists", job.raw_cmd)
             job = Job(self.conf)
             job = job.from_cmd(self.jfile, linenum=-1, cmd=init)
             job.to_local(jobname="init", removelog=False)
@@ -218,7 +218,7 @@ class RunJob(object):
         if callback:
             if "callback" in self.totaljobdict:
                 job = self.totaljobdict["callback"]
-                return self.logger.error("callback '%s' exists", job.rawstring)
+                return self.logger.error("callback '%s' exists", job.raw_cmd)
             job = Job(self.conf)
             job = job.from_cmd(self.jfile, linenum=-1, cmd=callback)
             job.to_local(jobname="callback", removelog=False)
@@ -468,11 +468,11 @@ class RunJob(object):
         job.submit_time = now()
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
-                logcmd.write(job.rawstring+"\n")
+                logcmd.write(job.raw_cmd+"\n")
                 job.set_status("submit")
             elif job.subtimes > 0:
                 logcmd.write(style("\n-------- retry --------\n",
-                             fore="red", mode="bold") + job.rawstring+"\n")
+                             fore="red", mode="bold") + job.raw_cmd+"\n")
                 job.set_status("resubmit")
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
