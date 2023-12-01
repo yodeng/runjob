@@ -2,3 +2,4 @@ psutil
 batchcompute
 prettytable
 configparser
+rich-argparse

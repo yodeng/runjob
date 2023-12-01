@@ -6,8 +6,13 @@ import argparse
 from .utils import *
 from ._version import __version__
 
+try:
+    from rich_argparse import RichHelpFormatter as HelpFormatter
+except ImportError:
+    from argparse import HelpFormatter
 
-class CustomHelpFormatter(argparse.HelpFormatter):
+
+class CustomHelpFormatter(HelpFormatter):
 
     def _get_help_string(self, action):
         """Place default and required value in help string."""

@@ -23,11 +23,9 @@ class Jobutils(object):
         if not self.is_end:
             self.set_status("kill")
 
-    def remove_all_stat_files(self, remove_run=True):
-        stats = [".success", ".error", ".submit"]
+    def remove_all_stat_files(self):
+        stats = [".success", ".error", ".submit", ".run"]
         self.remove_stat_file(*stats)
-        if remove_run:
-            self.remove_stat_file(".run")
 
     def remove_stat_file(self, *stat):
         for i in stat:
@@ -40,9 +38,11 @@ class Jobutils(object):
         except:
             pass
 
+    @property
+    def stat_file(self):
+        return join(self.logdir, "."+basename(self.logfile))
+
     def raw2cmd(self, sleep_sec=0):
-        self.stat_file = join(
-            self.logdir, "."+basename(self.logfile))
         raw_cmd = self.rawstring
         if self.groups and self.groups > 1 and len(self.rawstring.split("\n")) > 1:
             raw_cmd = "/bin/bash -euxo pipefail -c " + \
@@ -236,6 +236,9 @@ class Job(Jobutils):
                                 self.cpu = int(v)
             elif j.startswith("host"):
                 self.host = j.split()[-1]
+            elif j.startswith("force"):
+                force = j.split()[-1]
+                self.force = float(force) if force.isdigit() else force
             elif j == "cmd_begin":
                 _cmd = True
                 continue
@@ -245,7 +248,7 @@ class Job(Jobutils):
             elif _cmd:
                 cmds.append(j.strip())
             elif j.startswith("cmd"):
-                cmds.append(" ".join(j.split()[1:]))
+                cmds.append(j.split(maxsplit=1)[1])
             elif j.startswith("memory"):
                 self.sched_options += " -l h_vmem=" + j.split()[-1].upper()
             elif j.startswith("time"):
@@ -255,6 +258,7 @@ class Job(Jobutils):
             self.host = "sge"
         if self.jobfile.mode in ["localhost", "local"] or not self.jobfile.has_sge:
             self.host = "localhost"
+        cmds = list(filter(None, cmds))
         if not len(cmds):
             raise JobRuleError("No cmd in %s job" % self.name)
         self.groups = len(cmds)
