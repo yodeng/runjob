@@ -282,10 +282,10 @@ class Job(Jobutils):
         if self.depends:
             for n in self.jobfile._get_name(self.depends):
                 self.jobfile.orders.setdefault(self.name, set()).add(n)
-        self.groups = len(cmds)
         for n, c in enumerate(cmds[::-1]):
             self._parse_cmd(c)
-            cmds[n] = self.raw_cmd
+            cmds[len(cmds)-1-n] = self.raw_cmd
+        self.groups = len(cmds)
         self.cmd = "\n".join(cmds)
         self.raw_cmd = self.cmd.strip()
         self.cmd0 = self.cmd.strip()
