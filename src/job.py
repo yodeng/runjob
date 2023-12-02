@@ -190,6 +190,7 @@ class Job(Jobutils):
         self.max_timeout_retry = config and config.max_timeout_retry or 0
         self.timeout = False
         self.config = config
+        self.depends = None
 
     def from_rules(self, jobfile=None, rules=None):
         self.rules = rules
@@ -222,6 +223,19 @@ class Job(Jobutils):
         self.host = self.jobfile.mode
         self.cmd0 = cmd
         self.workdir = abspath(self.jobfile.workdir)
+        self._parse_cmd(cmd)
+        self.raw2cmd()
+        self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
+        if self.host == "batchcompute":
+            self.jobname = getpass.getuser() + "_" + \
+                re.sub("[^a-zA-Z0-9_-]", "-", name + "_%05d" % self.linenum)
+            self.name = self.jobname
+            self.cmd = self.raw_cmd
+            self.jobpidname = self.jobname.rsplit(
+                "_", 1)[0] + "_%d_%05d" % (os.getpid(), self.linenum)
+        return self
+
+    def _parse_cmd(self, cmd=None):
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.raw_cmd = cmd.rsplit("//", 1)[0].strip()
             try:
@@ -252,16 +266,6 @@ class Job(Jobutils):
                 pass
         else:
             self.raw_cmd = cmd.strip()
-        self.raw2cmd()
-        self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
-        if self.host == "batchcompute":
-            self.jobname = getpass.getuser() + "_" + \
-                re.sub("[^a-zA-Z0-9_-]", "-", name + "_%05d" % self.linenum)
-            self.name = self.jobname
-            self.cmd = self.raw_cmd
-            self.jobpidname = self.jobname.rsplit(
-                "_", 1)[0] + "_%d_%05d" % (os.getpid(), self.linenum)
-        return self
 
     def from_task(self, jobfile, tasks=None):
         self.rules = tasks
@@ -275,7 +279,13 @@ class Job(Jobutils):
             if name in self.jobfile.alljobnames:
                 raise KeyError("duplicate job name {}, {}".format(name, tasks))
             self.name = name
+        if self.depends:
+            for n in self.jobfile._get_name(self.depends):
+                self.jobfile.orders.setdefault(self.name, set()).add(n)
         self.groups = len(cmds)
+        for n, c in enumerate(cmds[::-1]):
+            self._parse_cmd(c)
+            cmds[n] = self.raw_cmd
         self.cmd = "\n".join(cmds)
         self.raw_cmd = self.cmd.strip()
         self.cmd0 = self.cmd.strip()
@@ -324,6 +334,8 @@ class Job(Jobutils):
                                 self.mem = int(re.sub("\D", "", v))
                             elif k in ["p", "np", "nprc"]:
                                 self.cpu = int(v)
+            elif j.startswith("depends"):
+                self.depends = j.split(maxsplit=1)[-1]
             elif j.startswith("host"):
                 self.host = j.split()[-1]
             elif j.startswith("force"):
@@ -404,9 +416,9 @@ class Jobfile(object):
         if "local" in self.mode:
             self.mode = "localhost"
         self.totaljobs = []
+        self.orders = {}
 
-    def orders(self):
-        orders = {}
+    def parse_orders(self):
         with open(self._path) as fi:
             for line in fi:
                 if not line.strip() or line.startswith("#"):
@@ -440,8 +452,8 @@ class Jobfile(object):
                     for i in o2:
                         if i == o:
                             continue
-                        orders.setdefault(o, set()).add(i)
-        return orders
+                        self.orders.setdefault(o, set()).add(i)
+        self.check_orders_name()
 
     def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
         job = []
@@ -494,16 +506,25 @@ class Jobfile(object):
     def alljobnames(self):
         return [j.name for j in self.totaljobs]
 
-    def _get_name(self, names=""):
+    def _get_name(self, names="", checkname=True):
         out = []
+        allnames = self.alljobnames
         if names:
             ns = re.split("[\s,]", names)
             out = list(filter(None, ns))
         for n in out:
-            if n not in self.alljobnames:
+            if n not in allnames and checkname:
                 raise JobOrderError(
                     "name '{}' not in jobs {}".format(n, self.alljobnames))
         return out
+
+    def check_orders_name(self):
+        allnames = self.alljobnames
+        for k, v in self.orders.items():
+            for n in v:
+                if n not in allnames:
+                    raise JobOrderError(
+                        "no job named '{}'".format(n))
 
 
 class Shellfile(Jobfile):

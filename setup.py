@@ -141,6 +141,7 @@ class Packages(object):
     def _entrys(self):
         eps = [
             '{0} = {0}.qsub:main'.format(self.name),
+            '{0} = {1}.qsub:main'.format("runflow", self.name),
             '{0} = {1}.jobstat:main'.format("qs", self.name),
             '{0} = {1}.jobstat:batchStat'.format("qcs", self.name),
             '{0} = {1}.run:main'.format("runsge", self.name),

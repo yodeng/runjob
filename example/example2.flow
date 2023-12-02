@@ -3,23 +3,21 @@ log_dir ./          ## logdir
 jobA:
     force: 1
     args: -q all.q -l vf=1g,p=1   ## qsub resource define
-    echo hello from job jobA
+    echo hello from job jobA  // --local   ## job force to run in localhost
 
-job:            ## only "task:" and "job:" allowed
+job:            ## only "task:" or "job:" allowed
     name jobB    ## job name define
     options -q all.q -l vf=1g,p=1   ## qsub resource define
     echo hello from job jobB        ## command to run
 
-task:        ## only "task:" and "job:" allowed
+task:        ## only "task:" or "job:" allowed
     name: jobC
-    force 1
     qsub_args -q all.q -l vf=1g,p=1    ## qsub resource define
-    echo hello from job jobB
+    echo hello from job jobB  // -f  ## job force to run ignore already success
 
 jobD:            ## if no name define, this can be used jobname
     sched_options -q all.q -l vf=1g,p=1  ## qsub resource define
     cmd: echo hello from job jobB      ## command to run
-
+    depends: jobB, jobC              ## jobD depends on jobB
 
 jobB : jobA         ## jobB depends on jobA
-jobD -> jobB jobC   ## jobD depends on jobB and jobC
