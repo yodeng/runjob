@@ -303,18 +303,18 @@ class Job(Jobutils):
                 continue
             if j in ["job_begin", "job_end"]:
                 continue
-            elif j.startswith("name"):
+            elif re.match("name[\s:]", j):
                 name = re.split("\s", j, 1)[1].strip()
                 name = re.sub("\s+", "_", name)
                 if name.lower() == "none":
                     raise JobRuleError("None name in %s" % j)
                 self.name = name
-            elif j.startswith("status"):
+            elif re.match("status?[\s:]", j):
                 self.status = j.split()[-1]
-            elif j.startswith("sched_options") or \
-                    j.startswith("option") or \
-                    j.startswith("args") or \
-                    j.startswith("qsub_args"):
+            elif re.match("sched_options?[\s:]", j) or \
+                    re.match("options?[\s:]", j) or \
+                    re.match("args?[\s:]", j) or \
+                    re.match("qsub_args?[\s:]", j):
                 self.sched_options = j.split(maxsplit=1)[-1]
                 self.cpu, self.mem = 1, 1
                 args = self.sched_options.split()
@@ -334,11 +334,11 @@ class Job(Jobutils):
                                 self.mem = int(re.sub("\D", "", v))
                             elif k in ["p", "np", "nprc"]:
                                 self.cpu = int(v)
-            elif j.startswith("depends"):
+            elif re.match("depends?[\s:]", j):
                 self.depends = j.split(maxsplit=1)[-1]
-            elif j.startswith("host"):
+            elif re.match("host[\s:]", j):
                 self.host = j.split()[-1]
-            elif j.startswith("force"):
+            elif re.match("force[\s:]", j):
                 force = j.split()[-1]
                 self.force = float(force) if force.isdigit() else force
             elif j == "cmd_begin":
@@ -347,13 +347,13 @@ class Job(Jobutils):
             elif j == "cmd_end":
                 no_begin = False
                 continue
-            elif j.startswith("cmd"):
+            elif re.match("cmd?[\s:]", j):
                 cmds.append(j.split(maxsplit=1)[-1])
             elif no_begin:
                 cmds.append(j.strip())
-            elif j.startswith("memory"):
+            elif re.match("memory[\s:]", j):
                 self.sched_options += " -l h_vmem=" + j.split()[-1].upper()
-            elif j.startswith("time"):
+            elif re.match("time[\s:]", j):
                 pass  # miss
                 # self.sched_options += " -l h_rt=" + j.split()[-1].upper()   # hh:mm:ss
         cmds = list(filter(None, cmds))
@@ -463,7 +463,7 @@ class Jobfile(object):
                     continue
                 _line = _line.split("#")[0]
                 line = _line.strip()
-                if line.startswith("log_dir"):
+                if re.match("log_dir[\s:]", line):
                     self.logdir = normpath(
                         join(self._pathdir, line.split()[-1]))
                     continue
