@@ -423,7 +423,7 @@ class Jobfile(object):
             for line in fi:
                 if not line.strip() or line.startswith("#"):
                     continue
-                line = line.split("#")[0]
+                line = line.split("#")[0].rstrip()
                 if line.startswith("order"):
                     line = line.split()
                     if "after" in line:
@@ -446,6 +446,14 @@ class Jobfile(object):
                     o2, o1 = line.split("<-")
                     o1 = self._get_name(o1)
                     o2 = self._get_name(o2)
+                elif not re.match("\s", line):
+                    deps = re.search("(depends?([_\s])?\s*(on)?)", line)
+                    if deps:
+                        o1, o2 = line.split(deps.group())
+                        o1 = self._get_name(o1)
+                        o2 = self._get_name(o2)
+                    else:
+                        continue
                 else:
                     continue
                 for o in o1:
@@ -476,7 +484,9 @@ class Jobfile(object):
                         self.add_job(job, method="from_task")
                         job = []
                 elif line.startswith("order") or "->" in line or \
-                        "<-" in line or (":" in line and not re.match("\s", _line)):
+                        "<-" in line or \
+                        not re.match("\s", _line) and \
+                        (":" in line or re.search("(depends?([_\s])?\s*(on)?)", line)):
                     continue
                 job.append(line)
             if len(job):
