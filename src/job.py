@@ -417,6 +417,8 @@ class Jobfile(object):
             self.mode = "localhost"
         self.totaljobs = []
         self.orders = {}
+        self.envs = {}
+        self.job_set = {}
 
     def parse_orders(self):
         with open(self._path) as fi:
@@ -465,6 +467,7 @@ class Jobfile(object):
 
     def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
         job = []
+        _env = False
         with open(self._path) as fi:
             for _line in fi:
                 if not _line.strip() or _line.strip().startswith("#"):
@@ -475,13 +478,19 @@ class Jobfile(object):
                     self.logdir = normpath(
                         join(self._pathdir, line.split()[-1]))
                     continue
-                if line == "job_begin":
+                if re.match("envs?[\s:]", line) or re.match("var?[\s:]", line):
+                    _env = True
+                elif line == "job_begin":
                     if len(job) and job[-1] == "job_end":
                         self.add_job(job, method="from_rules")
                         job = []
                 elif line.endswith(":"):
                     if len(job):
-                        self.add_job(job, method="from_task")
+                        if not _env:
+                            self.add_job(job, method="from_task")
+                        else:
+                            _env = False
+                            self.add_envs(job)
                         job = []
                 elif line.startswith("order") or "->" in line or \
                         "<-" in line or \
@@ -512,20 +521,24 @@ class Jobfile(object):
     def add_job(self, *args, method=None):
         self.totaljobs.append(getattr(Job(self.config), method)(self, *args))
 
+    def add_envs(self, lines=None):
+        if not lines or not (re.match("envs?[\s:]", lines[0]) or re.match("vars?[\s:]", lines[0])):
+            return
+        for line in lines[1:]:
+            line = line.split("#")[0]
+            k, v = re.split("[=:]", line)
+            self.envs[k.strip] = v.strip()
+
     @property
     def alljobnames(self):
         return [j.name for j in self.totaljobs]
 
-    def _get_name(self, names="", checkname=True):
+    def _get_name(self, names=""):
         out = []
         allnames = self.alljobnames
         if names:
             ns = re.split("[\s,]", names)
             out = list(filter(None, ns))
-        for n in out:
-            if n not in allnames and checkname:
-                raise JobOrderError(
-                    "name '{}' not in jobs {}".format(n, self.alljobnames))
         return out
 
     def check_orders_name(self):
