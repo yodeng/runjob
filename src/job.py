@@ -200,6 +200,11 @@ class Job(Jobutils):
         self.host = self.jobfile.mode
         self.checkrule()
         cmds = self._parse_jobs(self.rules[:], no_begin=False)
+        for n in self.depends:
+            self.jobfile.orders.setdefault(self.name, set()).add(n)
+        for n, c in enumerate(cmds[::-1]):
+            self._get_cmd(c)
+            cmds[len(cmds)-1-n] = self.raw_cmd
         self.groups = len(cmds)
         self.cmd = "\n".join(cmds)
         self.raw_cmd = self.cmd.strip()
