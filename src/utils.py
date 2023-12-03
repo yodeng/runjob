@@ -74,18 +74,31 @@ class JobFailedError(Exception):
         fj = self.failed_jobs
         fj_names = [j.jobname for j in fj]
         fj_logs = [j.logfile for j in fj]
-        return "{} jobs {} failed, please check in logs: {}".format(len(fj), fj_names, fj_logs)
+        s = "{} jobs {} failed, please check in logs: {}".format(
+            len(fj), fj_names, fj_logs)
+        return style(s, fore="red", mode="bold")
 
 
-class QsubError(Exception):
+class RunJobException(Exception):
+
+    def __init__(self, msg=""):
+        self.msg = msg
+
+    def __str__(self):
+        return style(self.msg, fore="red", mode="bold")
+
+    __repr__ = __str__
+
+
+class QsubError(RunJobException):
     pass
 
 
-class JobRuleError(Exception):
+class JobRuleError(RunJobException):
     pass
 
 
-class JobOrderError(Exception):
+class JobOrderError(RunJobException):
     pass
 
 
@@ -255,7 +268,7 @@ class mute(object):
         return types.MethodType(self, instance)
 
 
-class MaxRetryError(Exception):
+class MaxRetryError(RunJobException):
     pass
 
 

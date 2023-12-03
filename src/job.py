@@ -190,7 +190,7 @@ class Job(Jobutils):
         self.max_timeout_retry = config and config.max_timeout_retry or 0
         self.timeout = False
         self.config = config
-        self.depends = None
+        self.depends = []
 
     def from_rules(self, jobfile=None, rules=None):
         self.rules = rules
@@ -199,7 +199,7 @@ class Job(Jobutils):
         self._path = self.jobfile._path
         self.host = self.jobfile.mode
         self.checkrule()
-        cmds = self._get_cmds(self.rules[:], no_begin=False)
+        cmds = self._parse_jobs(self.rules[:], no_begin=False)
         self.groups = len(cmds)
         self.cmd = "\n".join(cmds)
         self.raw_cmd = self.cmd.strip()
@@ -223,7 +223,7 @@ class Job(Jobutils):
         self.host = self.jobfile.mode
         self.cmd0 = cmd
         self.workdir = abspath(self.jobfile.workdir)
-        self._parse_cmd(cmd)
+        self._get_cmd(cmd)
         self.raw2cmd()
         self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
         if self.host == "batchcompute":
@@ -235,7 +235,118 @@ class Job(Jobutils):
                 "_", 1)[0] + "_%d_%05d" % (os.getpid(), self.linenum)
         return self
 
-    def _parse_cmd(self, cmd=None):
+    def from_task(self, jobfile, tasks=None):
+        self.rules = tasks
+        self.jobfile = jobfile
+        self.logdir = self.jobfile.logdir
+        self._path = self.jobfile._path
+        self.host = self.jobfile.mode
+        cmds = self._parse_jobs(tasks[1:], no_begin=True)
+        if not hasattr(self, "name") or not self.name:
+            name = tasks[0].strip(":").strip()
+            if name in self.jobfile.alljobnames:
+                raise KeyError("duplicate job name {}, {}".format(name, tasks))
+            self.name = name
+        for n in self.depends:
+            self.jobfile.orders.setdefault(self.name, set()).add(n)
+        for n, c in enumerate(cmds[::-1]):
+            self._get_cmd(c)
+            cmds[len(cmds)-1-n] = self.raw_cmd
+        self.groups = len(cmds)
+        self.cmd = "\n".join(cmds)
+        self.raw_cmd = self.cmd.strip()
+        self.cmd0 = self.cmd.strip()
+        self.logfile = join(self.logdir, self.name + ".log")
+        self.raw2cmd()
+        self.jobname = self.name
+        self.jobpidname = self.jobname + "_%d" % os.getpid()
+        return self
+
+    def _parse_jobs(self, lines=None, no_begin=False):
+        cmds = []
+        for j in lines:
+            j = j.strip()
+            if not j or j.startswith("#"):
+                continue
+            value = re.split("[\s:]", j, 1)[-1].strip(":").strip()
+            if j in ["job_begin", "job_end"]:
+                continue
+            elif re.match("name[\s:]", j):
+                name = value
+                name = re.sub("\s+", "_", name)
+                if name.lower() == "none":
+                    raise JobRuleError("None name in %s" % j)
+                self.name = name
+            elif re.match("status?[\s:]", j):
+                self.status = value
+            elif re.match("sched_options?[\s:]", j) or \
+                    re.match("options?[\s:]", j) or \
+                    re.match("args?[\s:]", j) or \
+                    re.match("qsub_args?[\s:]", j):
+                self.sched_options = value
+                self.cpu, self.mem = 1, 1
+                args = self.sched_options.split()
+                for n, i in enumerate(args[:]):
+                    if i in ["-c", "--cpu"]:
+                        self.cpu = max(int(args[n+1]), 1)
+                    elif i in ["-m", "--memory"]:
+                        self.mem = max(int(args[i+1]), 1)
+                    elif i in ["-q", "--queue"]:
+                        self.queue.add(args[n+1])
+                    elif i == "-l":
+                        res = args[n+1].split(",")
+                        for r in res:
+                            k = r.split("=")[0].strip()
+                            v = r.split("=")[1].strip()
+                            if k == "vf":
+                                self.mem = int(re.sub("\D", "", v))
+                            elif k in ["p", "np", "nprc"]:
+                                self.cpu = int(v)
+            elif re.match("depends?[\s:]", j):
+                self.depends = self.jobfile._get_value_list(value)
+            elif re.match("host[\s:]", j):
+                self.host = value
+            elif re.match("force[\s:]", j):
+                force = value
+                self.force = float(force) if force.isdigit() else force
+            elif j == "cmd_begin":
+                no_begin = True
+                continue
+            elif j == "cmd_end":
+                no_begin = False
+                continue
+            elif re.match("cmd?[\s:]", j):
+                cmds.append(value)
+            elif no_begin:
+                if ":" in j:
+                    raise JobRuleError("job define error '%s'" % j)
+                cmds.append(j)
+            elif re.match("memory[\s:]", j):
+                self.mem = int(re.sub("\D", "", value))
+            elif re.match("cpu[\s:]", j):
+                self.cpu = int(value)
+            elif re.match("queues?[\s:]", j):
+                self.queue = self.jobfile._get_value_list(value)
+            elif re.match("max[_-]queue[_-]time[\s:]", j):
+                self.max_queue_sec = human2seconds(value)
+            elif re.match("max[_-]run[_-]time[\s:]", j):
+                self.max_run_sec = human2seconds(value)
+            elif re.match("max[_-]wait[_-]time[\s:]", j):
+                self.max_wait_sec = human2seconds(value)
+            elif re.match("max[_-]timeout[_-]retry[\s:]", j):
+                self.max_timeout_retry = int(value)
+            elif re.match("time[\s:]", j):
+                self.max_run_sec = human2seconds(value)
+        cmds = list(filter(None, cmds))
+        if not len(cmds):
+            raise JobRuleError("No cmd in %s job" % self.name)
+        if self.host not in ["sge", "localhost", "local"]:
+            self.host = "sge"
+        if self.jobfile.mode in ["localhost", "local"] or not self.jobfile.has_sge:
+            self.host = "localhost"
+        return cmds
+
+    def _get_cmd(self, cmd=None):
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
             self.raw_cmd = cmd.rsplit("//", 1)[0].strip()
             try:
@@ -266,104 +377,6 @@ class Job(Jobutils):
                 pass
         else:
             self.raw_cmd = cmd.strip()
-
-    def from_task(self, jobfile, tasks=None):
-        self.rules = tasks
-        self.jobfile = jobfile
-        self.logdir = self.jobfile.logdir
-        self._path = self.jobfile._path
-        self.host = self.jobfile.mode
-        cmds = self._get_cmds(tasks[1:], no_begin=True)
-        if not hasattr(self, "name") or not self.name:
-            name = tasks[0].strip(":").strip()
-            if name in self.jobfile.alljobnames:
-                raise KeyError("duplicate job name {}, {}".format(name, tasks))
-            self.name = name
-        if self.depends:
-            for n in self.jobfile._get_name(self.depends):
-                self.jobfile.orders.setdefault(self.name, set()).add(n)
-        for n, c in enumerate(cmds[::-1]):
-            self._parse_cmd(c)
-            cmds[len(cmds)-1-n] = self.raw_cmd
-        self.groups = len(cmds)
-        self.cmd = "\n".join(cmds)
-        self.raw_cmd = self.cmd.strip()
-        self.cmd0 = self.cmd.strip()
-        self.logfile = join(self.logdir, self.name + ".log")
-        self.raw2cmd()
-        self.jobname = self.name
-        self.jobpidname = self.jobname + "_%d" % os.getpid()
-        return self
-
-    def _get_cmds(self, lines=None, no_begin=False):
-        cmds = []
-        for j in lines:
-            j = j.strip()
-            if not j or j.startswith("#"):
-                continue
-            if j in ["job_begin", "job_end"]:
-                continue
-            elif re.match("name[\s:]", j):
-                name = re.split("\s", j, 1)[1].strip()
-                name = re.sub("\s+", "_", name)
-                if name.lower() == "none":
-                    raise JobRuleError("None name in %s" % j)
-                self.name = name
-            elif re.match("status?[\s:]", j):
-                self.status = j.split()[-1]
-            elif re.match("sched_options?[\s:]", j) or \
-                    re.match("options?[\s:]", j) or \
-                    re.match("args?[\s:]", j) or \
-                    re.match("qsub_args?[\s:]", j):
-                self.sched_options = j.split(maxsplit=1)[-1]
-                self.cpu, self.mem = 1, 1
-                args = self.sched_options.split()
-                for n, i in enumerate(args[:]):
-                    if i in ["-c", "--cpu"]:
-                        self.cpu = max(int(args[n+1]), 1)
-                    elif i in ["-m", "--memory"]:
-                        self.mem = max(int(args[i+1]), 1)
-                    elif i in ["-q", "--queue"]:
-                        self.queue.add(args[n+1])
-                    elif i == "-l":
-                        res = args[n+1].split(",")
-                        for r in res:
-                            k = r.split("=")[0].strip()
-                            v = r.split("=")[1].strip()
-                            if k == "vf":
-                                self.mem = int(re.sub("\D", "", v))
-                            elif k in ["p", "np", "nprc"]:
-                                self.cpu = int(v)
-            elif re.match("depends?[\s:]", j):
-                self.depends = j.split(maxsplit=1)[-1]
-            elif re.match("host[\s:]", j):
-                self.host = j.split()[-1]
-            elif re.match("force[\s:]", j):
-                force = j.split()[-1]
-                self.force = float(force) if force.isdigit() else force
-            elif j == "cmd_begin":
-                no_begin = True
-                continue
-            elif j == "cmd_end":
-                no_begin = False
-                continue
-            elif re.match("cmd?[\s:]", j):
-                cmds.append(j.split(maxsplit=1)[-1])
-            elif no_begin:
-                cmds.append(j.strip())
-            elif re.match("memory[\s:]", j):
-                self.sched_options += " -l h_vmem=" + j.split()[-1].upper()
-            elif re.match("time[\s:]", j):
-                pass  # miss
-                # self.sched_options += " -l h_rt=" + j.split()[-1].upper()   # hh:mm:ss
-        cmds = list(filter(None, cmds))
-        if not len(cmds):
-            raise JobRuleError("No cmd in %s job" % self.name)
-        if self.host not in ["sge", "localhost", "local"]:
-            self.host = "sge"
-        if self.jobfile.mode in ["localhost", "local"] or not self.jobfile.has_sge:
-            self.host = "localhost"
-        return cmds
 
     def to_local(self, jobname="", removelog=False):
         self.host = "localhost"
@@ -438,22 +451,22 @@ class Jobfile(object):
                         o2 = line[1:idx]
                 elif "->" in line:
                     o1, o2 = line.split("->")
-                    o1 = self._get_name(o1)
-                    o2 = self._get_name(o2)
+                    o1 = self._get_value_list(o1)
+                    o2 = self._get_value_list(o2)
                 elif ":" in line and not line.strip().endswith(":") and not re.match("\s", line):
                     o1, o2 = line.split(":")
-                    o1 = self._get_name(o1)
-                    o2 = self._get_name(o2)
+                    o1 = self._get_value_list(o1)
+                    o2 = self._get_value_list(o2)
                 elif "<-" in line:
                     o2, o1 = line.split("<-")
-                    o1 = self._get_name(o1)
-                    o2 = self._get_name(o2)
+                    o1 = self._get_value_list(o1)
+                    o2 = self._get_value_list(o2)
                 elif not re.match("\s", line):
                     deps = re.search("(depends?([_\s])?\s*(on)?)", line)
                     if deps:
                         o1, o2 = line.split(deps.group())
-                        o1 = self._get_name(o1)
-                        o2 = self._get_name(o2)
+                        o1 = self._get_value_list(o1)
+                        o2 = self._get_value_list(o2)
                     else:
                         continue
                 else:
@@ -533,11 +546,10 @@ class Jobfile(object):
     def alljobnames(self):
         return [j.name for j in self.totaljobs]
 
-    def _get_name(self, names=""):
+    def _get_value_list(self, value=""):
         out = []
-        allnames = self.alljobnames
-        if names:
-            ns = re.split("[\s,]", names)
+        if value:
+            ns = re.split("[\s,]", value)
             out = list(filter(None, ns))
         return out
 
