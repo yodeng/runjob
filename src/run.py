@@ -306,6 +306,8 @@ class RunJob(object):
                     status = "run"
             else:
                 status = "run"
+            if self.is_run and job.host.startswith("local") and jobname not in self.localprocess:
+                status = job.status
             if job.host.startswith("local") and hasattr(self, "localprocess") and jobname in self.localprocess:
                 ret = self.localprocess[jobname].poll()
                 if ret and ret < 0:

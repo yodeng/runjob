@@ -338,9 +338,7 @@ class Job(Jobutils):
                 self.max_timeout_retry = int(value)
             elif re.match("time[\s:]", j):
                 self.max_run_sec = human2seconds(value)
-            elif no_begin:
-                if ":" in j:
-                    raise JobError("unrecognized line error: {}".format(j))
+            elif no_begin and not ":" in j:
                 cmds.append(j)
             else:
                 raise JobError("unrecognized line error: {}".format(j))
