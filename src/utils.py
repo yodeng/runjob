@@ -94,7 +94,7 @@ class QsubError(RunJobException):
     pass
 
 
-class JobRuleError(RunJobException):
+class JobError(RunJobException):
     pass
 
 

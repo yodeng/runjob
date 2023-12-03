@@ -138,7 +138,7 @@ class Jobutils(object):
         job_end
         ''').strip()
         if not cmd or not name:
-            raise JobRuleError("cmd and name required")
+            raise JobError("cmd and name required")
         if queue:
             queue = " -q " + " -q ".join(queue)
         else:
@@ -275,7 +275,7 @@ class Job(Jobutils):
                 name = value
                 name = re.sub("\s+", "_", name)
                 if name.lower() == "none":
-                    raise JobRuleError("None name in %s" % j)
+                    raise JobError("None name in %s" % j)
                 self.name = name
             elif re.match("status?[\s:]", j):
                 self.status = value
@@ -317,10 +317,6 @@ class Job(Jobutils):
                 continue
             elif re.match("cmd?[\s:]", j):
                 cmds.append(value)
-            elif no_begin:
-                if ":" in j:
-                    raise JobRuleError("job define error '%s'" % j)
-                cmds.append(j)
             elif re.match("memory[\s:]", j):
                 self.mem = int(re.sub("\D", "", value))
             elif re.match("cpu[\s:]", j):
@@ -337,9 +333,15 @@ class Job(Jobutils):
                 self.max_timeout_retry = int(value)
             elif re.match("time[\s:]", j):
                 self.max_run_sec = human2seconds(value)
+            elif no_begin:
+                if ":" in j:
+                    raise JobError("unrecognized line error: {}".format(j))
+                cmds.append(j)
+            else:
+                raise JobError("unrecognized line error: {}".format(j))
         cmds = list(filter(None, cmds))
         if not len(cmds):
-            raise JobRuleError("No cmd in %s job" % self.name)
+            raise JobError("No cmd in %s job" % self.name)
         if self.host not in ["sge", "localhost", "local"]:
             self.host = "sge"
         if self.jobfile.mode in ["localhost", "local"] or not self.jobfile.has_sge:
@@ -391,12 +393,12 @@ class Job(Jobutils):
     def checkrule(self):
         if self.rules:
             if len(self.rules) <= 4:
-                raise JobRuleError("rules lack of elements")
+                raise JobError("rules lack of elements")
             if self.rules[0] != "job_begin" or self.rules[-1] != "job_end":
-                raise JobRuleError("No start or end in you rule")
+                raise JobError("No start or end in you rule")
             if "cmd_begin" not in self.rules or "cmd_end" not in self.rules:
-                raise JobRuleError("No start or end in %s job" %
-                                   "\n".join(self.rules))
+                raise JobError("No start or end in %s job" %
+                               "\n".join(self.rules))
 
     def get_job(self):
         cmd = self.cmd.split("\n")
