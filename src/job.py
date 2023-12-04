@@ -8,6 +8,8 @@ import shlex
 import getpass
 import tempfile
 
+from copy import copy
+
 from .utils import *
 from .parser import shell_job_parser
 
@@ -191,6 +193,7 @@ class Job(Jobutils):
         self.timeout = False
         self.config = config
         self.depends = []
+        self.extend = None
 
     def from_rules(self, jobfile=None, rules=None):
         self.rules = rules
@@ -216,6 +219,7 @@ class Job(Jobutils):
         return self
 
     def from_cmd(self, sgefile, linenum=None, cmd=None):
+        self.rules = cmd.strip()
         self.jobfile = sgefile
         self.logdir = self.jobfile.logdir
         self._path = self.jobfile._path
@@ -247,10 +251,13 @@ class Job(Jobutils):
         self._path = self.jobfile._path
         self.host = self.jobfile.mode
         cmds = self._parse_jobs(tasks[1:], no_begin=True)
-        if not hasattr(self, "name") or not self.name:
+        if not hasattr(self, "name") or not self.name or self.name.startswith("$"):
             name = tasks[0].strip(":").strip()
             if name in self.jobfile.alljobnames:
                 raise KeyError("duplicate job name {}, {}".format(name, tasks))
+            elif re.search("\s", name):
+                raise KeyError(
+                    "no space allowed in jobname: '{}'".format(name))
             self.name = name
         for n in self.depends:
             self.jobfile.orders.setdefault(self.name, set()).add(n)
@@ -276,7 +283,7 @@ class Job(Jobutils):
             value = re.split("[\s:]", j, 1)[-1].strip(":").strip()
             if j in ["job_begin", "job_end"]:
                 continue
-            elif re.match("name[\s:]", j):
+            elif re.match("names?[\s:]", j):
                 name = value
                 name = re.sub("\s+", "_", name)
                 if name.lower() == "none":
@@ -322,7 +329,9 @@ class Job(Jobutils):
                 continue
             elif re.match("cmd?[\s:]", j):
                 cmds.append(value)
-            elif re.match("memory[\s:]", j):
+            elif re.match("extends?[\s:]", j):
+                self.extend = value.strip("$")
+            elif re.match("memory[\s:]", j) or re.match("mem[\s:]", j):
                 self.mem = int(re.sub("\D", "", value))
             elif re.match("cpu[\s:]", j):
                 self.cpu = int(value)
@@ -341,7 +350,8 @@ class Job(Jobutils):
             elif no_begin and not ":" in j:
                 cmds.append(j)
             else:
-                raise JobError("unrecognized line error: {}".format(j))
+                raise JobError(
+                    "unrecognized line error: {} {}".format(j, lines))
         cmds = list(filter(None, cmds))
         if not len(cmds):
             raise JobError("No cmd in %s job" % self.name)
@@ -407,6 +417,9 @@ class Job(Jobutils):
         cmd = self.cmd.split("\n")
         return self.cmd2job(cmd=cmd, name=self.name, host=self.host,
                             mem=self.mem, cpu=self.cpu, queue=self.queue)
+
+    def copy(self):
+        return copy(self)
 
 
 class Jobfile(object):
@@ -481,6 +494,7 @@ class Jobfile(object):
                         if i == o:
                             continue
                         self.orders.setdefault(o, set()).add(i)
+        self.expand_orders()
         self.check_orders_name()
 
     def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
@@ -492,7 +506,7 @@ class Jobfile(object):
                     continue
                 _line = _line.split("#")[0]
                 line = _line.strip()
-                if re.match("log_dir[\s:]", line):
+                if re.match("log_?dir[\s:]", line):
                     self.logdir = normpath(
                         join(self._pathdir, line.split()[-1]))
                     continue
@@ -534,7 +548,74 @@ class Jobfile(object):
         thisjobs = self.totaljobs[start-1:jobend]
         if self.temp and isfile(self._path):
             os.remove(self._path)
+        thisjobs = self.expand_jobs(thisjobs)
         return thisjobs
+
+    def expand_jobs(self, jobs=None):
+        for job in jobs[:]:
+            flag = re.findall("\$[a-zA-Z0-9_-]+", job.cmd)
+            if len(flag) == 1 and not job.extend:
+                job.extend = flag[0].strip("$")
+            elif len(flag) > 1 and not job.extend:
+                flag = list(filter(lambda x: x.strip("$") in self.envs, flag))
+                if len(flag) == 1:
+                    job.extend = flag[0].strip("$")
+            if job.extend and "$" + job.extend in job.cmd:
+                name = job.rules[0].strip(":").strip()
+                if re.search("\s", name):
+                    raise KeyError(
+                        "no space allowed in extend task name: '{}'".format(name))
+                if job.name != "$"+job.extend and job.name != name:
+                    raise JobError(
+                        "extends job only allow '${}' for jobname: {}".format(k, job.rules))
+                self.job_set.setdefault(name, [])
+                jobs.remove(job)
+                self.totaljobs.remove(job)
+                for n, v in enumerate(self.envs[job.extend]):
+                    jobname = name+"."+v
+                    self.job_set[name].append(jobname)
+                    job_temp = job.copy()
+                    job_temp.name = job_temp.jobname = jobname
+                    job_temp.logfile = join(
+                        dirname(job.logfile), jobname + ".log")
+                    for k in self.envs:
+                        job_temp.cmd = job_temp.cmd.replace(
+                            "$"+k, self.envs[k][n])
+                        job_temp.cmd0 = job_temp.cmd0.replace(
+                            "$"+k, self.envs[k][n])
+                        job_temp.raw_cmd = job_temp.raw_cmd.replace(
+                            "$"+k, self.envs[k][n])
+                    jobs.append(job_temp)
+                    self.totaljobs.append(job_temp)
+        return jobs
+
+    def expand_orders(self):
+        for k, deps in self.orders.copy().items():
+            vs = k.split(".")
+            if k in self.job_set:
+                deps = self.orders.pop(k)
+                for d in self.job_set[k]:
+                    self.orders[d] = deps
+            elif len(vs) > 1 and vs[0] in self.job_set and vs[1] in self.envs:
+                deps = self.orders.pop(k)
+                for d in self.envs[vs[1]]:
+                    self.orders[vs[0] + "." + d] = deps
+        for k in self.orders.keys():
+            ks = k.split(".")
+            deps = self.orders[k].copy()
+            for v in list(deps):
+                vs = v.split(".")
+                if v in self.job_set:
+                    deps.remove(v)
+                    deps.update(self.job_set[v])
+                elif len(vs) > 1 and vs[0] in self.job_set and vs[1] in self.envs:
+                    deps.remove(v)
+                    if len(ks) > 1:
+                        deps.add(vs[0] + "." + ks[1])
+                    else:
+                        deps.update(
+                            [vs[0] + "." + i for i in self.envs[vs[1]]])
+            self.orders[k] = set(deps)
 
     def add_job(self, *args, method=None):
         self.totaljobs.append(getattr(Job(self.config), method)(self, *args))
@@ -545,7 +626,7 @@ class Jobfile(object):
         for line in lines[1:]:
             line = line.split("#")[0]
             k, v = re.split("[=:]", line)
-            self.envs[k.strip] = v.strip()
+            self.envs[k.strip()] = self._get_value_list(v.strip())
 
     @property
     def alljobnames(self):
@@ -606,4 +687,5 @@ class Shellfile(Jobfile):
                 self.add_job(n, line, method="from_cmd")
         if self.temp and isfile(self._path):
             os.remove(self._path)
+        self.expand_jobs(self.totaljobs)
         return self.totaljobs.copy()
