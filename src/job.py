@@ -181,8 +181,8 @@ class Job(Jobutils):
         self.out_maping = None
         self.cmd = ""
         self.cmd0 = ""
-        self.run_time = 0   # runing time
-        self.submit_time = 0  # submit time
+        self.run_time = now()   # runing time
+        self.submit_time = now()  # submit time
         self.max_queue_sec = human2seconds(
             config and config.max_queue_time or sys.maxsize)
         self.max_run_sec = human2seconds(
@@ -457,7 +457,9 @@ class Jobfile(object):
                 if not line.strip() or line.startswith("#"):
                     continue
                 line = line.split("#")[0].rstrip()
-                if line.startswith("order"):
+                if re.match("log_?dir[\s:]", line):
+                    continue
+                elif line.startswith("order"):
                     line = line.split()
                     if "after" in line:
                         idx = line.index("after")
@@ -560,6 +562,9 @@ class Jobfile(object):
                 flag = list(filter(lambda x: x.strip("$") in self.envs, flag))
                 if len(flag) == 1:
                     job.extend = flag[0].strip("$")
+                else:
+                    raise JobError(
+                        "'extend:' should be define for extend job: '{}'".format(job.cmd0))
             if job.extend and "$" + job.extend in job.cmd:
                 name = job.rules[0].strip(":").strip()
                 if re.search("\s", name):

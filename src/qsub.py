@@ -17,6 +17,8 @@ class qsub(RunJob):
             @jobfile <file, list>: required
             @mode <str>: default: sge
             @queue <list>: default: all access queue
+            @cpu <int>: default: 1
+            @memory <int>: default: 1
             @num <int>: default: total jobs
             @startline <int>: default: 1
             @endline <int>: default: None
@@ -36,6 +38,8 @@ class qsub(RunJob):
         self.quiet = config.quiet
         self.jobfile = config.jobfile
         self.queue = config.queue
+        self.cpu = config.cpu or 1
+        self.mem = config.memory or 1
         self.maxjob = config.num
         self.strict = config.strict or False
         self.workdir = config.workdir or os.getcwd()
