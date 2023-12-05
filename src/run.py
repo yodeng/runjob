@@ -63,8 +63,9 @@ class RunJob(object):
                                logdir=config.logdir, workdir=self.workdir, config=config)
         self.logdir = self.jfile.logdir
         self.jpath = self.jfile._path
-        self.jobs = self.jfile.jobs(
+        self.jfile.parse_jobs(
             start=config.startline or 1, end=config.endline)
+        self.jobs = self.jfile.jobs
         self.mode = self.jfile.mode
         self.name = self.jfile.name
         self.retry = config.retry or 0
@@ -105,8 +106,9 @@ class RunJob(object):
     def reset(self):
         self.jfile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
                                logdir=self.logdir, workdir=self.workdir)
-        self.jobs = self.jfile.jobs(
+        self.jfile.parse_jobs(
             start=self.conf.startline or 1, end=self.conf.endline)
+        self.jobs = self.jfile.jobs
         self._init()
         self.reseted = True
 

@@ -48,8 +48,9 @@ class qsub(RunJob):
         self.jpath = self.jfile._path
         self.mode = jfile.mode
         self.name = os.getpid()
-        self.jobs = jfile.jobs(
+        self.jfile.parse_jobs(
             config.injname, config.startline or 1, config.endline)
+        self.jobs = self.jfile.jobs
         self.logdir = jfile.logdir
         self.retry = config.retry or 0
         self.retry_ivs = config.retry_ivs or 2
@@ -85,8 +86,9 @@ class qsub(RunJob):
 
     def reset(self):
         self.jfile = jfile = Jobfile(self.jobfile, mode=self.mode)
-        self.jobs = jfile.jobs(
+        self.jfile.parse_jobs(
             self.conf.injname, self.conf.startline or 1, self.conf.endline)
+        self.jobs = self.jfile.jobs
         self._init()
         self.reseted = True
 

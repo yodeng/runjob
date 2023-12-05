@@ -447,6 +447,7 @@ class Jobfile(object):
         if "local" in self.mode:
             self.mode = "localhost"
         self.totaljobs = []
+        self.jobs = []
         self.orders = {}
         self.envs = {}
         self.job_set = {}
@@ -499,7 +500,7 @@ class Jobfile(object):
         self.expand_orders()
         self.check_orders_name()
 
-    def jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
+    def parse_jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
         job = []
         _env = False
         with open(self._path) as fi:
@@ -537,24 +538,22 @@ class Jobfile(object):
                     self.add_job(job, method="from_task")
                 else:
                     self.add_job(job, method="from_rules")
-        thisjobs = []
         if names:
             for jn in self.totaljobs:
                 name = jn.name
                 for namereg in names:
                     if re.search(namereg, name):
-                        thisjobs.append(jn)
+                        self.jobs.append(jn)
                         break
-            return thisjobs
+            return
         jobend = end or len(self.totaljobs)
-        thisjobs = self.totaljobs[start-1:jobend]
+        self.jobs = self.totaljobs[start-1:jobend]
         if self.temp and isfile(self._path):
             os.remove(self._path)
-        thisjobs = self.expand_jobs(thisjobs)
-        return thisjobs
+        self.expand_jobs()
 
-    def expand_jobs(self, jobs=None):
-        for job in jobs[:]:
+    def expand_jobs(self):
+        for job in self.jobs[:]:
             flag = re.findall("\$[a-zA-Z0-9_-]+", job.cmd)
             if len(flag) == 1 and not job.extend:
                 job.extend = flag[0].strip("$")
@@ -574,7 +573,7 @@ class Jobfile(object):
                     raise JobError(
                         "extends job only allow '${}' for jobname: {}".format(k, job.rules))
                 self.job_set.setdefault(name, [])
-                jobs.remove(job)
+                self.jobs.remove(job)
                 self.totaljobs.remove(job)
                 for n, v in enumerate(self.envs[job.extend]):
                     jobname = name+"."+v
@@ -590,9 +589,8 @@ class Jobfile(object):
                             "$"+k, self.envs[k][n])
                         job_temp.raw_cmd = job_temp.raw_cmd.replace(
                             "$"+k, self.envs[k][n])
-                    jobs.append(job_temp)
+                    self.jobs.append(job_temp)
                     self.totaljobs.append(job_temp)
-        return jobs
 
     def expand_orders(self):
         for k, deps in self.orders.copy().items():
@@ -679,7 +677,7 @@ class Shellfile(Jobfile):
             name = "job_" + name
         self.name = name
 
-    def jobs(self, start=0, end=None):
+    def parse_jobs(self, start=0, end=None):
         with open(self._path) as fi:
             for n, line in enumerate(fi):
                 if n < start-1:
@@ -692,5 +690,5 @@ class Shellfile(Jobfile):
                 self.add_job(n, line, method="from_cmd")
         if self.temp and isfile(self._path):
             os.remove(self._path)
-        self.expand_jobs(self.totaljobs)
-        return self.totaljobs.copy()
+        self.jobs = self.totaljobs
+        self.expand_jobs()
