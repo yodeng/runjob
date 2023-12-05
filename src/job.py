@@ -458,7 +458,7 @@ class Jobfile(object):
                 if not line.strip() or line.startswith("#"):
                     continue
                 line = line.split("#")[0].rstrip()
-                if re.match("log_?dir[\s:]", line):
+                if re.match("logs?_?(dir)?[\s:]", line):
                     continue
                 elif line.startswith("order"):
                     line = line.split()
@@ -509,7 +509,7 @@ class Jobfile(object):
                     continue
                 _line = _line.split("#")[0]
                 line = _line.strip()
-                if re.match("log_?dir[\s:]", line):
+                if re.match("logs?_?(dir)?[\s:]", line):
                     self.logdir = normpath(
                         join(self._pathdir, line.split()[-1]))
                     continue

@@ -1,4 +1,4 @@
-log_dir ./          ## logdir
+logs: ./         ## define logdir
 
 jobA:
     force: 1
@@ -22,4 +22,4 @@ jobD:            ## if no name define, this can be used jobname
     depends: jobB, jobC              ## jobD depends on jobB
 
 jobB : jobA         ## jobB depends on jobA
-jobD depends on jobB, jobC   ## jobB depends on jobA
+jobD depends on jobB, jobC   ## jobD depends on jobB and jobC
