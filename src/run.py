@@ -168,14 +168,18 @@ class RunJob(object):
             j_header.raw2cmd()
             self.totaljobdict[j_header.jobname] = j_header
 
+    @property
+    def _shrink_jobnames(self):
+        return {i: k for k, v in self.jfile.job_set.items()
+                for i in v}
+
     def _shrink_graph(self):
         graph = self.jobsgraph.copy()
+        shrink_name = self._shrink_jobnames
         for job in self.jobs:
             name = job.jobname
-            if job.extend and job.extend in job.jobfile.envs:
-                shrink_name = name.split(".", 1)[0]
-                if shrink_name != name:
-                    graph.rename_node(name, shrink_name)
+            if name != shrink_name.get(name, name):
+                graph.rename_node(name, shrink_name[name])
         return graph
 
     def check_already_success(self):
@@ -560,9 +564,7 @@ class RunJob(object):
         self.run_time_stamp = now()
         self.check_already_success()
         if self.conf.rget("args", "dot"):
-            node2rules = {i: k for k, v in self.jfile.job_set.items()
-                          for i in v}
-            print(self.jobsgraph.dot(node2rules))
+            print(self.jobsgraph.dot(self._shrink_jobnames))
             sys.exit()
         if self.conf.rget("args", "dot_shrinked"):
             print(self._shrink_graph())

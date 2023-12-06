@@ -180,13 +180,15 @@ class DAG(object):
         return len(self.graph)
 
     def dot(self, node2rule={}):
-        ids = {node: i for i, node in enumerate(self.all_nodes)}
+        all_nodes = sorted(self.all_nodes)
+        ids = {node: i for i, node in enumerate(all_nodes)}
         huefactor = 2 / (3 * len(ids))
         node2rule = {node: node2rule.get(node, node)
-                     for node in self.all_nodes}
+                     for node in all_nodes}
+        rules = sorted(set(node2rule.values()))
         rulecolor = {
             rule: "{:.2f} 0.6 0.85".format(i * huefactor)
-            for i, rule in enumerate(set(node2rule.values()))
+            for i, rule in enumerate(rules)
         }
         node_markup = '\t{}[label = "{}", color = "{}", style="{}"];'.format
         edge_markup = "\t{} -> {}".format
@@ -197,13 +199,13 @@ class DAG(object):
                 rulecolor[node2rule[node]],
                 "rounded",
             )
-            for node in self.all_nodes
+            for node in all_nodes
         ]
-        edges = [
+        edges = sorted(
             edge_markup(ids[node], ids[dep])
             for node, deps in self.graph.items()
             for dep in deps if deps
-        ]
+        )
         return dedent(
             """\
             digraph {name} {{
