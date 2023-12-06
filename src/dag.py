@@ -179,11 +179,11 @@ class DAG(object):
     def size(self):
         return len(self.graph)
 
-    def dot(self):
-        def node2style(node): return "rounded"
+    def dot(self, node2rule={}):
         ids = {node: i for i, node in enumerate(self.all_nodes)}
         huefactor = 2 / (3 * len(ids))
-        node2rule = {node: node.split(".", 1)[0] for node in self.all_nodes}
+        node2rule = {node: node2rule.get(node, node)
+                     for node in self.all_nodes}
         rulecolor = {
             rule: "{:.2f} 0.6 0.85".format(i * huefactor)
             for i, rule in enumerate(set(node2rule.values()))
@@ -195,7 +195,7 @@ class DAG(object):
                 ids[node],
                 node,
                 rulecolor[node2rule[node]],
-                node2style(node),
+                "rounded",
             )
             for node in self.all_nodes
         ]

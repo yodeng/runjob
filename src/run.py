@@ -560,7 +560,9 @@ class RunJob(object):
         self.run_time_stamp = now()
         self.check_already_success()
         if self.conf.rget("args", "dot"):
-            print(self.jobsgraph)
+            node2rules = {i: k for k, v in self.jfile.job_set.items()
+                          for i in v}
+            print(self.jobsgraph.dot(node2rules))
             sys.exit()
         if self.conf.rget("args", "dot_shrinked"):
             print(self._shrink_graph())
