@@ -38,6 +38,21 @@ class DAG(object):
             if node_name in edges:
                 edges.remove(node_name)
 
+    def rename_node(self, node_name, new_name, graph=None):
+        if not graph:
+            graph = self.graph
+        if node_name not in graph:
+            raise KeyError('node %s does not exist' % node_name)
+        self.all_nodes.remove(node_name)
+        self.add_node_if_not_exists(new_name)
+        edges = graph.pop(node_name)
+        for edge in edges:
+            self.add_edge(new_name, edge)
+        for _, edges in graph.items():
+            if node_name in edges:
+                edges.remove(node_name)
+                edges.add(new_name)
+
     def delete_node_if_exists(self, node_name, graph=None):
         try:
             self.delete_node(node_name, graph=graph)
@@ -57,18 +72,6 @@ class DAG(object):
         if dep_node not in graph.get(ind_node, []):
             raise KeyError('this edge does not exist in graph')
         graph[ind_node].remove(dep_node)
-
-    def rename_edges(self, old_task_name, new_task_name, graph=None):
-        if not graph:
-            graph = self.graph
-        for node, edges in graph.items():
-            if node == old_task_name:
-                graph[new_task_name] = copy(edges)
-                del graph[old_task_name]
-            else:
-                if old_task_name in edges:
-                    edges.remove(old_task_name)
-                    edges.add(new_task_name)
 
     def predecessors(self, node, graph=None):
         if graph is None:
@@ -197,6 +200,13 @@ class DAG(object):
             }}\
             """
         ).format(name=__package__ + "_dag", edges="\n".join(edges), nodes=nodes)
+
+    def copy(self):
+        dag = self.__class__()
+        dag.all_nodes = self.all_nodes.copy()
+        dag.graph = OrderedDict(
+            {node: self.graph[node].copy() for node in self.graph})
+        return dag
 
     def __str__(self):
         return self.dot()

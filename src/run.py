@@ -168,6 +168,16 @@ class RunJob(object):
             j_header.raw2cmd()
             self.totaljobdict[j_header.jobname] = j_header
 
+    def _shrink_graph(self):
+        graph = self.jobsgraph.copy()
+        for job in self.jobs:
+            name = job.jobname
+            if job.extend and job.extend in job.jobfile.envs:
+                shrink_name = name.split(".", 1)[0]
+                if shrink_name != name:
+                    graph.rename_node(name, shrink_name)
+        return graph
+
     def check_already_success(self):
         for job in self.jobs[:]:
             lf = job.logfile
@@ -544,25 +554,28 @@ class RunJob(object):
         if self.is_run:
             self.logger.warning("not allowed for job has run")
             return
-        self.run_time_stamp = now()
-        self.logger.info("Total jobs to submit: %s" %
-                         ", ".join([j.name for j in self.jobs]))
-        self.logger.info("All logs can be found in %s directory", self.logdir)
-        self.check_already_success()
         self.is_run = True
         self.times = max(0, self.retry)
         self.retry_ivs = max(self.retry_ivs, 0)
+        self.run_time_stamp = now()
+        self.check_already_success()
+        if self.conf.rget("args", "dot"):
+            print(self.jobsgraph)
+            sys.exit()
+        if self.conf.rget("args", "dot_shrinked"):
+            print(self._shrink_graph())
+            sys.exit()
+        self.logger.info("Total jobs to submit: %s" %
+                         ", ".join([j.name for j in sorted(self.jobs+self.has_success)]))
+        mkdir(self.logdir, self.workdir)
+        self.logger.info("All logs can be found in %s directory", self.logdir)
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn)
         if len(self.jobsgraph.graph) == 0:
             self.logger.warning("no jobs need to submit")
             return
-        if self.conf.rget("args", "dot"):
-            print(self.jobsgraph)
-            sys.exit()
         if not self.reseted:
             self.clean_resource()
-        mkdir(self.logdir, self.workdir)
         if self.mode == "batchcompute":
             access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
             access_key_secret = self.conf.args.access_key_secret or self.conf.access_key_secret

@@ -105,6 +105,8 @@ def default_parser():
                       help="force to submit jobs even if already successed.")
     base.add_argument("--dot", action="store_true", default=False,
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
+    base.add_argument("--dot-shrinked", action="store_true", default=False,
+                      help="do not execute anything and print the shrinked directed acyclic graph of jobs in the dot language.")
     base.add_argument("--local", default=False, action="store_true",
                       help="submit your jobs in localhost, same as '--mode local'.")
     base.add_argument("--strict", action="store_true", default=False,

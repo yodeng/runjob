@@ -331,6 +331,9 @@ class Job(Jobutils):
                 cmds.append(value)
             elif re.match("extends?[\s:]", j):
                 self.extend = value.strip("$")
+                if re.search("\s", self.extend):
+                    raise JobError(
+                        "no spacewhite allowed in '{}'".format(value))
             elif re.match("memory[\s:]", j) or re.match("mem[\s:]", j):
                 self.mem = int(re.sub("\D", "", value))
             elif re.match("cpu[\s:]", j):
@@ -432,8 +435,7 @@ class Jobfile(object):
         if isinstance(jobfile, (tuple, list)):
             self.temp = basename(tempfile.mktemp(prefix=__package__ + "_"))
             tmp_jobfile = join(self.workdir, self.temp)
-            if not isdir(self.workdir):
-                os.makedirs(self.workdir)
+            mkdir(self.workdir)
             with open(tmp_jobfile, "w") as fo:
                 for line in jobfile:
                     fo.write(line.rstrip()+"\n")
@@ -666,8 +668,6 @@ class Shellfile(Jobfile):
                     self.workdir, __package__ + "_%s_log_dir" % basename(self._path))
         else:
             self.logdir = abspath(logdir)
-        if not isdir(self.logdir):
-            os.makedirs(self.logdir)
         if not name:
             if self.temp:
                 name = basename(self.logdir).split("_")[0]
