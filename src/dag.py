@@ -180,26 +180,41 @@ class DAG(object):
         return len(self.graph)
 
     def dot(self):
-        nodes = "\t{" + ", ".join(('"{}"'.format(i)
-                                  for i in sorted(self.all_nodes))) + "}"
-        edges = sorted([
-            '\t"{}" -> {}'.format(node, "{" +
-                                  ", ".join(('"{}"'.format(i) for i in deps)) + "}")
+        def node2style(node): return "rounded"
+        ids = {node: i for i, node in enumerate(self.all_nodes)}
+        huefactor = 2 / (3 * len(ids))
+        node2rule = {node: node.split(".", 1)[0] for node in self.all_nodes}
+        rulecolor = {
+            rule: "{:.2f} 0.6 0.85".format(i * huefactor)
+            for i, rule in enumerate(set(node2rule.values()))
+        }
+        node_markup = '\t{}[label = "{}", color = "{}", style="{}"];'.format
+        edge_markup = "\t{} -> {}".format
+        nodes = [
+            node_markup(
+                ids[node],
+                node,
+                rulecolor[node2rule[node]],
+                node2style(node),
+            )
+            for node in self.all_nodes
+        ]
+        edges = [
+            edge_markup(ids[node], ids[dep])
             for node, deps in self.graph.items()
-            if deps
-        ])
+            for dep in deps if deps
+        ]
         return dedent(
             """\
             digraph {name} {{
                 graph[bgcolor=white, margin=0];
                 node[shape=box, style=rounded, fontname=sans, \
-                fontsize=10, penwidth=1];
-                edge[penwidth=1, color=grey];
-            {nodes}
-            {edges}
+                fontsize=10, penwidth=2];
+                edge[penwidth=2, color=grey];
+            {items}
             }}\
             """
-        ).format(name=__package__ + "_dag", edges="\n".join(edges), nodes=nodes)
+        ).format(name=__package__ + "_dag", items="\n".join(nodes + edges))
 
     def copy(self):
         dag = self.__class__()
