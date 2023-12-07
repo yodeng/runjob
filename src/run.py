@@ -3,7 +3,6 @@
 
 import os
 import sys
-import pdb
 import time
 import signal
 import getpass
@@ -170,8 +169,11 @@ class RunJob(object):
 
     @property
     def _shrink_jobnames(self):
-        return {i: k for k, v in self.jfile.job_set.items()
-                for i in v}
+        out = {}
+        for k, v in self.jfile.job_set.items():
+            for i in v:
+                out.setdefault(i, set()).add(k)
+        return {k: sorted(v, key=len)[0] for k, v in out.items()}
 
     def _shrink_graph(self):
         graph = self.jobsgraph.copy()

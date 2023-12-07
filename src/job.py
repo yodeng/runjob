@@ -9,6 +9,8 @@ import getpass
 import tempfile
 
 from copy import copy
+from string import Template
+from itertools import product
 
 from .utils import *
 from .parser import shell_job_parser
@@ -192,8 +194,8 @@ class Job(Jobutils):
         self.max_timeout_retry = config and config.max_timeout_retry or 0
         self.timeout = False
         self.config = config
-        self.depends = []
-        self.extend = None
+        self.depends = set()
+        self.extend = []
 
     def from_rules(self, jobfile=None, rules=None):
         self.rules = rules
@@ -203,8 +205,6 @@ class Job(Jobutils):
         self.host = self.jobfile.mode
         self.checkrule()
         cmds = self._parse_jobs(self.rules[:], no_begin=False)
-        for n in self.depends:
-            self.jobfile.orders.setdefault(self.name, set()).add(n)
         for n, c in enumerate(cmds[::-1]):
             self._get_cmd(c)
             cmds[len(cmds)-1-n] = self.raw_cmd
@@ -259,8 +259,6 @@ class Job(Jobutils):
                 raise KeyError(
                     "no space allowed in jobname: '{}'".format(name))
             self.name = name
-        for n in self.depends:
-            self.jobfile.orders.setdefault(self.name, set()).add(n)
         for n, c in enumerate(cmds[::-1]):
             self._get_cmd(c)
             cmds[len(cmds)-1-n] = self.raw_cmd
@@ -315,7 +313,7 @@ class Job(Jobutils):
                             elif k in ["p", "np", "nprc"]:
                                 self.cpu = int(v)
             elif re.match("depends?[\s:]", j):
-                self.depends = self.jobfile._get_value_list(value)
+                self.depends = set(self.jobfile._get_value_list(value))
             elif re.match("host[\s:]", j):
                 self.host = value
             elif re.match("force[\s:]", j):
@@ -330,10 +328,7 @@ class Job(Jobutils):
             elif re.match("cmd?[\s:]", j):
                 cmds.append(value)
             elif re.match("extends?[\s:]", j):
-                self.extend = value.strip("$")
-                if re.search("\s", self.extend):
-                    raise JobError(
-                        "no spacewhite allowed in '{}'".format(value))
+                self.extend = self.jobfile._get_value_list(value)
             elif re.match("memory[\s:]", j) or re.match("mem[\s:]", j):
                 self.mem = int(re.sub("\D", "", value))
             elif re.match("cpu[\s:]", j):
@@ -498,7 +493,7 @@ class Jobfile(object):
                     for i in o2:
                         if i == o:
                             continue
-                        self.orders.setdefault(o, set()).add(i)
+                        self.totaljobs[o].depends.add(i)
         self.expand_orders()
         self.check_orders_name()
 
@@ -556,71 +551,66 @@ class Jobfile(object):
 
     def expand_jobs(self):
         for job in self.jobs[:]:
-            flag = re.findall("\$[a-zA-Z0-9_-]+", job.cmd)
-            if len(flag) == 1 and not job.extend:
-                job.extend = flag[0].strip("$")
-            elif len(flag) > 1 and not job.extend:
-                flag = list(filter(lambda x: x.strip("$") in self.envs, flag))
-                if len(flag) == 1:
-                    job.extend = flag[0].strip("$")
-                else:
-                    raise JobError(
-                        "'extend:' should be define for extend job: '{}'".format(job.cmd0))
-            if job.extend and "$" + job.extend in job.cmd:
-                name = job.rules[0].strip(":").strip()
-                if re.search("\s", name):
-                    raise KeyError(
-                        "no space allowed in extend task name: '{}'".format(name))
-                if job.name != "$"+job.extend and job.name != name:
-                    raise JobError(
-                        "extends job only allow '${}' for jobname: {}".format(k, job.rules))
-                self.job_set.setdefault(name, [])
-                self.jobs.remove(job)
-                self.totaljobs.remove(job)
-                for n, v in enumerate(self.envs[job.extend]):
-                    jobname = name+"."+v
-                    self.job_set[name].append(jobname)
+            flag = map(lambda x: "".join(
+                x), Template.pattern.findall(job.cmd0))
+            flag = [f for f in flag if f in self.envs]
+            flag = sorted(set(flag), key=flag.index)
+            if not job.extend and flag:
+                job.extend = flag
+            job.extend = extends = [e for e in job.extend if e in flag]
+            ext_values = [self.envs[e] for e in extends]
+            extra_flag = [e for e in flag if e not in job.extend]
+            for sub in product(*ext_values):
+                if sub:
+                    jobname = job.name + "." + ".".join(sub)
+                    self.job_set.setdefault(job.name, set()).add(jobname)
+                    sub_dict = {extends[n]: i for n, i in enumerate(sub)}
+                    for ef in extra_flag:
+                        n = self.envs[extends[0]].index(sub[0])
+                        sub_dict.update({ef: self.envs[ef][n]})
+                    if job in self.jobs:
+                        self.jobs.remove(job)
+                        self.totaljobs.remove(job)
                     job_temp = job.copy()
+                    job_temp.depends = job.depends.copy()
+                    job_temp.extend_detail = dict(zip(extends, sub))
                     job_temp.name = job_temp.jobname = jobname
                     job_temp.logfile = join(
                         dirname(job.logfile), jobname + ".log")
-                    for k in self.envs:
-                        job_temp.cmd = job_temp.cmd.replace(
-                            "$"+k, self.envs[k][n])
-                        job_temp.cmd0 = job_temp.cmd0.replace(
-                            "$"+k, self.envs[k][n])
-                        job_temp.raw_cmd = job_temp.raw_cmd.replace(
-                            "$"+k, self.envs[k][n])
+                    job_temp.cmd = Template(job.cmd).safe_substitute(sub_dict)
+                    job_temp.cmd0 = Template(
+                        job.cmd0).safe_substitute(sub_dict)
+                    job_temp.raw_cmd = Template(
+                        job.raw_cmd).safe_substitute(sub_dict)
+                    for dep in job.depends:
+                        name, *exts = dep.split(".")
+                        exts = [job_temp.extend_detail.get(e, e) for e in exts]
+                        if exts:
+                            job_temp.depends.remove(dep)
+                            dep_name = ".".join([name]+exts)
+                            job_temp.depends.add(dep_name)
+                            self.job_set.setdefault(name, set()).add(dep_name)
                     self.jobs.append(job_temp)
                     self.totaljobs.append(job_temp)
 
     def expand_orders(self):
-        for k, deps in self.orders.copy().items():
-            vs = k.split(".")
-            if k in self.job_set:
-                deps = self.orders.pop(k)
-                for d in self.job_set[k]:
-                    self.orders[d] = deps
-            elif len(vs) > 1 and vs[0] in self.job_set and vs[1] in self.envs:
-                deps = self.orders.pop(k)
-                for d in self.envs[vs[1]]:
-                    self.orders[vs[0] + "." + d] = deps
-        for k in self.orders.keys():
-            ks = k.split(".")
-            deps = self.orders[k].copy()
-            for v in list(deps):
-                vs = v.split(".")
-                if v in self.job_set:
-                    deps.remove(v)
-                    deps.update(self.job_set[v])
-                elif len(vs) > 1 and vs[0] in self.job_set and vs[1] in self.envs:
-                    deps.remove(v)
-                    if len(ks) > 1:
-                        deps.add(vs[0] + "." + ks[1])
-                    else:
-                        deps.update(
-                            [vs[0] + "." + i for i in self.envs[vs[1]]])
-            self.orders[k] = set(deps)
+        allnames = set([j.name for j in self.jobs])
+        for job in self.jobs:
+            if not job.depends:
+                continue
+            for dep in sorted(job.depends):
+                if dep in allnames:
+                    continue
+                if dep in self.job_set:
+                    job.depends.remove(dep)
+                    job.depends.update(self.job_set[dep])
+                    continue
+                deps = sorted(n for n in allnames if n.startswith(dep+"."))
+                if deps:
+                    job.depends.remove(dep)
+                    job.depends.update(deps)
+                    self.job_set.setdefault(dep, set()).update(deps)
+            self.orders.setdefault(job.name, set()).update(job.depends)
 
     def add_job(self, *args, method=None):
         self.totaljobs.append(getattr(Job(self.config), method)(self, *args))
@@ -642,7 +632,7 @@ class Jobfile(object):
         if value:
             ns = re.split("[\s,]", value)
             out = list(filter(None, ns))
-        return out
+        return [i.strip("$") for i in out]
 
     def check_orders_name(self):
         allnames = self.alljobnames

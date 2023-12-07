@@ -201,11 +201,8 @@ class DAG(object):
             )
             for node in all_nodes
         ]
-        edges = sorted(
-            edge_markup(ids[node], ids[dep])
-            for node, deps in self.graph.items()
-            for dep in deps if deps
-        )
+        edges = [edge_markup(*i) for i in sorted([(ids[node], ids[dep]) for node, deps in self.graph.items()
+                                                  for dep in deps if deps], key=lambda x: (x[1], x[0]))]
         return dedent(
             """\
             digraph {name} {{
