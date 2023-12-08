@@ -9,7 +9,6 @@ import getpass
 import tempfile
 
 from copy import copy
-from string import Template
 from itertools import product
 from collections import OrderedDict
 
@@ -551,13 +550,19 @@ class Jobfile(object):
 
     def expand_jobs(self):
         for job in self.jobs[:]:
-            flag = map(lambda x: "".join(
-                x), Template.pattern.findall(job.cmd0))
-            flag = [f for f in flag if f in self.envs]
+            flag_match = map(lambda x: "".join(
+                x), VarTemplate.pattern.findall(job.cmd0))
+            flag = []
+            for f in flag_match:
+                if f in self.envs:
+                    if f.endswith(".value"):
+                        flag.append(f[:-6])
+                    flag.append(f)
             flag = sorted(set(flag), key=flag.index)
             if not job.extend and flag:
                 job.extend = flag
-            job.extend = extends = [e for e in job.extend if e in flag]
+            job.extend = extends = sorted(
+                set([e[:-6] if e.endswith(".value") else e for e in job.extend]), key=flag.index)
             ext_values = [self.envs[e] for e in extends]
             extra_flag = [e for e in flag if e not in job.extend]
             for sub in product(*ext_values):
@@ -565,22 +570,34 @@ class Jobfile(object):
                     jobname = job.name + "." + ".".join(sub)
                     self.job_set.setdefault(job.name, set()).add(jobname)
                     sub_dict = {extends[n]: i for n, i in enumerate(sub)}
+                    extend_detail = dict(zip(extends, sub))
                     for ef in extra_flag:
-                        n = self.envs[extends[0]].index(sub[0])
-                        sub_dict.update({ef: self.envs[ef][n]})
+                        if ef.endswith(".value"):
+                            ef_ = ef[:-6]
+                            ef_v = self.envs[ef_][extend_detail[ef_]]
+                            sub_dict.update({ef: ef_v})
+                            continue
+                        try:
+                            n = self.envs[extends[0]].index(sub[0])
+                        except AttributeError:
+                            n = list(self.envs[extends[0]].keys()).index(
+                                sub[0])
+                        idx = n % len(self.envs[ef])
+                        sub_dict.update({ef: self.envs[ef][idx]})
                     if job in self.jobs:
                         self.jobs.remove(job)
                         self.totaljobs.pop(job.name)
                     job_temp = job.copy()
                     job_temp.depends = job.depends.copy()
-                    job_temp.extend_detail = dict(zip(extends, sub))
+                    job_temp.extend_detail = extend_detail
                     job_temp.name = job_temp.jobname = jobname
                     job_temp.logfile = join(
                         dirname(job.logfile), jobname + ".log")
-                    job_temp.cmd = Template(job.cmd).safe_substitute(sub_dict)
-                    job_temp.cmd0 = Template(
+                    job_temp.cmd = VarTemplate(
+                        job.cmd).safe_substitute(sub_dict)
+                    job_temp.cmd0 = VarTemplate(
                         job.cmd0).safe_substitute(sub_dict)
-                    job_temp.raw_cmd = Template(
+                    job_temp.raw_cmd = VarTemplate(
                         job.raw_cmd).safe_substitute(sub_dict)
                     for dep in job.depends:
                         name, *exts = dep.split(".")
@@ -621,12 +638,28 @@ class Jobfile(object):
             return
         for line in lines[1:]:
             line = line.split("#")[0]
-            k, v = re.split("[=:]", line)
-            self.envs[k.strip()] = self._get_value_list(v.strip())
+            k, v = re.split("[=:]", line, 1)
+            if "=" in v:
+                vd = self._get_value_dict(v.strip())
+                self.envs[k.strip()] = vd
+                self.envs[k.strip() + ".value"] = list(vd.values())
+            else:
+                self.envs[k.strip()] = self._get_value_list(v.strip())
 
     @property
     def alljobnames(self):
         return list(self.totaljobs.keys())
+
+    def _get_value_dict(self, value=""):
+        out = OrderedDict()
+        if value:
+            for kv in self._get_value_list(value):
+                kv = kv.split("=")
+                k, v = kv[0].strip(), kv[-1].strip()
+                if k in out:
+                    raise JobError("dup key '{}' in '{}'".format(k, value))
+                out[k] = v
+        return out
 
     def _get_value_list(self, value=""):
         out = []

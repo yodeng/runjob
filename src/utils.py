@@ -16,6 +16,7 @@ import traceback
 import contextlib
 import pkg_resources
 
+from string import Template
 from datetime import datetime
 from fractions import Fraction
 from threading import Thread, Lock
@@ -553,3 +554,7 @@ class RateLimiter(object):
     @property
     def _timespan(self):
         return self.calls[-1] - self.calls[0]
+
+
+class VarTemplate(Template):
+    idpattern = '(?a:[_a-z][_\.a-z0-9]*)'
