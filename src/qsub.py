@@ -60,7 +60,8 @@ class qsub(RunJob):
 
     def _init(self):
         self.jobnames = [j.name for j in self.jobs]
-        self.totaljobdict = {jf.name: jf for jf in self.jfile.totaljobs}
+        self.totaljobdict = {name: jf for name,
+                             jf in self.jfile.totaljobs.items()}
         self.jfile.parse_orders()
         self.orders = self.jfile.orders
         self.is_run = False

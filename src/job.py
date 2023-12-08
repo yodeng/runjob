@@ -11,6 +11,7 @@ import tempfile
 from copy import copy
 from string import Template
 from itertools import product
+from collections import OrderedDict
 
 from .utils import *
 from .parser import shell_job_parser
@@ -253,7 +254,7 @@ class Job(Jobutils):
         cmds = self._parse_jobs(tasks[1:], no_begin=True)
         if not hasattr(self, "name") or not self.name or self.name.startswith("$"):
             name = tasks[0].strip(":").strip()
-            if name in self.jobfile.alljobnames:
+            if name in self.jobfile.totaljobs:
                 raise KeyError("duplicate job name {}, {}".format(name, tasks))
             elif re.search("\s", name):
                 raise KeyError(
@@ -443,7 +444,7 @@ class Jobfile(object):
         self.mode = self.has_sge and (mode or "sge") or "localhost"
         if "local" in self.mode:
             self.mode = "localhost"
-        self.totaljobs = []
+        self.totaljobs = OrderedDict()
         self.jobs = []
         self.orders = {}
         self.envs = {}
@@ -536,15 +537,14 @@ class Jobfile(object):
                 else:
                     self.add_job(job, method="from_rules")
         if names:
-            for jn in self.totaljobs:
-                name = jn.name
+            for name, jn in self.totaljobs.items():
                 for namereg in names:
                     if re.search(namereg, name):
                         self.jobs.append(jn)
                         break
             return
         jobend = end or len(self.totaljobs)
-        self.jobs = self.totaljobs[start-1:jobend]
+        self.jobs = list(self.totaljobs.values())[start-1:jobend]
         if self.temp and isfile(self._path):
             os.remove(self._path)
         self.expand_jobs()
@@ -570,7 +570,7 @@ class Jobfile(object):
                         sub_dict.update({ef: self.envs[ef][n]})
                     if job in self.jobs:
                         self.jobs.remove(job)
-                        self.totaljobs.remove(job)
+                        self.totaljobs.pop(job.name)
                     job_temp = job.copy()
                     job_temp.depends = job.depends.copy()
                     job_temp.extend_detail = dict(zip(extends, sub))
@@ -591,7 +591,7 @@ class Jobfile(object):
                             job_temp.depends.add(dep_name)
                             self.job_set.setdefault(name, set()).add(dep_name)
                     self.jobs.append(job_temp)
-                    self.totaljobs.append(job_temp)
+                    self.totaljobs[job_temp.name] = job_temp
 
     def expand_orders(self):
         allnames = set([j.name for j in self.jobs])
@@ -613,7 +613,8 @@ class Jobfile(object):
             self.orders.setdefault(job.name, set()).update(job.depends)
 
     def add_job(self, *args, method=None):
-        self.totaljobs.append(getattr(Job(self.config), method)(self, *args))
+        job = getattr(Job(self.config), method)(self, *args)
+        self.totaljobs[job.name] = job
 
     def add_envs(self, lines=None):
         if not lines or not (re.match("envs?[\s:]", lines[0]) or re.match("vars?[\s:]", lines[0])):
@@ -625,7 +626,7 @@ class Jobfile(object):
 
     @property
     def alljobnames(self):
-        return [j.name for j in self.totaljobs]
+        return list(self.totaljobs.keys())
 
     def _get_value_list(self, value=""):
         out = []
@@ -635,10 +636,9 @@ class Jobfile(object):
         return [i.strip("$") for i in out]
 
     def check_orders_name(self):
-        allnames = self.alljobnames
         for k, v in self.orders.items():
             for n in v:
-                if n not in allnames:
+                if n not in self.totaljobs:
                     raise JobOrderError(
                         "no job named '{}'".format(n))
 
@@ -680,5 +680,5 @@ class Shellfile(Jobfile):
                 self.add_job(n, line, method="from_cmd")
         if self.temp and isfile(self._path):
             os.remove(self._path)
-        self.jobs = self.totaljobs
+        self.jobs = list(self.totaljobs.values())
         self.expand_jobs()
