@@ -551,7 +551,7 @@ class Jobfile(object):
     def expand_jobs(self):
         for job in self.jobs[:]:
             flag_match = map(lambda x: "".join(
-                x), VarTemplate.pattern.findall(job.cmd0))
+                x), CmdTemplate.pattern.findall(job.cmd0))
             flag = []
             for f in flag_match:
                 if f in self.envs:
@@ -595,11 +595,11 @@ class Jobfile(object):
                     job_temp.name = job_temp.jobname = jobname
                     job_temp.logfile = join(
                         dirname(job.logfile), jobname + ".log")
-                    job_temp.cmd = VarTemplate(
+                    job_temp.cmd = CmdTemplate(
                         job.cmd).safe_substitute(sub_dict)
-                    job_temp.cmd0 = VarTemplate(
+                    job_temp.cmd0 = CmdTemplate(
                         job.cmd0).safe_substitute(sub_dict)
-                    job_temp.raw_cmd = VarTemplate(
+                    job_temp.raw_cmd = CmdTemplate(
                         job.raw_cmd).safe_substitute(sub_dict)
                     for dep in job.depends:
                         name, *exts = dep.split(".")

@@ -20,7 +20,7 @@ from string import Template
 from datetime import datetime
 from fractions import Fraction
 from threading import Thread, Lock
-from collections import Counter, deque
+from collections import Counter, deque, OrderedDict
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
 from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser
@@ -32,8 +32,10 @@ PY3 = sys.version_info.major == 3
 
 if not PY3:
     from Queue import Queue, Empty
+    from collections.abc import MutableSet
 else:
     from queue import Queue, Empty
+    from collections import MutableSet
 
 
 QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
@@ -556,5 +558,36 @@ class RateLimiter(object):
         return self.calls[-1] - self.calls[0]
 
 
-class VarTemplate(Template):
-    idpattern = '(?a:[_a-z][_\.a-z0-9]*)'
+class CmdTemplate(Template):
+    delimiter = "$"
+    idpattern = "(?a:[_a-z][_\.a-z0-9]*)"
+
+
+@total_ordering
+class OrderedSet(OrderedDict, MutableSet):
+
+    def __init__(self, items=""):
+        for item in items:
+            self.add(item)
+
+    def update(self, *args):
+        for s in args:
+            for e in s:
+                self.add(e)
+
+    def add(self, elem):
+        self[elem] = None
+
+    def discard(self, elem):
+        self.pop(elem, None)
+
+    def __lt__(self, other):
+        return all(e in other for e in self) and self != other
+
+    def __eq__(self, other):
+        return all(i == j for i, j in zip(self, other))
+
+    def __repr__(self):
+        return 'OrderedSet([%s])' % (', '.join(map(repr, self.keys())))
+
+    __str__ = __repr__
