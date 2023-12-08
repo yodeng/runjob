@@ -575,15 +575,17 @@ class Jobfile(object):
                         if ef.endswith(".value"):
                             ef_ = ef[:-6]
                             ef_v = self.envs[ef_][extend_detail[ef_]]
-                            sub_dict.update({ef: ef_v})
-                            continue
-                        try:
-                            n = self.envs[extends[0]].index(sub[0])
-                        except AttributeError:
-                            n = list(self.envs[extends[0]].keys()).index(
-                                sub[0])
-                        idx = n % len(self.envs[ef])
-                        sub_dict.update({ef: self.envs[ef][idx]})
+                        else:
+                            try:
+                                n = self.envs[extends[0]].index(sub[0])
+                            except AttributeError:
+                                n = list(self.envs[extends[0]].keys()).index(
+                                    sub[0])
+                            idx = n % len(self.envs[ef])
+                            ef_v = self.envs[ef][idx]
+                        sub_dict.update({ef: ef_v})
+                        if ef not in extend_detail:
+                            extend_detail[ef] = ef_v
                     if job in self.jobs:
                         self.jobs.remove(job)
                         self.totaljobs.pop(job.name)
