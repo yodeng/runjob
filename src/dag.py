@@ -208,8 +208,8 @@ class DAG(object):
             digraph {name} {{
                 graph[bgcolor=white, margin=0];
                 node[shape=box, style=rounded, fontname=sans, \
-                fontsize=10, penwidth=2];
-                edge[penwidth=2, color=grey];
+                fontsize=10, penwidth=1];
+                edge[penwidth=1, color=grey];
             {items}
             }}\
             """

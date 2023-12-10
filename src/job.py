@@ -254,7 +254,8 @@ class Job(Jobutils):
         if not hasattr(self, "name") or not self.name or self.name.startswith("$"):
             name = tasks[0].strip(":").strip()
             if name in self.jobfile.totaljobs:
-                raise KeyError("duplicate job name {}, {}".format(name, tasks))
+                raise KeyError(
+                    "duplicate job name '{}': {}".format(name, tasks))
             elif re.search("\s", name):
                 raise KeyError(
                     "no space allowed in jobname: '{}'".format(name))
@@ -449,13 +450,13 @@ class Jobfile(object):
         self.envs = {}
         self.job_set = {}
 
-    def parse_orders(self):
+    def _read_orders(self):
         with open(self._path) as fi:
             for line in fi:
                 if not line.strip() or line.startswith("#"):
                     continue
                 line = line.split("#")[0].rstrip()
-                if re.match("logs?_?(dir)?[\s:]", line):
+                if re.match("logs?_?(dir)?[\s:]", line) or re.match("includes?[\s:]", line):
                     continue
                 elif line.startswith("order"):
                     line = line.split()
@@ -494,6 +495,9 @@ class Jobfile(object):
                         if i == o:
                             continue
                         self.totaljobs[o].depends.add(i)
+
+    def parse_orders(self):
+        self._read_orders()
         self.expand_orders()
         self.check_orders_name()
 
@@ -510,7 +514,23 @@ class Jobfile(object):
                     self.logdir = normpath(
                         join(self._pathdir, line.split()[-1]))
                     continue
-                if re.match("envs?[\s:]", line) or re.match("var?[\s:]", line):
+                elif re.match("includes?[\s:]", line):
+                    value = re.split("[\s:]", line, 1)[-1].strip(":").strip()
+                    includes = self._get_value_list(value)
+                    for rule_path in includes:
+                        rulefile = partial(join, dirname(self._path))
+                        rulefiles = glob(rulefile(rule_path)) or glob(
+                            rulefile("rules", rule_path))
+                        for rf in rulefiles:
+                            jfile = self.__class__(
+                                rf, mode=self.mode, config=self.config)
+                            jfile.parse_jobs()
+                            jfile._read_orders()
+                            self.envs.update(jfile.envs)
+                            self.jobs.extend(jfile.jobs)
+                            self.totaljobs.update(jfile.totaljobs)
+                    continue
+                elif re.match("envs?[\s:]", line) or re.match("var?[\s:]", line):
                     _env = True
                 elif line == "job_begin":
                     if len(job) and job[-1] == "job_end":
