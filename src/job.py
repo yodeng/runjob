@@ -8,6 +8,7 @@ import shlex
 import getpass
 import tempfile
 
+from glob import glob
 from copy import copy
 from itertools import product
 from collections import OrderedDict
@@ -501,7 +502,7 @@ class Jobfile(object):
         self.expand_orders()
         self.check_orders_name()
 
-    def parse_jobs(self, names=None, start=1, end=None):  # real this jobs, not total jobs
+    def parse_jobs(self, names=None, start=1, end=None):
         job = []
         _env = False
         with open(self._path) as fi:

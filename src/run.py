@@ -207,7 +207,7 @@ class RunJob(object):
                         job.status = "wait"
                     else:
                         self.jobsgraph.delete_node_if_exists(job.jobname)
-                        self.has_success.append(job.jobname)
+                        self.has_success.append(job)
                         self.jobs.remove(job)
                         job.remove_all_stat_files()
             else:
@@ -560,7 +560,6 @@ class RunJob(object):
         if self.is_run:
             self.logger.warning("not allowed for job has run")
             return
-        self.is_run = True
         self.times = max(0, self.retry)
         self.retry_ivs = max(self.retry_ivs, 0)
         self.run_time_stamp = now()
@@ -571,12 +570,13 @@ class RunJob(object):
         if self.conf.rget("args", "dot_shrinked"):
             print(self._shrink_graph())
             sys.exit()
+        self.is_run = True
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in sorted(self.jobs+self.has_success)]))
         mkdir(self.logdir, self.workdir)
         self.logger.info("All logs can be found in %s directory", self.logdir)
         for jn in self.has_success:
-            self.logger.info("job %s status already success", jn)
+            self.logger.info("job %s status already success", jn.name)
         if len(self.jobsgraph.graph) == 0:
             self.logger.warning("no jobs need to submit")
             return

@@ -16,7 +16,6 @@ import traceback
 import contextlib
 import pkg_resources
 
-from glob import glob
 from string import Template
 from datetime import datetime
 from fractions import Fraction
