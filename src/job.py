@@ -524,7 +524,8 @@ class Jobfile(object):
                             rulefile("rules", rule_path))
                         for rf in rulefiles:
                             jfile = self.__class__(
-                                rf, mode=self.mode, config=self.config)
+                                rf, mode=self.mode, workdir=self.workdir, config=self.config)
+                            jfile.logdir = self.logdir
                             jfile.parse_jobs()
                             jfile._read_orders()
                             self.envs.update(jfile.envs)

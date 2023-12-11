@@ -501,15 +501,9 @@ class RunJob(object):
                 cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
-                if job.workdir != self.workdir:
-                    mkdir(job.workdir)
-                    os.chdir(job.workdir)
-                    p = Popen(cmd, shell=True, stdout=logcmd,
-                              stderr=logcmd, env=os.environ)
-                    os.chdir(self.workdir)
-                else:
-                    p = Popen(cmd, shell=True, stdout=logcmd,
-                              stderr=logcmd, env=os.environ)
+                mkdir(job.workdir)
+                p = Popen(cmd, shell=True, stdout=logcmd,
+                          stderr=logcmd, env=os.environ, cwd=job.workdir)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
                 job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
@@ -522,7 +516,7 @@ class RunJob(object):
                     cmd += " -q " + " -q ".join(job.queue)
                 if job.subtimes > 0:
                     cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
-                sgeid, output = self.sge_qsub(cmd)
+                sgeid, output = self.sge_qsub(cmd, wd=job.workdir)
                 self.sge_jobid[job.jobname] = sgeid
                 logcmd.write(output)
             elif job.host == "batchcompute":
@@ -545,8 +539,9 @@ class RunJob(object):
             job.subtimes += 1
         self.submited = True
 
-    def sge_qsub(self, cmd):
-        p = Popen(cmd.replace("`", "\`"), stderr=PIPE, stdout=PIPE, shell=True)
+    def sge_qsub(self, cmd, wd=None):
+        p = Popen(cmd.replace("`", "\`"), stderr=PIPE,
+                  stdout=PIPE, shell=True, cwd=wd or self.workdir)
         stdout, stderr = p.communicate()
         output = stdout + stderr
         match = QSUB_JOB_ID_DECODER.search(output.decode())
@@ -608,9 +603,6 @@ class RunJob(object):
             time.sleep(self.sec)
         self.safe_exit()
         if not self.is_success:
-            fail_jobs = self.fail_jobs
-            names = [j.jobname for j in fail_jobs]
-            logs = [j.logfile for j in fail_jobs]
             raise JobFailedError(jobs=self.fail_jobs)
 
     def pending_jobs(self, *names):
