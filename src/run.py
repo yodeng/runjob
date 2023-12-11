@@ -555,16 +555,18 @@ class RunJob(object):
         if self.is_run:
             self.logger.warning("not allowed for job has run")
             return
+        elif len(self.jobsgraph.graph) == 0:
+            self.logger.warning("no jobs produced in '%s'", jobfile)
+        elif self.conf.rget("args", "dot"):
+            print(self.jobsgraph.dot(self._shrink_jobnames))
+            sys.exit()
+        elif self.conf.rget("args", "dot_shrinked"):
+            print(self._shrink_graph())
+            sys.exit()
         self.times = max(0, self.retry)
         self.retry_ivs = max(self.retry_ivs, 0)
         self.run_time_stamp = now()
         self.check_already_success()
-        if self.conf.rget("args", "dot"):
-            print(self.jobsgraph.dot(self._shrink_jobnames))
-            sys.exit()
-        if self.conf.rget("args", "dot_shrinked"):
-            print(self._shrink_graph())
-            sys.exit()
         self.is_run = True
         self.logger.info("Total jobs to submit: %s" %
                          ", ".join([j.name for j in sorted(self.jobs+self.has_success)]))

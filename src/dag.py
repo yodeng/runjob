@@ -182,7 +182,7 @@ class DAG(object):
     def dot(self, node2rule={}):
         all_nodes = sorted(self.all_nodes)
         ids = {node: i for i, node in enumerate(all_nodes)}
-        huefactor = 2 / (3 * len(ids))
+        huefactor = 2 / (3 * max(len(ids), 1))
         node2rule = {node: node2rule.get(node, node)
                      for node in all_nodes}
         rules = sorted(set(node2rule.values()))
