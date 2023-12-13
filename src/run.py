@@ -143,14 +143,14 @@ class RunJob(object):
             for n, jb in enumerate(wait_groups):
                 if jb.groups:
                     if n >= i:
-                        self.__make_groups(wait_groups[n:n+jb.groups])
-                        i = jb.groups+n
+                        self.__make_groups(wait_groups[n:n + jb.groups])
+                        i = jb.groups + n
                     else:
                         self.throw('groups conflict in "%s" line number %d: "%s"' % (self.jpath,
                                                                                      jb.linenum, jb.cmd0))
-                elif n >= i and (n-i) % self.groups == 0:
+                elif n >= i and (n - i) % self.groups == 0:
                     gs = []
-                    for j in wait_groups[n:n+self.groups]:
+                    for j in wait_groups[n:n + self.groups]:
                         if j.groups:
                             break
                         gs.append(j)
@@ -214,38 +214,33 @@ class RunJob(object):
                 job.status = "wait"
 
     def init_callback(self):
-        self.add_init(self.conf.rget("args", "init"))
-        self.add_callback(self.conf.rget("args", "call_back"))
+        self.add_init_and_callback(cmd=self.conf._getvalue(
+            "init") or self.conf.rget("args", "init"))
+        self.add_init_and_callback(cmd=self.conf._getvalue(
+            "call_back") or self.conf.rget("args", "call_back"), flag=-1)
 
-    def add_init(self, init=""):
-        if init:
-            if "init" in self.totaljobdict:
-                job = self.totaljobdict["init"]
-                return self.logger.error("init '%s' exists", job.raw_cmd)
+    def add_init_and_callback(self, cmd="", name="", flag=0):
+        name = name or (flag and "callback" or "init")
+        if cmd:
+            if name in self.totaljobdict:
+                job = self.totaljobdict[name]
+                return self.logger.error("job name '%s': ('%s') exists", name, job.cmd0)
             job = Job(self.conf)
-            job = job.from_cmd(self.jfile, linenum=-1, cmd=init)
-            job.to_local(jobname="init", removelog=False)
-            self.totaljobdict["init"] = job
-            self.jobs.insert(0, job)
-            ind_nodes = self.jobsgraph.ind_nodes()
+            job = job.from_cmd(self.jfile, linenum=-1, cmd=cmd)
+            job.to_local(jobname=name, removelog=False)
+            self.totaljobdict[name] = job
+            if flag == 0:
+                self.jobs.insert(0, job)
+                edge = (lambda j: (name, j))
+            elif flag == -1:
+                self.jobs.append(job)
+                edge = (lambda j: (j, name))
+            else:
+                return self.logger.error("init or callback flag error: %s", flag)
+            nodes = self.jobsgraph.ind_nodes()
             self.jobsgraph.add_node_if_not_exists(job.jobname)
-            for j in ind_nodes:
-                self.jobsgraph.add_edge("init", j)
-
-    def add_callback(self, callback=""):
-        if callback:
-            if "callback" in self.totaljobdict:
-                job = self.totaljobdict["callback"]
-                return self.logger.error("callback '%s' exists", job.raw_cmd)
-            job = Job(self.conf)
-            job = job.from_cmd(self.jfile, linenum=-1, cmd=callback)
-            job.to_local(jobname="callback", removelog=False)
-            self.totaljobdict["callback"] = job
-            self.jobs.append(job)
-            end_nodes = self.jobsgraph.end_nodes()
-            self.jobsgraph.add_node_if_not_exists(job.jobname)
-            for j in end_nodes:
-                self.jobsgraph.add_edge(j, "callback")
+            for j in nodes:
+                self.jobsgraph.add_edge(*edge(j))
 
     def log_status(self, job):
         name = job.jobname
@@ -288,12 +283,12 @@ class RunJob(object):
                     status = "stop"
                 elif sta == "Waiting":
                     status = "wait"
-        elif job.host and job.host == "sge" and self.is_run and not isfile(job.stat_file+".submit"):
-            if isfile(job.stat_file+".success"):
+        elif job.host and job.host == "sge" and self.is_run and not isfile(job.stat_file + ".submit"):
+            if isfile(job.stat_file + ".success"):
                 status = "success"
-            elif isfile(job.stat_file+".error"):
+            elif isfile(job.stat_file + ".error"):
                 status = "error"
-            elif isfile(job.stat_file+".run"):
+            elif isfile(job.stat_file + ".run"):
                 if not job.is_end:
                     status = "run"
         elif isfile(logfile):  # local submit or sge submit(not running yet)
@@ -374,10 +369,10 @@ class RunJob(object):
                     if jobid and jobid.isdigit():
                         try:
                             _ = check_output(
-                                ["qstat",  "-j", jobid], stderr=PIPE)
+                                ["qstat", "-j", jobid], stderr=PIPE)
                         except Exception as err:
                             self.logger.debug(err)
-                            if self.is_run and not jb.is_end and isfile(jb.stat_file+".run"):
+                            if self.is_run and not jb.is_end and isfile(jb.stat_file + ".run"):
                                 time.sleep(period)
                                 _ = self.jobstatus(jb)
                                 jb.set_kill()
@@ -488,11 +483,11 @@ class RunJob(object):
         job.submit_time = now()
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
-                logcmd.write(job.raw_cmd+"\n")
+                logcmd.write(job.raw_cmd + "\n")
                 job.set_status("submit")
             elif job.subtimes > 0:
                 logcmd.write(style("\n-------- retry --------\n",
-                             fore="red", mode="bold") + job.raw_cmd+"\n")
+                             fore="red", mode="bold") + job.raw_cmd + "\n")
                 job.set_status("resubmit")
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
@@ -531,7 +526,7 @@ class RunJob(object):
                     task.modifyTaskOutMapping(job=job, mapping=job.out_maping)
                 task.Submit()
                 info = "Your job (%s) has been submitted in batchcompute (%s) %d times\n" % (
-                    task.name, task.id, job.subtimes+1)
+                    task.name, task.id, job.subtimes + 1)
                 logcmd.write(info)
                 self.cloudjob[task.name] = task.id
             self.log_status(job)
@@ -569,7 +564,7 @@ class RunJob(object):
         self.check_already_success()
         self.is_run = True
         self.logger.info("Total jobs to submit: %s" %
-                         ", ".join([j.name for j in sorted(self.jobs+self.has_success)]))
+                         ", ".join([j.name for j in sorted(self.jobs + self.has_success)]))
         mkdir(self.logdir, self.workdir)
         self.logger.info("All logs can be found in %s directory", self.logdir)
         for jn in self.has_success:

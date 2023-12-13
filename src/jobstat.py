@@ -173,7 +173,7 @@ def main():
 
         if not isdir(logdir):
             return
-            #raise IOError("No such log_dir %s" % logdir)
+            # raise IOError("No such log_dir %s" % logdir)
         if submit == 0:
             submit = len([i for i in os.listdir(
                 logdir) if i.endswith(".log")])
