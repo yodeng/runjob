@@ -393,6 +393,10 @@ class RunJob(object):
                 with rate_limiter:
                     try:
                         js = self.jobstatus(jb)
+                    except BlockingIOError as e:
+                        self.logger.warning(
+                            "check job status blocking: %s, %s", jb.name, e)
+                        continue
                     except Exception as e:
                         self.logger.error(
                             "check job status error: %s", jb.name)
