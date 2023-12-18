@@ -21,15 +21,6 @@ class Conf(configparser.ConfigParser):
 
 
 class AttrDict(dict):
-    '''A dictionary with attribute-style access. It maps attribute access to
-    the real dictionary. '''
-
-    def __getstate__(self):
-        return self.__dict__.items()
-
-    def __setstate__(self, items):
-        for key, val in items:
-            self.__dict__[key] = val
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
@@ -38,7 +29,10 @@ class AttrDict(dict):
         return super(AttrDict, self).__setitem__(key, value)
 
     def __getitem__(self, name):
-        return super(AttrDict, self).__getitem__(name)
+        try:
+            return super(AttrDict, self).__getitem__(name)
+        except (KeyError, RecursionError):
+            raise AttributeError(name)
 
     def __delitem__(self, name):
         return super(AttrDict, self).__delitem__(name)
@@ -68,7 +62,7 @@ class Dict(AttrDict):
     def __getitem__(self, name):
         try:
             return super(Dict, self).__getitem__(name)
-        except KeyError:
+        except (KeyError, AttributeError):
             df = self.__dict__["_default"](name)
             if df is not None:
                 return df
@@ -81,7 +75,7 @@ class Dict(AttrDict):
     def _getvalue(self, name):
         try:
             return super(Dict, self).__getitem__(name)
-        except KeyError:
+        except (KeyError, AttributeError):
             d = Dict()
             super(Dict, self).__setitem__(name, d)
             return d
