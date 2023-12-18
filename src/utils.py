@@ -108,7 +108,7 @@ class JobOrderError(RunJobException):
 class JobQueue(Queue):
 
     def _init(self, maxsize):
-        self._queue = set()
+        self._queue = OrderedSet()
 
     def _qsize(self):
         return len(self._queue)
@@ -129,7 +129,7 @@ class JobQueue(Queue):
         return item in self._queue
 
     def __str__(self):
-        return self._queue.__str__()
+        return '%s([%s])' % (self.__class__.__name__, ', '.join(map(repr, self._queue)))
 
     __repr__ = __str__
 
@@ -139,7 +139,7 @@ class JobQueue(Queue):
 
     @property
     def queue(self):
-        return sorted(self._queue)
+        return self._queue.copy()
 
     def puts(self, *items, **kw):
         for item in items:
@@ -186,8 +186,8 @@ class ParseSingal(Thread):
     def signal_handler(self, signum, frame):
         self.obj.signaled = True
         self._exit()
-        # os._exit(signum)  # Force Exit
-        sys.exit(signum)    # SystemExit Exception
+        # os._exit(signum)
+        sys.exit(signum)
 
     def signal_handler_us(self, signum, frame):
         self.obj.signaled = True
@@ -588,6 +588,6 @@ class OrderedSet(OrderedDict, MutableSet):
         return all(i == j for i, j in zip(self, other))
 
     def __repr__(self):
-        return 'OrderedSet([%s])' % (', '.join(map(repr, self.keys())))
+        return '%s([%s])' % (self.__class__.__name__, ', '.join(map(repr, self.keys())))
 
     __str__ = __repr__

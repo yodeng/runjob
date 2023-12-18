@@ -358,7 +358,7 @@ class RunJob(object):
 
     def _list_check_sge(self, period=5, sleep=10):
         rate_limiter = RateLimiter(max_calls=1, period=period)
-        time.sleep(5)
+        time.sleep(sleep)
         while not self.finished:
             for jb in self.jobqueue.queue:
                 jobname = jb.jobname
@@ -373,7 +373,7 @@ class RunJob(object):
                         except Exception as err:
                             self.logger.debug(err)
                             if self.is_run and not jb.is_end and isfile(jb.stat_file + ".run"):
-                                time.sleep(period)
+                                time.sleep(1)
                                 _ = self.jobstatus(jb)
                                 jb.set_kill()
                                 self.log_status(jb)
