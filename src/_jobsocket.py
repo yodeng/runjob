@@ -4,6 +4,9 @@ import logging
 
 from pathlib import Path
 
+from .parser import server_parser, client_parser
+from .utils import getlog, Queue, _start_new_thread
+
 
 class JobSocket(object):
 
@@ -23,8 +26,9 @@ class JobSocket(object):
             if data and "-" in data.decode():
                 name, status = data.decode().split("-")
                 self.logger.debug(
-                    "Recived data: name: %s, status: %s", name, status)
-                self.queue.put((name, status))
+                    "Recived data <- name: %s, status: %s", name, status)
+                if self.queue:
+                    self.queue.put((name, status))
             conn.close()
 
     def send(self, data):
@@ -56,7 +60,7 @@ class JobSocket(object):
             raise exc_type(exc_val)
 
 
-def listen_job_status(sfile, queue):
+def listen_job_status(sfile, queue=None):
     with JobSocket(socket_file=sfile, queue=queue) as js:
         js.listen()
 
@@ -65,3 +69,15 @@ def send_job_status(sfile, name, status):
     js = JobSocket(socket_file=sfile)
     data = "{}-{}".format(name, status)
     js.send(data)
+
+
+def job_server():
+    args = server_parser().parse_args()
+    log = getlog(level="debug")
+    log.info("start runjob server ...")
+    listen_job_status(args.file)
+
+
+def job_client():
+    args = client_parser().parse_args()
+    send_job_status(args.file, args.name, args.status)

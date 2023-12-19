@@ -204,3 +204,29 @@ def runjob_parser():
 def shell_job_parser(arglist):
     parser = runsge_parser()
     return parser.parse_known_args(arglist)[0]
+
+
+def server_parser():
+    parser = argparse.ArgumentParser(
+        description="job status server (file socket).",
+        formatter_class=CustomHelpFormatter)
+    parser.add_argument("-f", "--file", type=str, help="socket file.",
+                        required=True, metavar="<file>")
+    parser.description = style(
+        parser.description, fore="red", mode="underline")
+    return parser
+
+
+def client_parser():
+    parser = argparse.ArgumentParser(
+        description="send job status (file socket).",
+        formatter_class=CustomHelpFormatter)
+    parser.add_argument("-f", "--file", type=str, help="socket file.",
+                        required=True, metavar="<file>")
+    parser.add_argument("-n", "--name", type=str, help="job name.",
+                        required=True, metavar="<str>")
+    parser.add_argument("-s", "--status", type=str, help="job status.",
+                        required=True, metavar="<str>")
+    parser.description = style(
+        parser.description, fore="red", mode="underline")
+    return parser

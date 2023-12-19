@@ -147,6 +147,10 @@ class Packages(object):
             '{0} = {1}.run:main'.format("runsge", self.name),
             '{0} = {1}.run:main'.format("runshell", self.name),
             '{0} = {1}.run:main'.format("runbatch", self.name),
+            '{0} = {1}._jobsocket:job_server'.format(
+                self.name+"-server", self.name),
+            '{0} = {1}._jobsocket:job_client'.format(
+                self.name+"-client", self.name),
         ]
         return eps
 
