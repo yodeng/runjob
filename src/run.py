@@ -14,6 +14,7 @@ from .job import *
 from .utils import *
 from .cluster import *
 from .parser import runsge_parser
+from ._jobsocket import listen_job_status
 from .config import load_config, print_config
 
 
@@ -72,6 +73,9 @@ class RunJob(object):
         self.sec = config.sec or 2
         self._init()
         self.lock = Lock()
+        self._status_queue = Queue()
+        self._status_socket_file = join(
+            self.logdir, ".{}.{}.socket".format(os.getpid(), __package__))
 
     def _init(self):
         self.totaljobdict = {j.jobname: j for j in self.jobs}
@@ -350,6 +354,9 @@ class RunJob(object):
                         datetime.today().strftime("%F %X"), job.status.upper()))
         return status
 
+    def jobcheck_by_socket(self):
+        pass
+
     def set_rate(self, check_rate=0, sub_rate=0):
         if check_rate:
             self.check_rate = Fraction(check_rate).limit_denominator()
@@ -382,6 +389,10 @@ class RunJob(object):
     def jobcheck(self):
         RunThread(self._jobcheck).start()
         RunThread(self._list_check_sge).start()
+
+    def _job_socket_server(self):
+        RunThread(listen_job_status, self._status_socket_file,
+                  self._status_queue).start()
 
     def _jobcheck(self):
         if self.mode == "batchcompute":
@@ -594,6 +605,7 @@ class RunJob(object):
         sub_rate_limiter = RateLimiter(
             max_calls=self.sub_rate.numerator, period=self.sub_rate.denominator)
         self.jobcheck()
+        # self._job_socket_server()
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
@@ -687,6 +699,7 @@ class RunJob(object):
             if self.err_msg:
                 self.logger.error(self.err_msg)
             self.sumstatus()
+        self.__del__()
 
     @property
     def is_success(self):
@@ -727,6 +740,12 @@ class RunJob(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type:
             raise exc_type(exc_val)
+
+    def __del__(self):
+        try:
+            os.remove(self._status_socket_file)
+        except:
+            pass
 
 
 def main():

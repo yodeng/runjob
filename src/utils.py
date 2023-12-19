@@ -19,7 +19,7 @@ import pkg_resources
 from string import Template
 from datetime import datetime
 from fractions import Fraction
-from threading import Thread, Lock
+from threading import Thread, Lock, _start_new_thread
 from collections import Counter, deque, OrderedDict
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
