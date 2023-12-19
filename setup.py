@@ -150,6 +150,8 @@ class Packages(object):
             '{0} = {1}._jobsocket:job_server'.format(
                 self.name+"-server", self.name),
             '{0} = {1}._jobsocket:job_client'.format(
+                self.name+"-report", self.name),
+            '{0} = {1}._jobsocket:job_client'.format(
                 self.name+"-client", self.name),
         ]
         return eps

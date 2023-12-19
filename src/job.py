@@ -4,11 +4,11 @@
 import os
 import re
 import sys
+import glob
 import shlex
 import getpass
 import tempfile
 
-from glob import glob
 from copy import copy
 from itertools import product
 from collections import OrderedDict
@@ -520,7 +520,7 @@ class Jobfile(object):
                     includes = self._get_value_list(value)
                     for rule_path in includes:
                         rulefile = partial(join, dirname(self._path))
-                        rulefiles = glob(rulefile(rule_path)) or glob(
+                        rulefiles = glob.glob(rulefile(rule_path)) or glob.glob(
                             rulefile("rules", rule_path))
                         for rf in rulefiles:
                             jfile = self.__class__(

@@ -211,7 +211,11 @@ def server_parser():
         description="job status server (file socket).",
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="socket file.",
-                        required=True, metavar="<file>")
+                        metavar="<file>")
+    parser.add_argument("-H", "--host", type=str, help="runjob server hostname or ip.",
+                        metavar="<str>")
+    parser.add_argument("-P", "--port", type=int, help="jrunjob server port.",
+                        metavar="<int>")
     parser.description = style(
         parser.description, fore="red", mode="underline")
     return parser
@@ -222,7 +226,11 @@ def client_parser():
         description="send job status (file socket).",
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="socket file.",
-                        required=True, metavar="<file>")
+                        metavar="<file>")
+    parser.add_argument("-H", "--host", type=str, help="runjob server hostname or ip.",
+                        default="", metavar="<str>")
+    parser.add_argument("-P", "--port", type=int, help="jrunjob server port.",
+                        metavar="<int>")
     parser.add_argument("-n", "--name", type=str, help="job name.",
                         required=True, metavar="<str>")
     parser.add_argument("-s", "--status", type=str, help="job status.",
