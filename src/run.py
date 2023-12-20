@@ -287,7 +287,7 @@ class RunJob(object):
                     status = "stop"
                 elif sta == "Waiting":
                     status = "wait"
-        elif job.host and job.host == "sge" and self.is_run and not isfile(job.stat_file + ".submit"):
+        elif self.is_run and not isfile(job.stat_file + ".submit"):
             if isfile(job.stat_file + ".success"):
                 status = "success"
             elif isfile(job.stat_file + ".error"):
@@ -509,23 +509,21 @@ class RunJob(object):
             if job.host is not None and job.host in ["localhost", "local"]:
                 job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
                 cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
-                if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
                 mkdir(job.workdir)
+                touch(job.stat_file + ".submit")
                 p = Popen(cmd, shell=True, stdout=logcmd,
                           stderr=logcmd, env=os.environ, cwd=job.workdir)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
                 job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
-                touch(job.stat_file + ".submit")
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 job.update_queue(self.queue)
                 cmd = job.qsub_cmd(jobmem, jobcpu)
                 if job.queue:
                     cmd += " -q " + " -q ".join(job.queue)
-                if job.subtimes > 0:
-                    cmd = cmd.replace("RUNNING", "RUNNING (re-submit)")
+                mkdir(job.workdir)
+                touch(job.stat_file + ".submit")
                 sgeid, output = self.sge_qsub(cmd, wd=job.workdir)
                 self.sge_jobid[job.jobname] = sgeid
                 logcmd.write(output)

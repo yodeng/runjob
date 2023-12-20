@@ -55,7 +55,7 @@ class Jobutils(object):
                                    for i in self.raw_cmd.strip().split("\n") if i.strip()])
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
-        if self.host == "sge":
+        if self.host in ["sge", "local", "localhost"]:
             self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && " \
                        "({1}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || " \
@@ -66,6 +66,8 @@ class Jobutils(object):
                        "({0}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS) || " \
                        "(echo [`date +'%F %T'`] ERROR)".format(raw_cmd)
+        if self.subtimes > 0:
+            self.cmd = self.cmd.replace("RUNNING", "RUNNING (re-submit)")
 
     def qsub_cmd(self, mem=1, cpu=1):
         cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu} -S /bin/bash'
