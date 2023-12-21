@@ -440,10 +440,11 @@ class Jobfile(object):
                     fo.write(line.rstrip()+"\n")
             jobfile = tmp_jobfile
         self._path = abspath(jobfile)
+        self._path_context = []
         if not exists(self._path):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = self.temp and self.workdir or dirname(self._path)
-        self.logdir = join(self._pathdir, "log")
+        self.logdir = config and config.logdir or join(self._pathdir, "logs")
         self.mode = self.has_sge and (mode or "sge") or "localhost"
         if "local" in self.mode:
             self.mode = "localhost"
@@ -454,50 +455,49 @@ class Jobfile(object):
         self.job_set = {}
 
     def _read_orders(self):
-        with open(self._path) as fi:
-            for line in fi:
-                if not line.strip() or line.startswith("#"):
-                    continue
-                line = line.split("#")[0].rstrip()
-                if re.match("logs?_?(dir)?[\s:]", line) or re.match("includes?[\s:]", line):
-                    continue
-                elif line.startswith("order"):
-                    line = line.split()
-                    if "after" in line:
-                        idx = line.index("after")
-                        o1 = line[1:idx]
-                        o2 = line[idx+1:]
-                    elif "before" in line:
-                        idx = line.index("before")
-                        o1 = line[idx+1:]
-                        o2 = line[1:idx]
-                elif "->" in line:
-                    o1, o2 = line.split("->")
+        for line in self._path_context:
+            if not line.strip() or line.startswith("#"):
+                continue
+            line = line.split("#")[0].rstrip()
+            if re.match("logs?_?(dir)?[\s:]", line) or re.match("includes?[\s:]", line):
+                continue
+            elif line.startswith("order"):
+                line = line.split()
+                if "after" in line:
+                    idx = line.index("after")
+                    o1 = line[1:idx]
+                    o2 = line[idx+1:]
+                elif "before" in line:
+                    idx = line.index("before")
+                    o1 = line[idx+1:]
+                    o2 = line[1:idx]
+            elif "->" in line:
+                o1, o2 = line.split("->")
+                o1 = self._get_value_list(o1)
+                o2 = self._get_value_list(o2)
+            elif ":" in line and not line.strip().endswith(":") and not re.match("\s", line):
+                o1, o2 = line.split(":")
+                o1 = self._get_value_list(o1)
+                o2 = self._get_value_list(o2)
+            elif "<-" in line:
+                o2, o1 = line.split("<-")
+                o1 = self._get_value_list(o1)
+                o2 = self._get_value_list(o2)
+            elif not re.match("\s", line):
+                deps = re.search("(depends?([_\s])?\s*(on)?)", line)
+                if deps:
+                    o1, o2 = line.split(deps.group())
                     o1 = self._get_value_list(o1)
                     o2 = self._get_value_list(o2)
-                elif ":" in line and not line.strip().endswith(":") and not re.match("\s", line):
-                    o1, o2 = line.split(":")
-                    o1 = self._get_value_list(o1)
-                    o2 = self._get_value_list(o2)
-                elif "<-" in line:
-                    o2, o1 = line.split("<-")
-                    o1 = self._get_value_list(o1)
-                    o2 = self._get_value_list(o2)
-                elif not re.match("\s", line):
-                    deps = re.search("(depends?([_\s])?\s*(on)?)", line)
-                    if deps:
-                        o1, o2 = line.split(deps.group())
-                        o1 = self._get_value_list(o1)
-                        o2 = self._get_value_list(o2)
-                    else:
-                        continue
                 else:
                     continue
-                for o in o1:
-                    for i in o2:
-                        if i == o:
-                            continue
-                        self.totaljobs[o].depends.add(i)
+            else:
+                continue
+            for o in o1:
+                for i in o2:
+                    if i == o:
+                        continue
+                    self.totaljobs[o].depends.add(i)
 
     def parse_orders(self):
         self._read_orders()
@@ -509,6 +509,7 @@ class Jobfile(object):
         _env = False
         with open(self._path) as fi:
             for _line in fi:
+                self._path_context.append(_line)
                 if not _line.strip() or _line.strip().startswith("#"):
                     continue
                 _line = _line.split("#")[0]

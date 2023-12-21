@@ -6,7 +6,7 @@ from .utils import *
 from .run import RunJob
 from .job import Jobfile
 from .config import load_config
-from .parser import runjob_parser
+from .parser import runjob_parser, get_config_args
 
 
 class qsub(RunJob):
@@ -20,8 +20,8 @@ class qsub(RunJob):
             @cpu <int>: default: 1
             @memory <int>: default: 1
             @num <int>: default: total jobs
-            @startline <int>: default: 1
-            @endline <int>: default: None
+            @start <int>: default: 1
+            @end <int>: default: None
             @strict <bool>: default: False
             @force <bool>: default: False
             @max_check <int>: default: 3
@@ -29,7 +29,7 @@ class qsub(RunJob):
             @loglevel <int>: default: None
             @quiet <bool>: default False
             @retry <int>: retry times, default: 0
-            @retry_ivs <int>: retryivs sec, default: 2
+            @retry_sec <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
         '''
         self.conf = config = config or load_config()
@@ -49,11 +49,11 @@ class qsub(RunJob):
         self.mode = jfile.mode
         self.name = os.getpid()
         self.jfile.parse_jobs(
-            config.injname, config.startline or 1, config.endline)
+            config.injname, config.start or 1, config.end)
         self.jobs = self.jfile.jobs
         self.logdir = jfile.logdir
         self.retry = config.retry or 0
-        self.retry_ivs = config.retry_ivs or 2
+        self.retry_sec = config.retry_sec or 2
         self.sec = config.sec or 2
         self._init()
         self.lock = Lock()
@@ -88,7 +88,7 @@ class qsub(RunJob):
     def reset(self):
         self.jfile = jfile = Jobfile(self.jobfile, mode=self.mode)
         self.jfile.parse_jobs(
-            self.conf.injname, self.conf.startline or 1, self.conf.endline)
+            self.conf.injname, self.conf.start or 1, self.conf.end)
         self.jobs = self.jfile.jobs
         self._init()
         self.reseted = True
@@ -123,10 +123,7 @@ class qsub(RunJob):
 
 def main():
     parser = runjob_parser()
-    args = parser.parse_args()
-    if args.jobfile.isatty():
-        parser.print_help()
-        return
+    conf, args = get_config_args(parser)
     if args.jobfile is sys.stdin:
         jobfile = args.jobfile.readlines()
         args.jobfile.close()
@@ -138,8 +135,6 @@ def main():
         args.mode = "local"
     if args.dot:
         args.quiet = True
-    conf = load_config()
-    conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log,
                     level=args.debug and "debug" or "info", name=__package__)
     qjobs = qsub(config=conf)

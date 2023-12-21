@@ -13,9 +13,9 @@ from . import dag
 from .job import *
 from .utils import *
 from .cluster import *
-from .parser import runsge_parser
+from .config import load_config
 from ._jobsocket import listen_job_status
-from .config import load_config, print_config
+from .parser import runsge_parser, get_config_args
 
 
 class RunJob(object):
@@ -28,8 +28,8 @@ class RunJob(object):
             @mode <str>: default: sge
             @queue <list>: default: all access queue
             @num <int>: default: total jobs
-            @startline <int>: default: 1
-            @endline <int>: default: None
+            @start <int>: default: 1
+            @end <int>: default: None
             @cpu <int>: default: 1
             @memory <int>: default: 1
             @groups <int>: default: 1
@@ -42,7 +42,7 @@ class RunJob(object):
             @loglevel <int>: default: None
             @quiet <bool>: default False
             @retry <int>: retry times, default: 0
-            @retry_ivs <int>: retryivs sec, default: 2
+            @retry_sec <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
         ''' % os.getcwd()
         self.conf = config = config or load_config()
@@ -64,12 +64,12 @@ class RunJob(object):
         self.logdir = self.jfile.logdir
         self.jpath = self.jfile._path
         self.jfile.parse_jobs(
-            start=config.startline or 1, end=config.endline)
+            start=config.start or 1, end=config.end)
         self.jobs = self.jfile.jobs
         self.mode = self.jfile.mode
         self.name = self.jfile.name
         self.retry = config.retry or 0
-        self.retry_ivs = config.retry_ivs or 2
+        self.retry_sec = config.retry_sec or 2
         self.sec = config.sec or 2
         self._init()
         self.lock = Lock()
@@ -110,7 +110,7 @@ class RunJob(object):
         self.jfile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
                                logdir=self.logdir, workdir=self.workdir)
         self.jfile.parse_jobs(
-            start=self.conf.startline or 1, end=self.conf.endline)
+            start=self.conf.start or 1, end=self.conf.end)
         self.jobs = self.jfile.jobs
         self._init()
         self.reseted = True
@@ -507,7 +507,7 @@ class RunJob(object):
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
             if job.host is not None and job.host in ["localhost", "local"]:
-                job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
+                job.raw2cmd(job.subtimes and abs(self.retry_sec) or 0)
                 cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
@@ -515,7 +515,7 @@ class RunJob(object):
                           stderr=logcmd, env=os.environ, cwd=job.workdir)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
-                job.raw2cmd(job.subtimes and abs(self.retry_ivs) or 0)
+                job.raw2cmd(job.subtimes and abs(self.retry_sec) or 0)
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 job.update_queue(self.queue)
@@ -572,7 +572,7 @@ class RunJob(object):
             print(self._shrink_graph())
             sys.exit()
         self.times = max(0, self.retry)
-        self.retry_ivs = max(self.retry_ivs, 0)
+        self.retry_sec = max(self.retry_sec, 0)
         self.run_time_stamp = now()
         self.check_already_success()
         self.is_run = True
@@ -748,16 +748,7 @@ class RunJob(object):
 
 def main():
     parser = runsge_parser()
-    args = parser.parse_args()
-    if args.jobfile.isatty():
-        parser.print_help()
-        return
-    conf = load_config()
-    if args.ini:
-        conf.update_config(args.ini)
-    if args.config:
-        print_config(conf)
-        return
+    conf, args = get_config_args(parser)
     if args.local:
         args.mode = "local"
     if args.jobfile is sys.stdin:
@@ -778,7 +769,6 @@ def main():
         os.makedirs(args.workdir)
     if args.dot:
         args.quiet = True
-    conf.update_dict(**args.__dict__)
     logger = getlog(logfile=args.log,
                     level="debug" if args.debug else "info", name=__package__)
     runsge = RunJob(config=conf)
@@ -787,7 +777,7 @@ def main():
     except (JobFailedError, QsubError) as e:
         if args.quiet:
             raise e
-        sys.exit(10)
+        parser.exit(10)
     except Exception as e:
         raise e
 

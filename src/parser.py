@@ -5,6 +5,7 @@ import argparse
 
 from .utils import *
 from ._version import __version__
+from .config import load_config, print_config
 
 try:
     from rich_argparse import RichHelpFormatter as HelpFormatter
@@ -80,6 +81,11 @@ def show_help_on_empty_command():
         sys.argv.append('--help')
 
 
+def color_description(parser):
+    parser.description = style(
+        parser.description, fore="red", mode="underline")
+
+
 def default_parser():
     p = argparse.ArgumentParser(add_help=False)
     base = p.add_argument_group("base arguments")
@@ -89,17 +95,19 @@ def default_parser():
                       help="input jobfile, if empty, stdin is used. " + REQUIRED, metavar="<jobfile>")
     base.add_argument("-n", "--num", type=int,
                       help="the max job number runing at the same time. (default: all of the jobfile, max 1000)", metavar="<int>")
-    base.add_argument("-s", "--startline", type=int,
+    base.add_argument("-s", "--start", type=int,
                       help="which line number(1-base) be used for the first job. (default: %(default)s)", metavar="<int>", default=1)
-    base.add_argument("-e", "--endline", type=int,
+    base.add_argument("-e", "--end", type=int,
                       help="which line number (include) be used for the last job. (default: last line of the jobfile)", metavar="<int>")
+    base.add_argument("-w", "--workdir", type=str, help="work directory.",
+                      default=abspath(os.getcwd()), metavar="<workdir>")
     base.add_argument('-d', '--debug', action='store_true',
                       help='log debug info.', default=False)
     base.add_argument("-l", "--log", type=str,
                       help='append log info to file. (default: stdout)', metavar="<file>")
     base.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit.",
                       type=int, default=0, metavar="<int>")
-    base.add_argument('-ivs', '--retry-ivs', help="retry the error job after N seconds.",
+    base.add_argument('-R', '--retry-sec', help="retry the error job after N seconds.",
                       type=int, default=2, metavar="<int>")
     base.add_argument("-f", "--force", default=False, action="store_true",
                       help="force to submit jobs even if already successed.")
@@ -107,12 +115,18 @@ def default_parser():
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
     base.add_argument("--dot-shrinked", action="store_true", default=False,
                       help="do not execute anything and print the shrinked directed acyclic graph of jobs in the dot language.")
+    base.add_argument('--mode', type=str, default="sge", choices=["sge", "local", "localhost", "batchcompute"],
+                      help="the mode to submit your jobs, if no sge installed, always localhost.")
     base.add_argument("--local", default=False, action="store_true",
                       help="submit your jobs in localhost, same as '--mode local'.")
     base.add_argument("--strict", action="store_true", default=False,
                       help="use strict to run, means if any errors, clean all jobs and exit.")
     base.add_argument("--quiet", action="store_true", default=False,
                       help="suppress all output and logging.")
+    base.add_argument('--ini', metavar="<configfile>",
+                      help="input configfile for configurations search.")
+    base.add_argument('--config',  action='store_true', default=False,
+                      help="show configurations and exit.")
     base.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
                       type=float, default=3, metavar="<float>")
     base.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
@@ -145,7 +159,7 @@ def sge_parser(parser):
 
 def batchcmp_parser(parser):
     batchcmp = parser.add_argument_group("batchcompute arguments")
-    batchcmp.add_argument("-om", "--out-maping", type=str,
+    batchcmp.add_argument("--out-maping", type=str,
                           help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved.', metavar="<dir>")
     batchcmp.add_argument('--access-key-id', type=str,
                           help="AccessKeyID while access oss.", metavar="<str>")
@@ -161,11 +175,9 @@ def runsge_parser():
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
-    parser.add_argument("-wd", "--workdir", type=str, help="work dir.",
-                        default=abspath(os.getcwd()), metavar="<workdir>")
     parser.add_argument("-N", "--jobname", type=str,
                         help="job name. (default: basename of the jobfile)", metavar="<jobname>")
-    parser.add_argument("-lg", "--logdir", type=str,
+    parser.add_argument("-L", "--logdir", type=str,
                         help='the output log dir. (default: "%s/%s_*_log_dir")' % (os.getcwd(), "%(prog)s"), metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
                         help="N lines to consume a new job group.", metavar="<int>")
@@ -173,16 +185,9 @@ def runsge_parser():
                         type=str,  metavar="<cmd>")
     parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
-    parser.add_argument('--mode', type=str, default="sge", choices=[
-                        "sge", "local", "localhost", "batchcompute"], help="the mode to submit your jobs, if no sge installed, always localhost.")
-    parser.add_argument('-ini', '--ini',
-                        help="input configfile for configurations search.", metavar="<configfile>")
-    parser.add_argument("-config", '--config',   action='store_true',
-                        help="show configurations and exit.",  default=False)
     sge_parser(parser)
     batchcmp_parser(parser)
-    parser.description = style(
-        parser.description, fore="red", mode="underline")
+    color_description(parser)
     return parser
 
 
@@ -194,10 +199,9 @@ def runjob_parser():
         allow_abbrev=False)
     parser.add_argument('-i', '--injname', help="job names you need to run. (default: all job names of the jobfile)",
                         nargs="*", type=str, metavar="<str>")
-    parser.add_argument("-m", '--mode', type=str, default="sge", choices=[
-                        "sge", "local", "localhost"], help="the mode to submit your jobs, if no sge installed, always localhost.")
-    parser.description = style(
-        parser.description, fore="red", mode="underline")
+    parser.add_argument("-L", "--logdir", type=str,
+                        help='the output log dir. (default: join(dirname(jobfile), "logs"))', metavar="<logdir>")
+    color_description(parser)
     return parser
 
 
@@ -216,8 +220,7 @@ def server_parser():
                         metavar="<str>")
     parser.add_argument("-P", "--port", type=int, help="jrunjob server port.",
                         metavar="<int>")
-    parser.description = style(
-        parser.description, fore="red", mode="underline")
+    color_description(parser)
     return parser
 
 
@@ -235,6 +238,20 @@ def client_parser():
                         required=True, metavar="<str>")
     parser.add_argument("-s", "--status", type=str, help="job status.",
                         required=True, metavar="<str>")
-    parser.description = style(
-        parser.description, fore="red", mode="underline")
+    color_description(parser)
     return parser
+
+
+def get_config_args(parser):
+    args = parser.parse_args()
+    conf = load_config()
+    if args.ini:
+        conf.update_config(args.ini)
+    conf.update_args(args)
+    if args.config:
+        print_config(conf)
+        parser.exit()
+    if args.jobfile.isatty():
+        parser.print_help()
+        parser.exit()
+    return conf, conf.args
