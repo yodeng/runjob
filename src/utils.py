@@ -591,3 +591,25 @@ class OrderedSet(OrderedDict, MutableSet):
         return '%s([%s])' % (self.__class__.__name__, ', '.join(map(repr, self.keys())))
 
     __str__ = __repr__
+
+
+def exception_hook(et, ev, eb):
+    err = '{0}: {1}'.format(et.__name__, ev)
+    print(style(err, fore="red", mode="bold"))
+
+
+def suppress_exceptions(*expts, msg="", trace_exception=True):
+    def outer_wrapper(func):
+        def wrapper(*args, **kwargs):
+            sys.excepthook = trace_exception and sys.__excepthook__ or exception_hook
+            try:
+                res = func(*args, **kwargs)
+            except expts as e:
+                err = msg or str(e)
+                exc = RuntimeError(err)
+                exc.__cause__ = None
+                raise exc
+            else:
+                return res
+        return wrapper
+    return outer_wrapper
