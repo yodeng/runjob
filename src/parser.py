@@ -128,9 +128,9 @@ def default_parser():
     base.add_argument('--config',  action='store_true', default=False,
                       help="show configurations and exit.")
     base.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
-                      type=float, default=3, metavar="<float>")
+                      type=float, default=DEFAULT_MAX_CHECK_PER_SEC, metavar="<float>")
     base.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
-                      type=float, default=30, metavar="<float>")
+                      type=float, default=DEFAULT_MAX_SUBMIT_PER_SEC, metavar="<float>")
     timeout_parser(p)
     return p
 

@@ -64,6 +64,9 @@ STYLE = {
     'default': {'end': 0},
 }
 
+DEFAULT_MAX_SUBMIT_PER_SEC = 20
+DEFAULT_MAX_CHECK_PER_SEC = 5
+
 
 class JobFailedError(Exception):
 

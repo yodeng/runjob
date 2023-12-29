@@ -35,16 +35,16 @@ class RunJob(object):
             @groups <int>: default: 1
             @strict <bool>: default: False
             @force <bool>: default: False
-            @logdir <dir>: defalut: "%s/run*_*_log_dir"
-            @workdir <dir>: default: os.getcwd()
-            @max_check <int>: default: 3
-            @max_submit <int>: default: 30
+            @logdir <dir>: defalut: "{0}/run*_*_log_dir"
+            @workdir <dir>: default: {0}
+            @max_check <int>: default: {1}
+            @max_submit <int>: default: {2}
             @loglevel <int>: default: None
             @quiet <bool>: default False
             @retry <int>: retry times, default: 0
             @retry_sec <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
-        ''' % os.getcwd()
+        '''.format(os.getcwd(), DEFAULT_MAX_CHECK_PER_SEC, DEFAULT_MAX_SUBMIT_PER_SEC)
         self.conf = config = config or load_config()
         for k, v in kwargs.items():
             setattr(self.conf.info.args, k, v)
@@ -99,9 +99,9 @@ class RunJob(object):
         self.conf.logger = self.logger
         self.conf.cloudjob = self.cloudjob
         self.check_rate = Fraction(
-            self.conf.max_check or 3).limit_denominator()
+            self.conf.max_check or DEFAULT_MAX_CHECK_PER_SEC).limit_denominator()
         self.sub_rate = Fraction(
-            self.conf.max_submit or 30).limit_denominator()
+            self.conf.max_submit or DEFAULT_MAX_SUBMIT_PER_SEC).limit_denominator()
         self.maxjob = int(self.maxjob or len(self.jobs))
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
         self.init_time_stamp = now()

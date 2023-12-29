@@ -24,14 +24,14 @@ class qsub(RunJob):
             @end <int>: default: None
             @strict <bool>: default: False
             @force <bool>: default: False
-            @max_check <int>: default: 3
-            @max_submit <int>: default: 30
+            @max_check <int>: default: {0}
+            @max_submit <int>: default: {1}
             @loglevel <int>: default: None
             @quiet <bool>: default False
             @retry <int>: retry times, default: 0
             @retry_sec <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
-        '''
+        '''.format(DEFAULT_MAX_CHECK_PER_SEC, DEFAULT_MAX_SUBMIT_PER_SEC)
         self.conf = config = config or load_config()
         for k, v in kwargs.items():
             setattr(self.conf.info.args, k, v)
@@ -78,9 +78,9 @@ class qsub(RunJob):
         if self.conf.loglevel:
             self.logger.setLevel(self.conf.loglevel)
         self.check_rate = Fraction(
-            self.conf.max_check or 3).limit_denominator()
+            self.conf.max_check or DEFAULT_MAX_CHECK_PER_SEC).limit_denominator()
         self.sub_rate = Fraction(
-            self.conf.max_submit or 30).limit_denominator()
+            self.conf.max_submit or DEFAULT_MAX_SUBMIT_PER_SEC).limit_denominator()
         self.sge_jobid = {}
         self.maxjob = self.maxjob or len(self.jobs)
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
