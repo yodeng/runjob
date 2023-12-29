@@ -613,3 +613,13 @@ def suppress_exceptions(*expts, msg="", trace_exception=True):
                 return res
         return wrapper
     return outer_wrapper
+
+
+@contextlib.contextmanager
+def tmp_chdir(dest):
+    curdir = os.getcwd()
+    try:
+        os.chdir(dest)
+        yield
+    finally:
+        os.chdir(curdir)

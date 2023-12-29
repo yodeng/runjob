@@ -27,7 +27,7 @@ class RunJob(object):
             @jobname <str>: default: basename(jobfile)
             @mode <str>: default: sge
             @queue <list>: default: all access queue
-            @num <int>: default: total jobs
+            @num <int>: default: number of jobs in parallel
             @start <int>: default: 1
             @end <int>: default: None
             @cpu <int>: default: 1
@@ -269,6 +269,7 @@ class RunJob(object):
         logfile = job.logfile
         if self.is_run and job.host == "batchcompute":
             if jobname in self.cloudjob:
+                time.sleep(0.1)
                 jobid = self.cloudjob[jobname]
                 try:
                     j = job.client.get_job(jobid)
@@ -296,6 +297,7 @@ class RunJob(object):
                 if not job.is_end:
                     status = "run"
         elif isfile(logfile):  # local submit or sge submit(not running yet)
+            time.sleep(0.1)
             with os.popen('tail -n 1 %s' % logfile) as fi:
                 sta = fi.read().strip()
                 stal = sta.split()
@@ -317,7 +319,10 @@ class RunJob(object):
                         info = info.decode().strip().split("\n")[-1]
                         if info.startswith("error") or ("error" in info and "Job is in error" in info):
                             status = "error"
-                    except:
+                    except BlockingIOError as e:
+                        raise e
+                    except Exception as e:
+                        self.logger.warning(str(e))
                         status = "error"
                 else:
                     status = "run"
