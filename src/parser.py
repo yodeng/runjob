@@ -169,7 +169,7 @@ def batchcmp_parser(parser):
                                                                             'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region.")
 
 
-def runsge_parser():
+def runjob_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific shell scripts runing in localhost, sge or batchcompute.",
         parents=[default_parser()],
@@ -191,7 +191,7 @@ def runsge_parser():
     return parser
 
 
-def runjob_parser():
+def runflow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific job file running in localhost or sge cluster.",
         parents=[default_parser()],
@@ -206,7 +206,7 @@ def runjob_parser():
 
 
 def shell_job_parser(arglist):
-    parser = runsge_parser()
+    parser = runjob_parser()
     return parser.parse_known_args(arglist)[0]
 
 

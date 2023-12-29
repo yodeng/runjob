@@ -15,7 +15,7 @@ from .utils import *
 from .cluster import *
 from .config import load_config
 from ._jobsocket import listen_job_status
-from .parser import runsge_parser, get_config_args
+from .parser import runjob_parser, get_config_args
 
 
 class RunJob(object):
@@ -50,7 +50,7 @@ class RunJob(object):
             setattr(self.conf.info.args, k, v)
         self.jobfile = config.jobfile
         if not self.jobfile:
-            raise QsubError("Empty jobs input")
+            raise RunJobError("Empty jobs input")
         self.quiet = config.quiet
         self.queue = config.queue
         self.maxjob = config.num
@@ -674,7 +674,7 @@ class RunJob(object):
         self.err_msg = msg
         self.safe_exit()
         if threading.current_thread().name == 'MainThread':
-            raise QsubError(self.err_msg)
+            raise RunJobError(self.err_msg)
         else:
             os.kill(os.getpid(), signal.SIGUSR1)  # threading exit
 
@@ -752,7 +752,7 @@ class RunJob(object):
 
 
 def main():
-    parser = runsge_parser()
+    parser = runjob_parser()
     conf, args = get_config_args(parser)
     if args.local:
         args.mode = "local"
@@ -779,7 +779,7 @@ def main():
     runsge = RunJob(config=conf)
     try:
         runsge.run()
-    except (JobFailedError, QsubError) as e:
+    except (JobFailedError, RunJobError) as e:
         if args.quiet:
             raise e
         parser.exit(10)

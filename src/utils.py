@@ -96,7 +96,7 @@ class RunJobException(Exception):
     __repr__ = __str__
 
 
-class QsubError(RunJobException):
+class RunJobError(RunJobException):
     pass
 
 
@@ -195,7 +195,7 @@ class ParseSingal(Thread):
     def signal_handler_us(self, signum, frame):
         self.obj.signaled = True
         self._exit()
-        raise QsubError(self.obj.err_msg)
+        raise RunJobError(self.obj.err_msg)
 
 
 class RunThread(Thread):
@@ -398,16 +398,13 @@ def terminate_process(pid):
         pass
 
 
-def call_cmd(cmd, verbose=False):
-    shell = True
-    if isinstance(cmd, list):
-        shell = False
+def call_cmd(cmd, verbose=False, run=True):
     if verbose:
         print(cmd)
-        call(cmd, shell=shell, stdout=PIPE, stderr=PIPE)
-    else:
-        with open(os.devnull, "w") as fo:
-            call(cmd, shell=shell, stdout=fo, stderr=fo)
+    if not run:
+        return
+    call(cmd, shell=isinstance(cmd, str),
+         stdout=not verbose and -3 or None, stderr=-2)
 
 
 def is_sge_submit():

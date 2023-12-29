@@ -3,13 +3,13 @@
 
 from . import dag
 from .utils import *
-from .run import RunJob
 from .job import Jobfile
+from .runjob import RunJob
 from .config import load_config
-from .parser import runjob_parser, get_config_args
+from .parser import runflow_parser, get_config_args
 
 
-class qsub(RunJob):
+class RunFlow(RunJob):
 
     def __init__(self, config=None, **kwargs):
         '''
@@ -122,7 +122,7 @@ class qsub(RunJob):
 
 
 def main():
-    parser = runjob_parser()
+    parser = runflow_parser()
     conf, args = get_config_args(parser)
     if args.jobfile is sys.stdin:
         jobfile = args.jobfile.readlines()
@@ -137,10 +137,10 @@ def main():
         args.quiet = True
     logger = getlog(logfile=args.log,
                     level=args.debug and "debug" or "info", name=__package__)
-    qjobs = qsub(config=conf)
+    flow = RunFlow(config=conf)
     try:
-        qjobs.run()
-    except (JobFailedError, QsubError) as e:
+        flow.run()
+    except (JobFailedError, RunJobError) as e:
         if args.quiet:
             raise e
         sys.exit(10)
