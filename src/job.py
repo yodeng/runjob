@@ -59,13 +59,13 @@ class Jobutils(object):
             self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && " \
                        "({1}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || " \
-                       "(echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run)".format(
+                       "(echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run && exit 1)".format(
                            self.stat_file, raw_cmd)
         else:
             self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...') && " \
                        "({0}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS) || " \
-                       "(echo [`date +'%F %T'`] ERROR)".format(raw_cmd)
+                       "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd)
         if self.subtimes > 0:
             self.cmd = self.cmd.replace("RUNNING", "RUNNING (re-submit)")
 

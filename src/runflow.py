@@ -19,7 +19,7 @@ class RunFlow(RunJob):
             @queue <list>: default: all access queue
             @cpu <int>: default: 1
             @memory <int>: default: 1
-            @num <int>: default: total jobs
+            @num <int>: default: number of jobs in parallel
             @start <int>: default: 1
             @end <int>: default: None
             @strict <bool>: default: False
