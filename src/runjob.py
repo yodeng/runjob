@@ -330,9 +330,9 @@ class RunJob(object):
                 status = "run"
             if self.is_run and job.host.startswith("local") and jobname not in self.localprocess:
                 status = job.status
-            if job.host.startswith("local") and hasattr(self, "localprocess") and jobname in self.localprocess:
-                ret = self.localprocess[jobname].poll()
-                if ret and ret < 0:
+            if job.host.startswith("local") and jobname in self.localprocess:
+                ps = self.localprocess[jobname].poll()
+                if ps and ps < 0:
                     status = "kill"
             if not self.is_run and status == "success":
                 job.logcmd = ""
@@ -371,24 +371,32 @@ class RunJob(object):
     def _list_check_sge(self, period=5, sleep=10):
         rate_limiter = RateLimiter(max_calls=1, period=period)
         time.sleep(sleep)
+
+        def _deal_check(self, jb):
+            if self.is_run and not jb.is_end and isfile(jb.stat_file + ".run"):
+                time.sleep(1)
+                _ = self.jobstatus(jb)
+                jb.set_kill()
+                self.log_status(jb)
+
         while not self.finished:
             for jb in self.jobqueue.queue:
                 jobname = jb.jobname
-                if jb.host != "sge" or jobname not in self.sge_jobid or jb.status != "run":
+                if jb.status != "run":
                     continue
                 with rate_limiter:
-                    jobid = self.sge_jobid.get(jobname)
-                    if jobid and jobid.isdigit():
-                        try:
-                            _ = check_output(
-                                ["qstat", "-j", jobid], stderr=PIPE)
-                        except Exception as err:
-                            self.logger.debug(err)
-                            if self.is_run and not jb.is_end and isfile(jb.stat_file + ".run"):
-                                time.sleep(1)
-                                _ = self.jobstatus(jb)
-                                jb.set_kill()
-                                self.log_status(jb)
+                    if jobname in self.localprocess:
+                        ps = self.localprocess[jobname].poll()
+                        if ps and ps < 0:
+                            _deal_check(self, jb)
+                    elif jobname in self.sge_jobid:
+                        jobid = self.sge_jobid.get(jobname)
+                        if jobid and jobid.isdigit():
+                            try:
+                                check_output(["qstat", "-j", jobid], stderr=-3)
+                            except Exception as err:
+                                self.logger.debug(err)
+                                _deal_check(self, jb)
             time.sleep(sleep)
 
     def jobcheck(self):

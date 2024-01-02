@@ -9,6 +9,7 @@ import socket
 import signal
 import psutil
 import logging
+import tempfile
 import argparse
 import textwrap
 import threading
@@ -177,6 +178,8 @@ class ParseSingal(Thread):
         signal.signal(signal.SIGINT, self.signal_handler)
         signal.signal(signal.SIGTERM, self.signal_handler)
         signal.signal(signal.SIGUSR1, self.signal_handler_us)
+        # ignore SIGCHLD
+        # signal.signal(signal.SIGCHLD, signal.SIG_IGN)
         self.daemon = True
         self.obj = obj
 
@@ -623,3 +626,35 @@ def tmp_chdir(dest):
         yield
     finally:
         os.chdir(curdir)
+
+
+class TempFile(object):
+
+    def __init__(self, suffix="", dir=None):
+        self.temp = tempfile.NamedTemporaryFile(
+            suffix=suffix, delete=False, dir=dir)
+
+    def delete(self):
+        try:
+            self.temp._closer.delete = True
+        except:
+            self.temp.delete = True
+        self.temp.close()
+
+    def _get_name(self):
+        return self.temp.name
+
+    @property
+    def name(self):
+        return self._get_name()
+
+    def __exit__(self, type, value, traceback):
+        try:
+            self.delete()
+        except AttributeError:
+            pass
+        finally:
+            self.delete()
+
+    def __enter__(self):
+        return self
