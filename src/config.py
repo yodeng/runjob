@@ -13,9 +13,6 @@ else:
 
 class Conf(configparser.ConfigParser):
 
-    def __init__(self, defaults=None):
-        super(Conf, self).__init__(defaults=defaults)
-
     def optionxform(self, optionstr):
         return optionstr
 

@@ -630,9 +630,9 @@ def tmp_chdir(dest):
 
 class TempFile(object):
 
-    def __init__(self, suffix="", dir=None):
+    def __init__(self, suffix=None, prefix=None, dir=None):
         self.temp = tempfile.NamedTemporaryFile(
-            suffix=suffix, delete=False, dir=dir)
+            suffix=suffix, prefix=prefix, delete=False, dir=dir)
 
     def delete(self):
         try:

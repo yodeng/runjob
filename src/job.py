@@ -432,13 +432,13 @@ class Jobfile(object):
         self.workdir = abspath(workdir or os.getcwd())
         self.temp = None
         if isinstance(jobfile, (tuple, list)):
-            self.temp = basename(tempfile.mktemp(prefix=__package__ + "_"))
-            tmp_jobfile = join(self.workdir, self.temp)
+            self.temp = TempFile(prefix=".{}_".format(
+                __package__), dir=self.workdir)
             mkdir(self.workdir)
-            with open(tmp_jobfile, "w") as fo:
+            with open(self.temp.name, "w") as fo:
                 for line in jobfile:
                     fo.write(line.rstrip()+"\n")
-            jobfile = tmp_jobfile
+            jobfile = self.temp.name
         self._path = abspath(jobfile)
         self._path_context = []
         if not exists(self._path):
@@ -570,7 +570,7 @@ class Jobfile(object):
         jobend = end or len(self.totaljobs)
         self.jobs = list(self.totaljobs.values())[start-1:jobend]
         if self.temp and isfile(self._path):
-            os.remove(self._path)
+            self.temp.delete()
         self.expand_jobs()
 
     def expand_jobs(self):
@@ -739,6 +739,6 @@ class Shellfile(Jobfile):
                     continue
                 self.add_job(n, line, method="from_cmd")
         if self.temp and isfile(self._path):
-            os.remove(self._path)
+            self.temp.delete()
         self.jobs = list(self.totaljobs.values())
         self.expand_jobs()
