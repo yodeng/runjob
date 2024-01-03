@@ -359,8 +359,22 @@ class RunJob(object):
                         datetime.today().strftime("%F %X"), job.status.upper()))
         return status
 
-    def jobcheck_by_socket(self):
-        pass
+    def get_status(self):
+        while not self.finished:
+            name, js = self._status_queue.get()
+            if name not in self.totaljobdict:
+                continue
+            jb = self.totaljobdict[name]
+            if js != jb.status:
+                if status == "run":
+                    jb.run_time = now()
+                jb.set_status(status)
+                if not self.signaled:
+                    self.log_status(jb)
+            self.adjust_jobsgraph(jb, js)
+
+    def send_status(self, name, status):
+        self._status_queue.put((name, status))
 
     def set_rate(self, check_rate=0, sub_rate=0):
         if check_rate:
@@ -403,7 +417,7 @@ class RunJob(object):
         RunThread(self._jobcheck).start()
         RunThread(self._list_check_sge).start()
 
-    def _job_socket_server(self):
+    def _job_status_server(self):
         RunThread(listen_job_status, self._status_socket_file,
                   self._status_queue).start()
 
@@ -426,52 +440,55 @@ class RunJob(object):
                             "check job status error: %s", jb.name)
                         self.logger.exception(e)
                         continue
-                    if js == "success":
-                        self.deletejob(jb)
-                        self.jobqueue.get(jb)
-                        self.jobsgraph.delete_node_if_exists(jb.jobname)
-                    elif js == "error":
-                        self.deletejob(jb)
-                        if not jb.timeout:
-                            if jb.subtimes >= self.times + 1:
-                                if self.strict:
-                                    self.throw("Error jobs return (submit %d times), %s" % (
-                                        jb.subtimes, jb.logfile))
-                                self.jobqueue.get(jb)
-                                self.jobsgraph.delete_node_if_exists(
-                                    jb.jobname)
-                            else:
-                                self.jobqueue.get(jb)
-                                self.submit(jb)
-                        else:
-                            if jb.max_timeout_retry > 0:
-                                self.jobqueue.get(jb)
-                                self.submit(jb)
-                                jb.max_timeout_retry -= 1
-                            else:
-                                if self.strict:
-                                    self.throw("Error jobs return (submit %d times), %s" % (
-                                        jb.subtimes, jb.logfile))
-                                self.jobqueue.get(jb)
-                                self.jobsgraph.delete_node_if_exists(
-                                    jb.jobname)
-                    elif js in ["exit", "kill"]:
-                        self.deletejob(jb)
-                        self.jobqueue.get(jb)
-                        self.jobsgraph.delete_node_if_exists(jb.jobname)
-                        if self.strict:
-                            self.throw("Error job: %s, exit" % jb.jobname)
-                    elif js in ["run", "submit", "resubmit"]:
-                        _now = now()
-                        if _now - jb.submit_time > jb.max_wait_sec or \
-                                js == "run" and _now - jb.run_time > jb.max_run_sec or \
-                                js != "run" and _now - jb.submit_time > jb.max_queue_sec:
-                            self.deletejob(jb)
-                            jb.timeout = True
-                            jb.status = "error"
-                            jb.log_to_file("Timeout ERROR")
-                            self.logger.error(
-                                "job %s status timeout %s", jb.jobname, jb.status)
+                    self.adjust_jobsgraph(jb, js)
+
+    def adjust_jobsgraph(self, jb, js):
+        if js == "success":
+            self.deletejob(jb)
+            self.jobqueue.get(jb)
+            self.jobsgraph.delete_node_if_exists(jb.jobname)
+        elif js == "error":
+            self.deletejob(jb)
+            if not jb.timeout:
+                if jb.subtimes >= self.times + 1:
+                    if self.strict:
+                        self.throw("Error jobs return (submit %d times), %s" % (
+                            jb.subtimes, jb.logfile))
+                    self.jobqueue.get(jb)
+                    self.jobsgraph.delete_node_if_exists(
+                        jb.jobname)
+                else:
+                    self.jobqueue.get(jb)
+                    self.submit(jb)
+            else:
+                if jb.max_timeout_retry > 0:
+                    self.jobqueue.get(jb)
+                    self.submit(jb)
+                    jb.max_timeout_retry -= 1
+                else:
+                    if self.strict:
+                        self.throw("Error jobs return (submit %d times), %s" % (
+                            jb.subtimes, jb.logfile))
+                    self.jobqueue.get(jb)
+                    self.jobsgraph.delete_node_if_exists(
+                        jb.jobname)
+        elif js in ["exit", "kill"]:
+            self.deletejob(jb)
+            self.jobqueue.get(jb)
+            self.jobsgraph.delete_node_if_exists(jb.jobname)
+            if self.strict:
+                self.throw("Error job: %s, exit" % jb.jobname)
+        elif js in ["run", "submit", "resubmit"]:
+            _now = now()
+            if _now - jb.submit_time > jb.max_wait_sec or \
+                    js == "run" and _now - jb.run_time > jb.max_run_sec or \
+                    js != "run" and _now - jb.submit_time > jb.max_queue_sec:
+                self.deletejob(jb)
+                jb.timeout = True
+                jb.status = "error"
+                jb.log_to_file("Timeout ERROR")
+                self.logger.error(
+                    "job %s status timeout %s", jb.jobname, jb.status)
 
     def qdel(self, name="", jobname=""):
         self._qdel(name=name, jobname=jobname)
@@ -574,32 +591,30 @@ class RunJob(object):
 
     def run(self):
         if self.is_run:
-            self.logger.warning("not allowed for job has run")
-            return
+            return self.logger.warning("not allowed for job has run")
         elif len(self.jobsgraph.graph) == 0:
-            self.logger.warning("no jobs produced in '%s'", jobfile)
+            return self.logger.warning("no jobs produced in '%s'", self.jobfile)
         elif self.conf.rget("args", "dot"):
             print(self.jobsgraph.dot(self._shrink_jobnames))
             sys.exit()
         elif self.conf.rget("args", "dot_shrinked"):
             print(self._shrink_graph())
             sys.exit()
+        self.run_time_stamp = now()
         self.times = max(0, self.retry)
         self.retry_sec = max(self.retry_sec, 0)
-        self.run_time_stamp = now()
-        self.check_already_success()
-        self.is_run = True
         self.logger.info("Total jobs to submit: %s" %
-                         ", ".join([j.name for j in sorted(self.jobs + self.has_success)]))
+                         ", ".join([j.name for j in sorted(self.jobs)]))
         mkdir(self.logdir, self.workdir)
         self.logger.info("All logs can be found in %s directory", self.logdir)
+        self.check_already_success()
         for jn in self.has_success:
             self.logger.info("job %s status already success", jn.name)
+        self.is_run = True
         if len(self.jobsgraph.graph) == 0:
-            self.logger.warning("no jobs need to submit")
-            return
+            return self.logger.warning("no jobs need to submit")
         if not self.reseted:
-            self.clean_resource()
+            self.cleanup()
         if self.mode == "batchcompute":
             access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
             access_key_secret = self.conf.args.access_key_secret or self.conf.access_key_secret
@@ -616,7 +631,7 @@ class RunJob(object):
         sub_rate_limiter = RateLimiter(
             max_calls=self.sub_rate.numerator, period=self.sub_rate.denominator)
         self.jobcheck()
-        # self._job_socket_server()
+        # self._job_status_server()
         while True:
             subjobs = self.jobsgraph.ind_nodes()
             if len(subjobs) == 0:
@@ -643,7 +658,7 @@ class RunJob(object):
             logging.disable()
         return logging.getLogger(__package__)
 
-    def clean_jobs(self):
+    def _clean_jobs(self):
         if self.mode == "sge":
             try:
                 self.deletejob(name=self.name)
@@ -700,13 +715,12 @@ class RunJob(object):
                     k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
             fo.write("\n# Time Elapse: %s\n" % seconds2human(elaps))
 
-    def clean_resource(self):
-        h = ParseSingal(obj=self)
-        h.start()
+    def cleanup(self):
+        ParseSingal(obj=self).start()
 
     def safe_exit(self):
         with self.lock:
-            self.clean_jobs()
+            self._clean_jobs()
             if self.err_msg:
                 self.logger.error(self.err_msg)
             self.sumstatus()

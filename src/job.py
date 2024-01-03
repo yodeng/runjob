@@ -47,7 +47,7 @@ class Jobutils(object):
     def stat_file(self):
         return join(self.logdir, "."+basename(self.logfile))
 
-    def raw2cmd(self, sleep_sec=0):
+    def raw2cmd(self, sleep_sec=0, report=False):
         raw_cmd = self.raw_cmd
         if self.groups and self.groups > 1 and len(self.raw_cmd.split("\n")) > 1:
             raw_cmd = "/bin/bash -euxo pipefail -c " + \
@@ -426,7 +426,7 @@ class Job(Jobutils):
 
 class Jobfile(object):
 
-    def __init__(self, jobfile, mode=None, workdir=os.getcwd(), config=None):
+    def __init__(self, jobfile, mode=None, workdir=None, config=None):
         self.config = config
         self.has_sge = is_sge_submit()
         self.workdir = abspath(workdir or os.getcwd())

@@ -221,6 +221,7 @@ def server_parser():
     parser.add_argument("-P", "--port", type=int, help="jrunjob server port.",
                         metavar="<int>")
     color_description(parser)
+    show_help_on_empty_command()
     return parser
 
 
@@ -232,13 +233,14 @@ def client_parser():
                         metavar="<file>")
     parser.add_argument("-H", "--host", type=str, help="runjob server hostname or ip.",
                         default="", metavar="<str>")
-    parser.add_argument("-P", "--port", type=int, help="jrunjob server port.",
+    parser.add_argument("-P", "--port", type=int, help="runjob server port.",
                         metavar="<int>")
     parser.add_argument("-n", "--name", type=str, help="job name.",
                         required=True, metavar="<str>")
     parser.add_argument("-s", "--status", type=str, help="job status.",
                         required=True, metavar="<str>")
     color_description(parser)
+    show_help_on_empty_command()
     return parser
 
 

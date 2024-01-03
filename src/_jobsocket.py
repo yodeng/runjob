@@ -70,6 +70,12 @@ class JobSocket(object):
         except:
             pass
 
+    def __del__(self):
+        try:
+            self.close()
+        except:
+            pass
+
     @property
     def logger(self):
         return logging.getLogger(__package__)
