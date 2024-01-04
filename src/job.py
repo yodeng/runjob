@@ -320,9 +320,11 @@ class Job(Jobutils):
                 self.depends = set(self.jobfile._get_value_list(value))
             elif re.match("host[\s:]", j):
                 self.host = value
+            elif re.match("local(host)?s?[\s:]", j):
+                if self._get_bool(value):
+                    self.host = "localhost"
             elif re.match("force[\s:]", j):
-                force = value
-                self.force = float(force) if force.isdigit() else force
+                self.force = self._get_bool(value)
             elif j == "cmd_begin":
                 no_begin = True
                 continue
@@ -349,7 +351,9 @@ class Job(Jobutils):
                 self.max_timeout_retry = int(value)
             elif re.match("time[\s:]", j):
                 self.max_run_sec = human2seconds(value)
-            elif no_begin and not ":" in j:
+            elif no_begin and not j.strip().endswith(":"):
+                if ":" in j and len(list(filter(None, re.split("[\s:]", j)))) == 2:
+                    raise JobError("unrecognized job define: '{}'".format(j))
                 cmds.append(j)
             else:
                 raise JobError(
@@ -362,6 +366,17 @@ class Job(Jobutils):
         if self.jobfile.mode in ["localhost", "local"] or not self.jobfile.has_sge:
             self.host = "localhost"
         return cmds
+
+    def _get_bool(self, v):
+        try:
+            return bool(float(v))
+        except:
+            pass
+        if v.lower() in ["true", "yes", "ok", "y"]:
+            return True
+        elif v.lower() in ["false", "no", "n"]:
+            return False
+        return False
 
     def _get_cmd(self, cmd=None):
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
@@ -502,7 +517,7 @@ class Jobfile(object):
     def parse_orders(self):
         self._read_orders()
         self.expand_orders()
-        self.check_orders_name()
+        self.check_orders()
 
     def parse_jobs(self, names=None, start=1, end=None):
         job = []
@@ -695,12 +710,12 @@ class Jobfile(object):
             out = list(filter(None, ns))
         return [i.strip("$") for i in out]
 
-    def check_orders_name(self):
+    def check_orders(self):
         for k, v in self.orders.items():
             for n in v:
                 if n not in self.totaljobs:
                     raise JobOrderError(
-                        "no job named '{}'".format(n))
+                        "no depends named '{}' in job '{}'".format(n, k))
 
 
 class Shellfile(Jobfile):

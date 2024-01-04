@@ -21,9 +21,9 @@ from string import Template
 from datetime import datetime
 from fractions import Fraction
 from threading import Thread, Lock, _start_new_thread
-from collections import Counter, deque, OrderedDict
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
+from collections import Counter, deque, OrderedDict, defaultdict
 from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser
 
 from .loger import *
@@ -106,6 +106,10 @@ class JobError(RunJobException):
 
 
 class JobOrderError(RunJobException):
+    pass
+
+
+class MaxRetryError(RunJobException):
     pass
 
 
@@ -277,10 +281,6 @@ class mute(object):
         return types.MethodType(self, instance)
 
 
-class MaxRetryError(RunJobException):
-    pass
-
-
 def retry(func=None, *, max_num=3, delay=5, callback=None):
     if func is None:
         return partial(retry, max_num=max_num, delay=delay, callback=callback)
@@ -326,7 +326,7 @@ def getlog(logfile=None, level="info", name=__package__):
             return logger
         h = logging.StreamHandler(sys.stdout)
     else:
-        h = logging.FileHandler(logfile, mode='w')
+        h = logging.FileHandler(logfile, mode='a')
     h.setFormatter(Formatter())
     logger.addHandler(h)
     return logger
@@ -366,6 +366,10 @@ def human2seconds(time_str):
     time_params = {name: float(param)
                    for name, param in parts.groupdict().items() if param}
     return int(sum(MULTIPLIERS[k]*v for k, v in time_params.items()))
+
+
+def nestdict():
+    return defaultdict(nestdict)
 
 
 def mkdir(*path):
