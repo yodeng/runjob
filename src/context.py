@@ -12,7 +12,7 @@ class Context(metaclass=ConfigType):
 
     conf = load_config()
     db = database = conf.database
-    soft = bin = conf.bin
+    soft = bin = software = conf.software
     args = conf.args
     log = getlog()
 
@@ -20,6 +20,9 @@ class Context(metaclass=ConfigType):
         if home or default or init_envs:
             self.__class__.conf = load_config(
                 home=home, default=default, init_envs=init_envs)
+            self.__class__.args = self.__class__.conf.args
+            self.__class__.db = self.__class__.database = self.__class__.conf.database
+            self.__class__.soft = self.__class__.bin = self.__class__.software = self.__class__.conf.software
 
     @classmethod
     def _add_config(cls, config):
@@ -41,9 +44,9 @@ class Context(metaclass=ConfigType):
     @classmethod
     def init_log(cls, logfile=None, name=__package__, level="info"):
         cls.log = getlog(logfile=logfile, level=level, name=name)
-        if cls.args.debug:
+        if cls.conf.args.debug:
             cls.log.setLevel(logging.DEBUG)
-        if cls.args.quiet:
+        if cls.conf.args.quiet:
             logging.disable()
 
     @classmethod
@@ -57,7 +60,7 @@ class Context(metaclass=ConfigType):
         cls.init_path()
 
     def __getattr__(self, attr):
-        return self.__dict__.get(attr, getattr(self.conf, attr))
+        return self.__dict__.get(attr, self.conf.__getitem__(attr))
 
     def __setattr__(self, key, value):
         return self.__class__.conf.__setitem__(key, value)

@@ -90,11 +90,8 @@ class ConfigType(type):
             self._instance = super(ConfigType, self).__call__(*args, **kwargs)
         return self._instance
 
-    def __getattr__(cls, name):
-        try:
-            return cls.__dict__.__getitem__(name)
-        except (KeyError, RecursionError):
-            return getattr(cls.conf, name, cls.conf.__getitem__(name))
+    def __getattr__(cls, attr):
+        return cls.__dict__.get(attr, cls.conf.__getitem__(attr))
 
     __getitem__ = __getattr__
 
@@ -109,8 +106,8 @@ class Config(Dict):
         super(Config, self).__init__()
         self.info = self
         self.cf = []
-        self.bin = self.software
-        self.database = self.db = self.data
+        self.bin = self.soft = self.software
+        self.database = self.db
         self.bin_dir = bin_dir or join(sys.prefix, "bin")
         if init_envs:
             self.update_executable_bin()
