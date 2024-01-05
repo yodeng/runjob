@@ -10,43 +10,61 @@ from .config import ConfigType, load_config
 
 class Context(metaclass=ConfigType):
 
+    conf = load_config()
+    db = database = conf.database
+    soft = bin = conf.bin
+    args = conf.args
+    log = getlog()
+
     def __init__(self, home=None, default=None, init_envs=False):
-        self.conf = load_config(
-            home=home, default=default, init_envs=init_envs)
-        self.db = self.database = self.conf.database
-        self.soft = self.bin = self.conf.bin
-        self.args = self.conf.args
+        if home or default or init_envs:
+            self.__class__.conf = load_config(
+                home=home, default=default, init_envs=init_envs)
 
-    def _add_config(self, config):
-        self.conf.update_config(config)
+    @classmethod
+    def _add_config(cls, config):
+        cls.conf.update_config(config)
 
-    def _add_path(self, path_dir=None):
-        self.conf.bin_dir = path_dir or self.conf.bin_dir
-        self.conf.update_executable_bin()
+    @classmethod
+    def _add_path(cls, path_dir=None):
+        cls.conf.bin_dir = path_dir or cls.conf.bin_dir
+        cls.conf.update_executable_bin()
 
-    def init_arg(self, args=None):
+    @classmethod
+    def init_arg(cls, args=None):
         if not args:
             return
         if hasattr(args, "config") and args.config and isfile(args.config):
-            self._add_config(args.config)
-        self.conf.update_dict(**args.__dict__)
+            cls._add_config(args.config)
+        cls.conf.update_args(args)
 
-    def init_log(self, name=__package__):
-        self.log = getlog(level="info", name=name)
-        if self.args.debug:
-            self.log.setLevel(logging.DEBUG)
-        if self.args.quiet:
+    @classmethod
+    def init_log(cls, logfile=None, name=__package__, level="info"):
+        cls.log = getlog(logfile=logfile, level=level, name=name)
+        if cls.args.debug:
+            cls.log.setLevel(logging.DEBUG)
+        if cls.args.quiet:
             logging.disable()
 
-    def init_path(self):
+    @classmethod
+    def init_path(cls):
         os.environ["PATH"] = join(sys.prefix, "bin:") + os.environ["PATH"]
 
-    def init_all(self, args=None):
-        self.init_arg(args)
-        self.init_log()
-        self.init_path()
+    @classmethod
+    def init_all(cls, args=None):
+        cls.init_arg(args)
+        cls.init_log()
+        cls.init_path()
 
     def __getattr__(self, attr):
         return self.__dict__.get(attr, getattr(self.conf, attr))
 
+    def __setattr__(self, key, value):
+        return self.__class__.conf.__setitem__(key, value)
+
     __getitem__ = __getattr__
+
+    __setitem__ = __setattr__
+
+
+context = Context

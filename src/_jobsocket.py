@@ -4,8 +4,9 @@ import logging
 
 from pathlib import Path
 
+from .context import context
+from .utils import Queue, _start_new_thread
 from .parser import server_parser, client_parser
-from .utils import getlog, Queue, _start_new_thread
 
 HOSTNAME = socket.getfqdn(socket.gethostname())
 IPADDRESS = socket.gethostbyname(HOSTNAME)
@@ -78,7 +79,7 @@ class JobSocket(object):
 
     @property
     def logger(self):
-        return logging.getLogger(__package__)
+        return context.log
 
     def __enter__(self):
         return self
@@ -103,7 +104,7 @@ def send_job_status(sfile, name, status, **kwargs):
 
 def job_server():
     args = server_parser().parse_args()
-    log = getlog(level="debug")
+    context.init_log(level="debug")
     if not args.port and args.host and ":" in args.host:
         h = args.host.rsplit(":", 1)
         if len(h) == 2:
@@ -116,7 +117,7 @@ def job_server():
 
 def job_client():
     args = client_parser().parse_args()
-    log = getlog(level="debug")
+    context.init_log(level="debug")
     if not args.file and not (args.host or args.port):
         raise RuntimeError("No server host/port define")
     elif args.file:

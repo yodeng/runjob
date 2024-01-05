@@ -13,6 +13,7 @@ from . import dag
 from .job import *
 from .utils import *
 from .cluster import *
+from .context import context
 from .config import load_config
 from ._jobsocket import listen_job_status
 from .parser import runjob_parser, get_config_args
@@ -656,7 +657,7 @@ class RunJob(object):
     def logger(self):
         if self.quiet:
             logging.disable()
-        return logging.getLogger(__package__)
+        return context.log
 
     def _clean_jobs(self):
         if self.mode == "sge":
@@ -796,8 +797,7 @@ def main():
         os.makedirs(args.workdir)
     if args.dot:
         args.quiet = True
-    logger = getlog(logfile=args.log,
-                    level="debug" if args.debug else "info", name=__package__)
+    context.init_log(level=args.debug and "debug" or "info", logfile=args.log)
     runsge = RunJob(config=conf)
     try:
         runsge.run()

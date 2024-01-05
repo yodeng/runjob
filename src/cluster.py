@@ -17,6 +17,7 @@ from batchcompute.resources import (
     JobDescription, TaskDescription, DAG, Mounts,
 )
 
+from .context import context
 
 REGION = {
     'BEIJING': 'batchcompute.cn-beijing.aliyuncs.com',
@@ -174,4 +175,4 @@ class Task(object):
 
     @property
     def loger(self):
-        return logging.getLogger(__package__)
+        return context.log

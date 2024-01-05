@@ -5,5 +5,5 @@ from .loger import Formatter
 from .runflow import RunFlow as runjob
 from .runjob import RunJob as runsge
 from .config import load_config as Config
-from .context import Context
+from .context import Context, context
 from .parser import CustomHelpFormatter

@@ -90,6 +90,14 @@ class ConfigType(type):
             self._instance = super(ConfigType, self).__call__(*args, **kwargs)
         return self._instance
 
+    def __getattr__(cls, name):
+        try:
+            return cls.__dict__.__getitem__(name)
+        except (KeyError, RecursionError):
+            return getattr(cls.conf, name, cls.conf.__getitem__(name))
+
+    __getitem__ = __getattr__
+
 
 class Config(Dict):
 

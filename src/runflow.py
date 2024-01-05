@@ -5,6 +5,7 @@ from . import dag
 from .utils import *
 from .job import Jobfile
 from .runjob import RunJob
+from .context import context
 from .config import load_config
 from .parser import runflow_parser, get_config_args
 
@@ -135,8 +136,7 @@ def main():
         args.mode = "local"
     if args.dot:
         args.quiet = True
-    logger = getlog(logfile=args.log,
-                    level=args.debug and "debug" or "info", name=__package__)
+    context.init_log(level=args.debug and "debug" or "info", logfile=args.log)
     flow = RunFlow(config=conf)
     try:
         flow.run()
