@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 
-from os.path import isfile, join, dirname
+from os.path import isfile, isdir, join, dirname, abspath
 
 from .utils import getlog
 from .config import ConfigType, load_config
@@ -16,29 +16,43 @@ class Context(metaclass=ConfigType):
     args = conf.args
     log = getlog()
 
-    def __init__(self, home=None, default=None, init_envs=False):
-        if home or default or init_envs:
+    def __init__(self, home=None, default=None, init_bin=False, args=None, **kw):
+        if home or default or init_bin or kw.get("init_envs"):
             self.__class__.conf = load_config(
-                home=home, default=default, init_envs=init_envs)
+                home=home, default=default, init_bin=init_bin or kw.get("init_envs"))
             self.__class__.args = self.__class__.conf.args
             self.__class__.db = self.__class__.database = self.__class__.conf.database
             self.__class__.soft = self.__class__.bin = self.__class__.software = self.__class__.conf.software
+        self.__class__.init_arg(args)
 
     @classmethod
-    def _add_config(cls, config):
-        cls.conf.update_config(config)
+    def add_config(cls, config=None):
+        if config:
+            cls.conf.update_config(config)
 
     @classmethod
-    def _add_path(cls, path_dir=None):
-        cls.conf.bin_dir = path_dir or cls.conf.bin_dir
-        cls.conf.update_executable_bin()
+    def add_bin(cls, bin_dir=None):
+        if bin_dir:
+            cls.conf.bin_dirs.append(bin_dir)
+        cls.init_bin()
+
+    @classmethod
+    def add_path(cls, path=None):
+        p = join(sys.prefix, "bin") + ":" + os.environ["PATH"]
+        if path and isdir(path):
+            p = abspath(path) + ":" + p
+        cls.add_envs(PATH=p)
+
+    @classmethod
+    def add_envs(cls, **kw):
+        os.environ.update(kw)
 
     @classmethod
     def init_arg(cls, args=None):
         if not args:
             return
         if hasattr(args, "config") and args.config and isfile(args.config):
-            cls._add_config(args.config)
+            cls.add_config(args.config)
         cls.conf.update_args(args)
 
     @classmethod
@@ -50,14 +64,21 @@ class Context(metaclass=ConfigType):
             logging.disable()
 
     @classmethod
-    def init_path(cls):
-        os.environ["PATH"] = join(sys.prefix, "bin:") + os.environ["PATH"]
+    def init_bin(cls):
+        cls.conf.update_executable_bin()
 
     @classmethod
-    def init_all(cls, args=None):
+    def init_all(cls, args=None, conf=None, init_bin=False):
         cls.init_arg(args)
         cls.init_log()
-        cls.init_path()
+        cls.add_path()
+        cls.add_config(conf)
+        if init_bin:
+            cls.init_bin()
+
+    @classmethod
+    def init(cls, home=None, default=None, init_bin=False, args=None, **kw):
+        cls(home=home, default=default, init_bin=init_bin, args=args, **kw)
 
     def __getattr__(self, attr):
         return self.__dict__.get(attr, self.conf.__getitem__(attr))

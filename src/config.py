@@ -98,7 +98,7 @@ class ConfigType(type):
 
 class Config(Dict):
 
-    def __init__(self, config_file=None, init_envs=False, bin_dir=None):
+    def __init__(self, config_file=None, init_bin=False, bin_dir=None, **kw):
         '''
         The `config_file` argument must be file-path or iterable. If `config_file` is iterable, returning one line at a time, and `name` attribute must be needed for file path.
         Return `Config` object
@@ -108,8 +108,8 @@ class Config(Dict):
         self.cf = []
         self.bin = self.soft = self.software
         self.database = self.db
-        self.bin_dir = bin_dir or join(sys.prefix, "bin")
-        if init_envs:
+        self.bin_dirs = bin_dir and [bin_dir, ] or [join(sys.prefix, "bin"), ]
+        if init_bin or kw.get("init_envs") or kw.get("init_env"):
             self.update_executable_bin()
         if config_file is None:
             return
@@ -190,12 +190,13 @@ class Config(Dict):
         '''
         only directory join(sys.prefix, "bin") 
         '''
-        for bin_path in os.listdir(self.bin_dir):
-            exe_path = join(self.bin_dir, bin_path)
-            if is_exe(exe_path):
-                bin_key = bin_path.replace("-", "").replace("_", "")
-                if not self.rget("software", bin_key):
-                    self["software"][bin_key] = exe_path
+        for bin_dir in self.bin_dirs:
+            for bin_path in os.listdir(bin_dir):
+                exe_path = join(bin_dir, bin_path)
+                if is_exe(exe_path):
+                    bin_key = bin_path.replace("-", "").replace("_", "")
+                    if not self.rget("software", bin_key):
+                        self["software"][bin_key] = exe_path
 
     @property
     def search_order(self):
@@ -266,7 +267,7 @@ def load_config(home=None, default=None, **kwargs):
     '''
     @home <file>: default: ~/.runjobconfig, home config is priority then default config
     @default <file>: default: dirname(__file__)/runjobconfig
-    @init_envs <bool>: default: Fasle, this will add sys.prefix/bin to PATH for cmd search if init_envs=True
+    @init_bin <bool>: default: Fasle, this will add sys.prefix/bin to PATH for cmd search if init_bin=True
     '''
     configfile_home = home or join(
         expanduser("~"), ".runjobconfig")
