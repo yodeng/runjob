@@ -574,8 +574,8 @@ class RunJob(object):
                 logcmd.write(info)
                 self.cloudjob[task.name] = task.id
             self.log_status(job)
-            self.logger.debug("%s job submit %s times", job.name, job.subtimes)
             job.subtimes += 1
+            self.logger.debug("%s job submit %s times", job.name, job.subtimes)
         self.submited = True
 
     def sge_qsub(self, cmd, wd=None):

@@ -39,14 +39,14 @@ class Formatter(logging.Formatter):
     mode_map = {'bold': 1, 'dark': 2, 'underline': 4,
                 'blink': 5, 'reverse': 7, 'concealed': 8}
     reset = '\x1b[0m'
-    fmt_debug = "[%(levelname)s %(threadName)s %(asctime)s %(funcName)s(%(lineno)d)] %(message)s"
+    fmt = "[%(levelname)s %(asctime)s] %(message)s"
+    fmt_debug = "[%(levelname)s %(threadName)s %(asctime)s module:%(module)s func:%(funcName)s (line:%(lineno)d)] %(message)s"
 
     def __init__(self, *args, **kw):
         super(Formatter, self).__init__(*args, **kw)
-        self.fmt = "[%(levelname)s %(asctime)s] %(message)s"
         self._formats = {
             logging.DEBUG: {
-                "fmt": self.fmt,
+                "fmt": self.fmt_debug,
                 "color": self._color(0, 36)  # cyan
             },
             logging.INFO: {

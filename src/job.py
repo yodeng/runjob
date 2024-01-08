@@ -56,10 +56,10 @@ class Jobutils(object):
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
         if self.host in ["sge", "local", "localhost"]:
-            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run) && " \
+            self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...' && rm -fr {0}.submit && touch {0}.run || true) && " \
                        "({1}) && " \
-                       "(echo [`date +'%F %T'`] SUCCESS && touch {0}.success && rm -fr {0}.run) || " \
-                       "(echo [`date +'%F %T'`] ERROR && touch {0}.error && rm -fr {0}.run && exit 1)".format(
+                       "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
+                       "(echo [`date +'%F %T'`] ERROR && rm -fr {0}.run && touch {0}.error && exit 1)".format(
                            self.stat_file, raw_cmd)
         else:
             self.cmd = "(echo [`date +'%F %T'`] 'RUNNING...') && " \
@@ -424,11 +424,9 @@ class Job(Jobutils):
         if self.rules:
             if len(self.rules) <= 4:
                 raise JobError("rules lack of elements")
-            if self.rules[0] != "job_begin" or self.rules[-1] != "job_end":
-                raise JobError("No start or end in you rule")
-            if "cmd_begin" not in self.rules or "cmd_end" not in self.rules:
-                raise JobError("No start or end in %s job" %
-                               "\n".join(self.rules))
+            if self.rules[0] != "job_begin" or self.rules[-1] != "job_end" or \
+                    "cmd_begin" not in self.rules or "cmd_end" not in self.rules:
+                raise JobError("job rule define error: %s" % self.rules)
 
     def get_job(self):
         cmd = self.cmd.split("\n")
