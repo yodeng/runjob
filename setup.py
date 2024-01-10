@@ -122,7 +122,7 @@ class Packages(object):
             license="MIT",
             packages=list(self._package_dir.keys()),
             package_dir=self._package_dir,
-            package_data={self.name: ["*config", "*.json"], },
+            package_data={self.name: ["*.ini", "*.json"], },
             install_requires=self.requirements,
             python_requires='>=3.5',
             long_description=self.description,

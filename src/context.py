@@ -16,10 +16,10 @@ class Context(metaclass=ConfigType):
     args = conf.args
     log = getlog()
 
-    def __init__(self, home=None, default=None, init_bin=False, args=None, **kw):
-        if home or default or init_bin or kw.get("init_envs"):
+    def __init__(self, *cf, init_bin=False, args=None, **kw):
+        if cf or init_bin or kw.get("init_envs"):
             self.__class__.conf = load_config(
-                home=home, default=default, init_bin=init_bin or kw.get("init_envs"))
+                *cf, init_bin=init_bin or kw.get("init_envs"))
             self.__class__.args = self.__class__.conf.args
             self.__class__.db = self.__class__.database = self.__class__.conf.database
             self.__class__.soft = self.__class__.bin = self.__class__.software = self.__class__.conf.software
@@ -58,9 +58,9 @@ class Context(metaclass=ConfigType):
     @classmethod
     def init_log(cls, logfile=None, name=__package__, level="info"):
         cls.log = getlog(logfile=logfile, level=level, name=name)
-        if cls.conf.args.debug:
+        if cls.conf.args.get("debug"):
             cls.log.setLevel(logging.DEBUG)
-        if cls.conf.args.quiet:
+        if cls.conf.args.get("quiet"):
             logging.disable()
 
     @classmethod

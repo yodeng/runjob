@@ -24,10 +24,9 @@ from threading import Thread, Lock, _start_new_thread
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
 from collections import Counter, deque, OrderedDict, defaultdict
-from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, splitext, join, expanduser
+from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, split, splitext, join, expanduser
 
 from .loger import *
-from .config import which
 
 PY3 = sys.version_info.major == 3
 
@@ -414,6 +413,43 @@ def call_cmd(cmd, verbose=False, run=True):
          stdout=not verbose and -3 or None, stderr=-2)
 
 
+def which(program, paths=None):
+    ex = dirname(sys.executable)
+    found_path = None
+    fpath, fname = split(program)
+    if fpath:
+        program = canonicalize(program)
+        if is_exe(program):
+            found_path = program
+    else:
+        if is_exe(join(ex, program)):
+            return join(ex, program)
+        paths_to_search = []
+        if isinstance(paths, (tuple, list)):
+            paths_to_search.extend(paths)
+        else:
+            env_paths = os.environ.get("PATH", "").split(os.pathsep)
+            paths_to_search.extend(env_paths)
+        for path in paths_to_search:
+            exe_file = join(canonicalize(path), program)
+            if is_exe(exe_file):
+                found_path = exe_file
+                break
+    return found_path
+
+
+def is_exe(file_path):
+    return (
+        exists(file_path)
+        and os.access(file_path, os.X_OK)
+        and isfile(realpath(file_path))
+    )
+
+
+def canonicalize(path):
+    return abspath(expanduser(path))
+
+
 def is_sge_submit():
     if os.getenv("SGE_ROOT") and which("qconf"):
         hostname = splitext(socket.gethostname())[0]
@@ -662,3 +698,8 @@ class TempFile(object):
 
     def __enter__(self):
         return self
+
+
+CONF_FILE_NAME = "config.ini"
+USER_CONF_FILE = join(user_config_dir(), CONF_FILE_NAME)
+PKG_CONF_FILE = join(dirname(abspath(__file__)), CONF_FILE_NAME)

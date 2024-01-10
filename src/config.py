@@ -5,6 +5,9 @@ import configparser
 from copy import copy
 from os.path import isfile, exists, join, abspath, realpath, split, expanduser, dirname
 
+from .utils import user_config_dir, which, is_exe, USER_CONF_FILE, PKG_CONF_FILE, CONF_FILE_NAME
+
+
 if sys.version_info[0] == 3:
     from collections.abc import Iterable
 else:
@@ -164,10 +167,13 @@ class Config(Dict):
     def write_config(self, configile):
         with open(configile, "w") as fo:
             for s, info in self.items():
+                if not info or type(info) != Dict:
+                    continue
+                if fo.tell():
+                    fo.write("\n")
                 fo.write("[%s]\n" % s)
                 for k, v in info.items():
                     fo.write("%s = %s\n" % (k, v))
-                fo.write("\n")
 
     def print_config(self):
         print("Configuration files to search (order by order):")
@@ -226,55 +232,15 @@ class Config(Dict):
     __getattr__ = __getitem__
 
 
-def which(program, paths=None):
-    ex = dirname(sys.executable)
-    found_path = None
-    fpath, fname = split(program)
-    if fpath:
-        program = canonicalize(program)
-        if is_exe(program):
-            found_path = program
-    else:
-        if is_exe(join(ex, program)):
-            return join(ex, program)
-        paths_to_search = []
-        if isinstance(paths, (tuple, list)):
-            paths_to_search.extend(paths)
-        else:
-            env_paths = os.environ.get("PATH", "").split(os.pathsep)
-            paths_to_search.extend(env_paths)
-        for path in paths_to_search:
-            exe_file = join(canonicalize(path), program)
-            if is_exe(exe_file):
-                found_path = exe_file
-                break
-    return found_path
-
-
-def is_exe(file_path):
-    return (
-        exists(file_path)
-        and os.access(file_path, os.X_OK)
-        and isfile(realpath(file_path))
-    )
-
-
-def canonicalize(path):
-    return abspath(expanduser(path))
-
-
-def load_config(home=None, default=None, **kwargs):
+def load_config(*args, **kwargs):
     '''
-    @home <file>: default: ~/.runjobconfig, home config is priority then default config
-    @default <file>: default: dirname(__file__)/runjobconfig
-    @init_bin <bool>: default: Fasle, this will add sys.prefix/bin to PATH for cmd search if init_bin=True
+    @config_files: search config by args orders
+    @init_bin <bool>: default: Fasle, this will add 'sys.prefix/bin/' to 'Config.soft' if set True
     '''
-    configfile_home = home or join(
-        expanduser("~"), ".runjobconfig")
-    configfile_default = default or join(dirname(
-        abspath(__file__)), 'runjobconfig')
-    conf = Config(config_file=configfile_default, **kwargs)
-    conf.update_config(configfile_home)
+    cfs = args and args[::-1] or [PKG_CONF_FILE, USER_CONF_FILE]
+    conf = Config(config_file=None, **kwargs)
+    for cf in cfs:
+        conf.update_config(cf)
     return conf
 
 
