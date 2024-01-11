@@ -77,8 +77,8 @@ class Context(metaclass=ConfigType):
             cls.init_bin()
 
     @classmethod
-    def init(cls, home=None, default=None, init_bin=False, args=None, **kw):
-        cls(home=home, default=default, init_bin=init_bin, args=args, **kw)
+    def init(cls,  *cf, init_bin=False, args=None, **kw):
+        cls(*cf, init_bin=init_bin, args=args, **kw)
 
     def __getattr__(self, attr):
         return self.__dict__.get(attr, self.conf.__getitem__(attr))
