@@ -140,13 +140,13 @@ class Packages(object):
     @property
     def _entrys(self):
         eps = [
-            '{0} = {0}.runflow:main'.format(self.name),
-            '{0} = {1}.runflow:main'.format("runflow", self.name),
+            '{0} = {1}.main:{0}'.format("runflow", self.name),
+            '{0} = {0}.main:runflow'.format(self.name),
+            '{0} = {1}.main:{1}'.format("runsge", self.name),
+            '{0} = {1}.main:{1}'.format("runshell", self.name),
+            '{0} = {1}.main:{1}'.format("runbatch", self.name),
             '{0} = {1}.jobstat:main'.format("qs", self.name),
             '{0} = {1}.jobstat:batchStat'.format("qcs", self.name),
-            '{0} = {1}.runjob:main'.format("runsge", self.name),
-            '{0} = {1}.runjob:main'.format("runshell", self.name),
-            '{0} = {1}.runjob:main'.format("runbatch", self.name),
             '{0} = {1}._jobsocket:job_server'.format(
                 self.name+"-server", self.name),
             '{0} = {1}._jobsocket:job_client'.format(

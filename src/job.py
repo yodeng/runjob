@@ -457,7 +457,7 @@ class Jobfile(object):
         if not exists(self._path):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = self.temp and self.workdir or dirname(self._path)
-        self.logdir = config and config.logdir or join(self._pathdir, "logs")
+        self.logdir = config and config.logdir or join(self.workdir, "logs")
         self.mode = self.has_sge and (mode or "sge") or "localhost"
         if "local" in self.mode:
             self.mode = "localhost"
@@ -528,8 +528,9 @@ class Jobfile(object):
                 _line = _line.split("#")[0]
                 line = _line.strip()
                 if re.match("logs?_?(dir)?[\s:]", line):
-                    self.logdir = normpath(
-                        join(self._pathdir, line.split()[-1]))
+                    if not self.config or not self.config.logdir:
+                        self.logdir = normpath(
+                            join(self.workdir, line.split()[-1]))
                     continue
                 elif re.match("includes?[\s:]", line):
                     value = re.split("[\s:]", line, 1)[-1].strip(":").strip()

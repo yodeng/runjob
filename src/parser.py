@@ -4,8 +4,9 @@ import sys
 import argparse
 
 from .utils import *
+from .context import context
 from ._version import __version__
-from .config import load_config, print_config
+from .config import print_config
 
 try:
     from rich_argparse import RichHelpFormatter as HelpFormatter
@@ -107,10 +108,14 @@ def default_parser():
                       help='append log info to file. (default: stdout)', metavar="<file>")
     base.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit.",
                       type=int, default=0, metavar="<int>")
-    base.add_argument('-R', '--retry-sec', help="retry the error job after N seconds.",
-                      type=int, default=2, metavar="<int>")
     base.add_argument("-f", "--force", default=False, action="store_true",
                       help="force to submit jobs even already successed.")
+    base.add_argument('-R', '--retry-sec', help="retry the error job after N seconds.",
+                      type=int, default=2, metavar="<int>")
+    base.add_argument('-C', '--config',  action='store_true', default=False,
+                      help="show configurations and exit.")
+    base.add_argument('--ini', metavar="<configfile>",
+                      help="input configfile for configurations search.")
     base.add_argument("--dot", action="store_true", default=False,
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
     base.add_argument("--dot-shrinked", action="store_true", default=False,
@@ -123,10 +128,6 @@ def default_parser():
                       help="use strict to run, means if any errors, clean all jobs and exit.")
     base.add_argument("--quiet", action="store_true", default=False,
                       help="suppress all output and logging.")
-    base.add_argument('--ini', metavar="<configfile>",
-                      help="input configfile for configurations search.")
-    base.add_argument('--config',  action='store_true', default=False,
-                      help="show configurations and exit.")
     base.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
                       type=float, default=DEFAULT_MAX_CHECK_PER_SEC, metavar="<float>")
     base.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
@@ -138,11 +139,11 @@ def default_parser():
 def timeout_parser(parser):
     time_args = parser.add_argument_group("time control arguments")
     time_args.add_argument('--max-queue-time', help="maximal time (d/h/m/s) between submit and running per job. (default: no-limiting)",
-                           type=str, default=sys.maxsize, metavar="<float/str>")
+                           type=str, metavar="<float/str>")
     time_args.add_argument('--max-run-time', help="maximal time (d/h/m/s) start from running per job. (default: no-limiting)",
-                           type=str, default=sys.maxsize, metavar="<float/str>")
+                           type=str, metavar="<float/str>")
     time_args.add_argument('--max-wait-time', help="maximal time (d/h/m/s) start from submit per job. (default: no-limiting)",
-                           type=str, default=sys.maxsize, metavar="<float/str>")
+                           type=str, metavar="<float/str>")
     time_args.add_argument('--max-timeout-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
                            type=int, default=0, metavar="<int>")
 
@@ -169,9 +170,9 @@ def batchcmp_parser(parser):
                                                                             'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region.")
 
 
-def runjob_parser():
+def job_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel tasks from a specific shell scripts runing in localhost, sge or batchcompute.",
+        description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in localhost, sge or batchcompute.",
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -188,10 +189,11 @@ def runjob_parser():
     sge_parser(parser)
     batchcmp_parser(parser)
     color_description(parser)
+    parser.set_defaults(func="RunJob")
     return parser
 
 
-def runflow_parser():
+def flow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific job file running in localhost or sge cluster.",
         parents=[default_parser()],
@@ -200,8 +202,9 @@ def runflow_parser():
     parser.add_argument('-i', '--injname', help="job names you need to run. (default: all job names of the jobfile)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-L", "--logdir", type=str,
-                        help='the output log dir. (default: join(dirname(jobfile), "logs"))', metavar="<logdir>")
+                        help='the output log dir. (default: join(workdir, "logs"))', metavar="<logdir>")
     color_description(parser)
+    parser.set_defaults(func="RunFlow")
     return parser
 
 
@@ -244,16 +247,14 @@ def client_parser():
     return parser
 
 
-def get_config_args(parser):
+def init_parser(parser):
     args = parser.parse_args()
-    conf = load_config()
-    if args.ini:
-        conf.update_config(args.ini)
-    conf.update_args(args)
+    context.add_config(args.ini)
+    context.init_arg(args)
     if args.config:
-        print_config(conf)
+        print_config(context.conf)
         parser.exit()
     if args.jobfile.isatty():
         parser.print_help()
         parser.exit()
-    return conf, conf.args
+    context.init_log(level=args.debug and "debug" or "info", logfile=args.log)

@@ -654,6 +654,8 @@ def suppress_exceptions(*expts, msg="", trace_exception=True):
                 raise exc
             else:
                 return res
+            finally:
+                sys.excepthook = sys.__excepthook__
         return wrapper
     return outer_wrapper
 
