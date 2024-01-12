@@ -22,8 +22,8 @@ from .utils import *
 from .stat_bc import *
 from .cluster import *
 from .job import Jobfile
+from .config import load_config
 from ._version import __version__
-from .config import load_config, print_config
 
 
 def main():
@@ -253,7 +253,7 @@ def batchStat():
         conf.update_config(args.ini)
     conf.update_dict(**args.__dict__)
     if args.config:
-        print_config(conf)
+        conf.print_config()
         sys.exit()
     region = REGION.get(args.region.upper(), CN_BEIJING)
     access_key_id = conf.rget("args", "access_key_id")

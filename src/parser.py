@@ -6,7 +6,6 @@ import argparse
 from .utils import *
 from .context import context
 from ._version import __version__
-from .config import print_config
 
 try:
     from rich_argparse import RichHelpFormatter as HelpFormatter
@@ -252,7 +251,7 @@ def init_parser(parser):
     context.add_config(args.ini)
     context.init_arg(args)
     if args.config:
-        print_config(context.conf)
+        context.conf.print_config()
         parser.exit()
     if args.jobfile.isatty():
         parser.print_help()

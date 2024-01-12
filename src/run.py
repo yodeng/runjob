@@ -14,7 +14,6 @@ from .job import *
 from .utils import *
 from .cluster import *
 from .context import context
-from .config import load_config
 from ._jobsocket import listen_job_status
 
 
@@ -45,7 +44,7 @@ class RunJob(object):
             @retry_sec <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
         '''.format(os.getcwd(), DEFAULT_MAX_CHECK_PER_SEC, DEFAULT_MAX_SUBMIT_PER_SEC)
-        self.conf = config = config or load_config()
+        self.conf = config = config or context.conf
         for k, v in kwargs.items():
             setattr(self.conf.info.args, k, v)
         self.jobfile = config.jobfile
@@ -796,7 +795,7 @@ class RunFlow(RunJob):
             @retry_sec <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
         '''.format(DEFAULT_MAX_CHECK_PER_SEC, DEFAULT_MAX_SUBMIT_PER_SEC)
-        self.conf = config = config or load_config()
+        self.conf = config = config or context.conf
         for k, v in kwargs.items():
             setattr(self.conf.info.args, k, v)
         self.quiet = config.quiet

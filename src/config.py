@@ -244,10 +244,6 @@ def load_config(*args, **kwargs):
     return conf
 
 
-def print_config(conf):
-    conf.print_config()
-
-
 def hide_key(s):
     if len(s) > 6:
         return "%s******%s" % (s[:3], s[-3:])
