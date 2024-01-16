@@ -1,7 +1,9 @@
 import os
 import sys
+import types
 import logging
 
+from functools import wraps
 from os.path import isfile, isdir, join, dirname, abspath
 
 from .utils import getlog
@@ -92,3 +94,22 @@ class Context(metaclass=ConfigType):
 
 
 context = Context
+
+
+class debug(object):
+
+    def __init__(self, func):
+        wraps(func)(self)
+
+    def __call__(self, *args, **kwargs):  # wrapper function
+        level = context.log.level
+        try:
+            context.log.setLevel(logging.DEBUG)
+            return self.__wrapped__(*args, **kwargs)
+        finally:
+            context.log.setLevel(level)
+
+    def __get__(self, instance, cls):  # wrapper instance method
+        if instance is None:
+            return self
+        return types.MethodType(self, instance)
