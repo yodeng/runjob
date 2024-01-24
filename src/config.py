@@ -1,5 +1,6 @@
 import os
 import sys
+import importlib
 import configparser
 
 from copy import copy
@@ -142,7 +143,7 @@ class Config(Dict):
                 raise KeyError(k)
         return v
 
-    def update_config(self, config):
+    def __get_conf_parser(self, config):
         if not isinstance(config, (str, bytes)) and isinstance(config, Iterable) and hasattr(config, "name"):
             self.cf.append(abspath(config.name))
             c = Conf()
@@ -153,8 +154,22 @@ class Config(Dict):
                 return
             c = Conf()
             c.read(config)
-        for s in c.sections():
-            self[s].update(dict(c[s].items()))
+        return c
+
+    def update_config(self, config):
+        parser = self.__get_conf_parser(config)
+        if parser:
+            for s in parser.sections():
+                self[s].update(dict(parser[s].items()))
+
+    def add_config(self, config):
+        parser = self.__get_conf_parser(config)
+        if parser:
+            for s in parser.sections():
+                d = self[s]
+                for k, v in parser[s].items():
+                    if k not in d:
+                        d[k] = v
 
     def update_dict(self, args=None, **kwargs):
         if args and hasattr(args, "__dict__"):
@@ -232,12 +247,22 @@ class Config(Dict):
     __getattr__ = __getitem__
 
 
-def load_config(*args, **kwargs):
+def load_config(*args, app=None, **kwargs):
     '''
     @config_files: search config by args orders
+    @app: search config in app_config_dir if no config_files define
     @init_bin <bool>: default: Fasle, this will add 'sys.prefix/bin/' to 'Config.soft' if set True
     '''
-    cfs = args and args[::-1] or [PKG_CONF_FILE, USER_CONF_FILE]
+    cfs = []
+    if args:  # ignore app config
+        cfs.extend(args[::-1])
+    elif app:
+        spec = importlib.util.find_spec(app)
+        if spec:
+            cfs.append(join(dirname(spec.origin), CONF_FILE_NAME))
+        cfs.append(join(user_config_dir(app=app), CONF_FILE_NAME))
+    else:
+        cfs.extend([PKG_CONF_FILE, USER_CONF_FILE])
     conf = Config(config_file=None, **kwargs)
     for cf in cfs:
         conf.update_config(cf)
