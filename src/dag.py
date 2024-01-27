@@ -179,7 +179,17 @@ class DAG(object):
     def size(self):
         return len(self.graph)
 
+    def to_rulegraph(self, node2rule=None):
+        if node2rule and self.graph:
+            graph = self.copy()
+            for node, rule in node2rule.items():
+                if node != rule and node in self.graph:
+                    graph.rename_node(node, rule)
+            return graph
+        return self.graph
+
     def dot(self, node2rule={}):
+        '''@node2rule: same color if node belong to same rule'''
         all_nodes = sorted(self.all_nodes)
         ids = {node: i for i, node in enumerate(all_nodes)}
         huefactor = 2 / (3 * max(len(ids), 1))

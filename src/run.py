@@ -171,21 +171,12 @@ class RunJob(object):
             self.totaljobdict[j_header.jobname] = j_header
 
     @property
-    def _shrink_jobnames(self):
+    def _job2rule(self):
         out = {}
         for k, v in self.jfile.job_set.items():
             for i in v:
                 out.setdefault(i, set()).add(k)
         return {k: sorted(v, key=len)[0] for k, v in out.items()}
-
-    def _shrink_graph(self):
-        graph = self.jobsgraph.copy()
-        shrink_name = self._shrink_jobnames
-        for job in self.jobs:
-            name = job.jobname
-            if name != shrink_name.get(name, name):
-                graph.rename_node(name, shrink_name[name])
-        return graph
 
     def check_already_success(self):
         for job in self.jobs[:]:
@@ -593,11 +584,11 @@ class RunJob(object):
             return self.logger.warning("not allowed for job has run")
         elif len(self.jobsgraph.graph) == 0:
             return self.logger.warning("no jobs produced in '%s'", self.jobfile)
-        elif self.conf.rget("args", "dot"):
-            print(self.jobsgraph.dot(self._shrink_jobnames))
+        elif self.conf.rget("args", "dag_extend"):
+            print(self.jobsgraph.dot(self._job2rule))
             sys.exit()
-        elif self.conf.rget("args", "dot_shrinked"):
-            print(self._shrink_graph())
+        elif self.conf.rget("args", "dag"):
+            print(self.jobsgraph.to_rulegraph(self._job2rule))
             sys.exit()
         self.run_time_stamp = now()
         self.times = max(0, self.retry)

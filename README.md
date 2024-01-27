@@ -50,7 +50,7 @@ You can get the quick help like this:
 ##### runjob/runflow：
 
 	$ runjob --help 
-	Usage: runjob [-h] [-v] [-j [<jobfile>]] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>] [-d] [-l <file>] [-r <int>] [-R <int>] [-f] [--dot] [--dot-shrinked] [--mode {sge,local,localhost,batchcompute}]
+	Usage: runjob [-h] [-v] [-j [<jobfile>]] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>] [-d] [-l <file>] [-r <int>] [-R <int>] [-f] [--dag] [--dag-extend] [--mode {sge,local,localhost,batchcompute}]
 	              [--local] [--strict] [--quiet] [--ini <configfile>] [--config] [--max-check <float>] [--max-submit <float>] [--max-queue-time <float/str>] [--max-run-time <float/str>]
 	              [--max-wait-time <float/str>] [--max-timeout-retry <int>] [-i [<str> ...]] [-L <logdir>]
 	
@@ -78,8 +78,8 @@ You can get the quick help like this:
 	  -R, --retry-sec <int>
 	                        retry the error job after N seconds. (default: 2)
 	  -f, --force           force to submit jobs even if already successed.
-	  --dot                 do not execute anything and print the directed acyclic graph of jobs in the dot language.
-	  --dot-shrinked        do not execute anything and print the shrinked directed acyclic graph of jobs in the dot language.
+	  --dag                 do not execute anything and print the directed acyclic graph of jobs in the dot language.
+	  --dag-extend          do not execute anything and print the extend directed acyclic graph of jobs in the dot language.
 	  --mode {sge,local,localhost,batchcompute}
 	                        the mode to submit your jobs, if no sge installed, always localhost. (default: sge)
 	  --local               submit your jobs in localhost, same as '--mode local'.

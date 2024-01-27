@@ -115,10 +115,10 @@ def default_parser():
                       help="show configurations and exit.")
     base.add_argument('--ini', metavar="<configfile>",
                       help="input configfile for configurations search.")
-    base.add_argument("--dot", action="store_true", default=False,
+    base.add_argument("--dag", action="store_true", default=False,
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
-    base.add_argument("--dot-shrinked", action="store_true", default=False,
-                      help="do not execute anything and print the shrinked directed acyclic graph of jobs in the dot language.")
+    base.add_argument("--dag-extend", action="store_true", default=False,
+                      help="do not execute anything and print the extend directed acyclic graph of jobs in the dot language.")
     base.add_argument('--mode', type=str, default="sge", choices=["sge", "local", "localhost", "batchcompute"],
                       help="the mode to submit your jobs, if no sge installed, always localhost.")
     base.add_argument("--local", default=False, action="store_true",

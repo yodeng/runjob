@@ -78,6 +78,8 @@ class Context(metaclass=ConfigType):
         if init_bin:
             cls.init_bin()
 
+    Initial = init_all
+
     @classmethod
     def init(cls,  *cf, init_bin=False, args=None, **kw):
         cls(*cf, init_bin=init_bin, args=args, **kw)
