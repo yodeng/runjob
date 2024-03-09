@@ -189,19 +189,22 @@ class ParseSingal(Thread):
     def run(self):
         time.sleep(1)
 
-    def _exit(self):
-        self.obj.safe_exit()
+    def obj_exit(self):
+        if self.obj is not None:
+            self.obj.signaled = True
+            self.obj.safe_exit()
 
     def signal_handler(self, signum, frame):
-        self.obj.signaled = True
-        self._exit()
+        self.obj_exit()
         # os._exit(signum)
         sys.exit(signum)
 
     def signal_handler_us(self, signum, frame):
-        self.obj.signaled = True
-        self._exit()
-        raise RunJobError(self.obj.err_msg)
+        self.obj_exit()
+        if self.obj is not None:
+            raise RunJobError(self.obj.err_msg)
+        else:
+            sys.exit(signum)
 
 
 class RunThread(Thread):
