@@ -8,6 +8,7 @@ import signal
 import getpass
 import logging
 import argparse
+import subprocess
 
 from . import dag
 from .job import *
@@ -87,7 +88,7 @@ class RunJob(object):
         self.reseted = False
         self.localprocess = {}
         self.cloudjob = {}
-        self.sge_jobid = {}
+        self.batch_jobid = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
         self.__add_depency_for_wait()
@@ -240,8 +241,8 @@ class RunJob(object):
         name = job.jobname
         if name in self.cloudjob:
             name += " (task-id: {})".format(self.cloudjob[name])
-        elif name in self.sge_jobid:
-            name += " (job-id: {})".format(self.sge_jobid[name])
+        elif name in self.batch_jobid:
+            name += " (job-id: {})".format(self.batch_jobid[name])
         elif name in self.localprocess:
             name += " (pid: {})".format(self.localprocess[name].pid)
         if job.is_fail:
@@ -302,7 +303,7 @@ class RunJob(object):
                     status = "run"
                 # sge submit, but not running
                 elif stal[-1] == "submitted" and self.is_run and job.host == "sge":
-                    jobid = self.sge_jobid.get(jobname, jobname)
+                    jobid = self.batch_jobid.get(jobname, jobname)
                     try:
                         info = check_output(
                             "qstat -j %s" % jobid, stderr=PIPE, shell=True)
@@ -314,6 +315,9 @@ class RunJob(object):
                     except Exception as e:
                         self.logger.warning(str(e))
                         status = "error"
+                # slurm submit, but not running
+                elif stal[-1] == "submitted" and self.is_run and job.host == "slurm":
+                    pass
                 else:
                     status = "run"
             else:
@@ -393,14 +397,18 @@ class RunJob(object):
                         ps = self.localprocess[jobname].poll()
                         if ps and ps < 0:
                             _deal_check(self, jb)
-                    elif jobname in self.sge_jobid:
-                        jobid = self.sge_jobid.get(jobname)
+                    elif jobname in self.batch_jobid:
+                        jobid = self.batch_jobid.get(jobname)
                         if jobid and jobid.isdigit():
-                            try:
-                                check_output(["qstat", "-j", jobid], stderr=-3)
-                            except Exception as err:
-                                self.logger.debug(err)
-                                _deal_check(self, jb)
+                            if jb.host == "sge":
+                                try:
+                                    check_output(
+                                        ["qstat", "-j", jobid], stderr=-3)
+                                except Exception as err:
+                                    self.logger.debug(err)
+                                    _deal_check(self, jb)
+                            elif jb.host == "slurm":
+                                pass
             time.sleep(sleep)
 
     def jobcheck(self):
@@ -487,12 +495,17 @@ class RunJob(object):
     def _qdel(self, name="", jobname=""):
         if name:
             call_cmd(['qdel', "*_%d*" % os.getpid()])
-            self.sge_jobid.clear()
+            call_cmd(["scancel"] + list(self.batch_jobid.values()))
+            self.batch_jobid.clear()
         if jobname:
-            jobid = self.sge_jobid.get(jobname, jobname)
-            call_cmd(["qdel", jobid])
-            if jobname in self.sge_jobid:
-                self.sge_jobid.pop(jobname)
+            jobid = self.batch_jobid.get(jobname, jobname)
+            jb = self.totaljobdict[jobname]
+            if jb.host == "sge":
+                call_cmd(["qdel", jobid])
+            elif jb.host == "slurm":
+                call_cmd(["scancel", jobid])
+            if jobname in self.batch_jobid:
+                self.batch_jobid.pop(jobname)
 
     def deletejob(self, jb=None, name=""):
         if name:
@@ -505,7 +518,7 @@ class RunJob(object):
                 if p.poll() is None:
                     terminate_process(p.pid)
                 p.wait()
-            if jb.host == "sge":
+            if jb.host in ["sge", "slurm"]:
                 self.qdel(jobname=jb.jobname)
             jb.remove_all_stat_files()
 
@@ -544,8 +557,26 @@ class RunJob(object):
                     cmd += " -q " + " -q ".join(job.queue)
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
-                sgeid, output = self.sge_qsub(cmd, wd=job.workdir)
-                self.sge_jobid[job.jobname] = sgeid
+                jobid, output = self.batch_sub(cmd, wd=job.workdir)
+                self.batch_jobid[job.jobname] = jobid
+                logcmd.write(output)
+            elif job.host == "slurm":
+                job.raw2cmd(job.subtimes and abs(self.retry_sec) or 0)
+                jobcpu = job.cpu or self.cpu
+                jobmem = job.mem or self.mem
+                headers = job.sbatch_header(jobmem, jobcpu)
+                job.update_queue(self.queue)
+                if not job.queue:
+                    with os.popen("sinfo -h | awk '{print $1}'") as fi:
+                        job.queue = set(fi.read().split())
+                headers += "#SBATCH --partition={0}\n\n".format(
+                    ",".join(job.queue))
+                cmd = headers+job.cmd
+                mkdir(job.workdir)
+                touch(job.stat_file + ".submit")
+                jobid, output = self.batch_sub(
+                    cmd, wd=job.workdir, mode="slurm")
+                self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
             elif job.host == "batchcompute":
                 jobcpu = job.cpu or self.cpu
@@ -567,17 +598,23 @@ class RunJob(object):
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
         self.submited = True
 
-    def sge_qsub(self, cmd, wd=None):
-        p = Popen(cmd.replace("`", "\`"), stderr=PIPE,
-                  stdout=PIPE, shell=True, cwd=wd or self.workdir)
-        stdout, stderr = p.communicate()
-        output = stdout + stderr
-        match = QSUB_JOB_ID_DECODER.search(output.decode())
+    def batch_sub(self, cmd, wd=None, mode="sge"):
+        if mode == "sge":
+            p = Popen(cmd.replace("`", "\`"), stderr=PIPE, text=True,
+                      stdout=PIPE, shell=True, cwd=wd or self.workdir)
+            stdout, stderr = p.communicate()
+            output = stdout + stderr
+            match = QSUB_JOB_ID_DECODER.search(output)
+        elif mode == "slurm":
+            p = subprocess.run("cat -| sbatch", input=cmd, stderr=PIPE,
+                               stdout=PIPE, text=True, shell=True, cwd=wd or self.workdir)
+            output = p.stdout + p.stderr
+            match = SBATCH_JOB_ID_DECODER.search(output)
         if match:
             jobid = match.group(1)
         else:
-            self.throw(output.decode())
-        return jobid, output.decode()
+            self.throw(output)
+        return jobid, output
 
     def run(self):
         if self.is_run:
@@ -649,7 +686,7 @@ class RunJob(object):
         return context.log
 
     def _clean_jobs(self):
-        if self.mode == "sge":
+        if self.mode in ["sge", "slurm"]:
             try:
                 self.deletejob(name=self.name)
             except:
@@ -835,7 +872,7 @@ class RunFlow(RunJob):
             self.conf.max_check or DEFAULT_MAX_CHECK_PER_SEC).limit_denominator()
         self.sub_rate = Fraction(
             self.conf.max_submit or DEFAULT_MAX_SUBMIT_PER_SEC).limit_denominator()
-        self.sge_jobid = {}
+        self.batch_jobid = {}
         self.maxjob = self.maxjob or len(self.jobs)
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
 
@@ -867,9 +904,9 @@ class RunFlow(RunJob):
     def _qdel(self, name="", jobname=""):
         if name:
             call_cmd(['qdel', "*_%d" % os.getpid()])
-            self.sge_jobid.clear()
+            self.batch_jobid.clear()
         if jobname:
-            jobid = self.sge_jobid.get(jobname, jobname)
+            jobid = self.batch_jobid.get(jobname, jobname)
             call_cmd(["qdel", jobid])
-            if jobname in self.sge_jobid:
-                self.sge_jobid.pop(jobname)
+            if jobname in self.batch_jobid:
+                self.batch_jobid.pop(jobname)

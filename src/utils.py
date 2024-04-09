@@ -39,7 +39,8 @@ else:
 
 
 QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
-
+SBATCH_JOB_ID_DECODER = re.compile("Submitted batch job (\d+)")
+BACKEND = ["local", "localhost", "sge", "slurm", "batchcompute"]
 TIMEDELTA_REGEX = re.compile(r'^((?P<weeks>[\.\d]+?)w)? *'
                              r'^((?P<days>[\.\d]+?)d)? *'
                              r'((?P<hours>[\.\d]+?)h)? *'
@@ -464,6 +465,10 @@ def is_sge_submit():
         except:
             return False
     return False
+
+
+def is_slurm_host():
+    return which("sinfo") and which("sbatch") and which("scancel")
 
 
 class AppDirs(object):

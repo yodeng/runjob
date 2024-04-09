@@ -113,14 +113,14 @@ def default_parser():
                       type=int, default=2, metavar="<int>")
     base.add_argument('-C', '--config',  action='store_true', default=False,
                       help="show configurations and exit.")
+    base.add_argument('-M', '--mode', type=str, default="sge", choices=BACKEND,
+                      help="the mode to submit your jobs, if no sge installed, always localhost.")
     base.add_argument('--ini', metavar="<configfile>",
                       help="input configfile for configurations search.")
     base.add_argument("--dag", action="store_true", default=False,
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
     base.add_argument("--dag-extend", action="store_true", default=False,
                       help="do not execute anything and print the extend directed acyclic graph of jobs in the dot language.")
-    base.add_argument('--mode', type=str, default="sge", choices=["sge", "local", "localhost", "batchcompute"],
-                      help="the mode to submit your jobs, if no sge installed, always localhost.")
     base.add_argument("--local", default=False, action="store_true",
                       help="submit your jobs in localhost, same as '--mode local'.")
     base.add_argument("--strict", action="store_true", default=False,
@@ -148,8 +148,8 @@ def timeout_parser(parser):
 
 
 def sge_parser(parser):
-    sge = parser.add_argument_group("sge arguments")
-    sge.add_argument("-q", "--queue", type=str, help="the queue your job running, multi queue can be sepreated by whitespace. (default: all accessed queue)",
+    sge = parser.add_argument_group("sge/slurm arguments")
+    sge.add_argument("-q", "--queue", type=str, help="the queue/partition your job running, multi queue can be sepreated by whitespace. (default: all accessed queue)",
                      nargs="*", metavar="<queue>")
     sge.add_argument("-m", "--memory", type=int,
                      help="the memory used per command (GB).", default=1, metavar="<int>")
@@ -171,7 +171,8 @@ def batchcmp_parser(parser):
 
 def job_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in localhost, sge or batchcompute.",
+        description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in {mode}.".format(
+            mode=", ".join(BACKEND[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -194,7 +195,8 @@ def job_parser():
 
 def flow_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel tasks from a specific job file running in localhost or sge cluster.",
+        description="%(prog)s is a tool for managing parallel tasks from a specific job file running in {mode}.".format(
+            mode=", ".join(BACKEND[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)

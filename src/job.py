@@ -55,7 +55,7 @@ class Jobutils(object):
                                    for i in self.raw_cmd.strip().split("\n") if i.strip()])
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
-        if self.host in ["sge", "local", "localhost"]:
+        if self.host != "batchcompute":
             self.cmd = "(echo [`date +'%F %T'`] RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
                        "({1}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
@@ -80,6 +80,25 @@ class Jobutils(object):
             cpu=cpu,
         )
         return cmd
+
+    def sbatch_header(self, mem=1, cpu=1):
+        headers = textwrap.dedent('''
+            #!/bin/bash
+
+            #SBATCH --job-name={name}
+            #SBATCH -N 1            
+            #SBATCH --ntasks-per-node={cpu}
+            #SBATCH --mem={mem}
+            #SBATCH --open-mode=append
+            #SBATCH --output={logfile}
+            #SBATCH --error={logfile}
+            ''').lstrip()
+        return headers.format(
+            name=self.jobpidname,
+            logfile=self.logfile,
+            mem=mem,
+            cpu=cpu,
+        )
 
     def update_queue(self, queue=None):
         if queue:
@@ -458,7 +477,11 @@ class Jobfile(object):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = self.temp and self.workdir or dirname(self._path)
         self.logdir = config and config.logdir or join(self.workdir, "logs")
-        self.mode = self.has_sge and (mode or "sge") or "localhost"
+        self.mode = (mode or "sge")
+        if self.mode == "sge" and not self.has_sge:
+            self.mode = "localhost"
+        if self.mode == "slurm" and not is_slurm_host():
+            raise JobError("Not slurm installed")
         if "local" in self.mode:
             self.mode = "localhost"
         self.totaljobs = OrderedDict()
@@ -721,8 +744,8 @@ class Shellfile(Jobfile):
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None, config=None):
         super(Shellfile, self).__init__(jobfile, mode, workdir, config=config)
-        # "sge", "local", "localhost", "batchcompute"
-        if self.mode not in ["sge", "local", "localhost", "batchcompute"]:
+        # "sge", "local", "localhost", "batchcompute", "slurm"
+        if self.mode not in ["sge", "local", "localhost", "batchcompute", "slurm"]:
             self.mode = self.has_sge and "sge" or "localhost"
         if not logdir:
             if self.temp:
