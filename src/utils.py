@@ -414,7 +414,7 @@ def call_cmd(cmd, verbose=False, run=True):
     if not run:
         return
     call(cmd, shell=isinstance(cmd, str),
-         stdout=not verbose and -3 or None, stderr=-2)
+         stdout=not verbose and -3 or None, stderr=-2, timeout=3)
 
 
 def which(program, paths=None):

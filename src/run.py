@@ -488,39 +488,38 @@ class RunJob(object):
                 self.logger.error(
                     "job %s status timeout %s", jb.jobname, jb.status)
 
-    def qdel(self, name="", jobname=""):
-        self._qdel(name=name, jobname=jobname)
+    def qdel(self, jobname=""):
+        self._qdel(jobname)
 
     # Override these methods to implement other subclass
-    def _qdel(self, name="", jobname=""):
-        if name:
-            call_cmd(['qdel', "*_%d*" % os.getpid()])
-            call_cmd(["scancel"] + list(self.batch_jobid.values()))
-            self.batch_jobid.clear()
-        if jobname:
+    def _qdel(self, jobname=""):
+        if jobname in self.batch_jobid:
             jobid = self.batch_jobid.get(jobname, jobname)
             jb = self.totaljobdict[jobname]
             if jb.host == "sge":
                 call_cmd(["qdel", jobid])
             elif jb.host == "slurm":
                 call_cmd(["scancel", jobid])
-            if jobname in self.batch_jobid:
-                self.batch_jobid.pop(jobname)
-
-    def deletejob(self, jb=None, name=""):
-        if name:
-            self.qdel(name=name)
-            for jb in self.jobqueue.queue:
-                jb.remove_all_stat_files()
+            self.batch_jobid.pop(jobname, None)
         else:
+            call_cmd(['qdel', "*_%d*" % os.getpid()])
+            call_cmd(["scancel"] + list(self.batch_jobid.values()))
+            self.batch_jobid.clear()
+
+    def deletejob(self, jb=None):
+        if jb:
             if jb.jobname in self.localprocess:
                 p = self.localprocess.pop(jb.jobname)
                 if p.poll() is None:
                     terminate_process(p.pid)
                 p.wait()
-            if jb.host in ["sge", "slurm"]:
+            elif jb.host in ["sge", "slurm"]:
                 self.qdel(jobname=jb.jobname)
             jb.remove_all_stat_files()
+        else:
+            self.qdel()
+            for jb in self.jobqueue.queue:
+                jb.remove_all_stat_files()
 
     def submit(self, job):
         if not self.is_run or job.do_not_submit:
@@ -688,9 +687,9 @@ class RunJob(object):
     def _clean_jobs(self):
         if self.mode in ["sge", "slurm"]:
             try:
-                self.deletejob(name=self.name)
+                self.deletejob()
             except:
-                self.qdel(name=self.name)
+                self.qdel()
             for jb in self.jobqueue.queue:
                 jb.remove_all_stat_files()
                 jb.set_kill()
@@ -900,13 +899,3 @@ class RunFlow(RunJob):
         if self.jobsgraph.size() == 0:
             for jb in self.jobs:
                 self.jobsgraph.add_node_if_not_exists(jb.name)
-
-    def _qdel(self, name="", jobname=""):
-        if name:
-            call_cmd(['qdel', "*_%d" % os.getpid()])
-            self.batch_jobid.clear()
-        if jobname:
-            jobid = self.batch_jobid.get(jobname, jobname)
-            call_cmd(["qdel", jobid])
-            if jobname in self.batch_jobid:
-                self.batch_jobid.pop(jobname)

@@ -67,7 +67,7 @@ class Jobutils(object):
                        "(echo [`date +'%F %T'`] SUCCESS) || " \
                        "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd)
         if self.subtimes > 0:
-            self.cmd = self.cmd.replace("RUNNING", "RUNNING (re-submit)")
+            self.cmd = self.cmd.replace("RUNNING", "RUNNING \(re-submit\)")
 
     def qsub_cmd(self, mem=1, cpu=1):
         cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu} -S /bin/bash'
@@ -380,9 +380,11 @@ class Job(Jobutils):
         cmds = list(filter(None, cmds))
         if not len(cmds):
             raise JobError("No cmd in %s job" % self.name)
-        if self.host not in ["sge", "localhost", "local"]:
+        if self.host not in BACKEND:
             self.host = "sge"
-        if self.jobfile.mode in ["localhost", "local"] or not self.jobfile.has_sge:
+        if self.host == "sge" and not self.jobfile.has_sge:
+            self.host = "localhost"
+        if self.jobfile.mode in ["localhost", "local"]:
             self.host = "localhost"
         return cmds
 
@@ -416,7 +418,7 @@ class Job(Jobutils):
                     self.mem = getattr(args, "memory")
                 if args.local:
                     args.mode = "local"
-                if args.mode and args.mode in ["sge", "local", "localhost", "batchcompute"]:
+                if args.mode and args.mode in BACKEND:
                     self.host = args.mode
                 if args.jobname and not args.jobname[0].isdigit():
                     self.jobname = self.name = args.jobname
@@ -477,11 +479,10 @@ class Jobfile(object):
             raise IOError("No such file: %s" % self._path)
         self._pathdir = self.temp and self.workdir or dirname(self._path)
         self.logdir = config and config.logdir or join(self.workdir, "logs")
-        self.mode = (mode or "sge")
-        if self.mode == "sge" and not self.has_sge:
+        self.mode = mode or "sge"
+        if self.mode == "sge" and not self.has_sge or \
+                self.mode == "slurm" and not is_slurm_host():
             self.mode = "localhost"
-        if self.mode == "slurm" and not is_slurm_host():
-            raise JobError("Not slurm installed")
         if "local" in self.mode:
             self.mode = "localhost"
         self.totaljobs = OrderedDict()
@@ -744,8 +745,7 @@ class Shellfile(Jobfile):
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None, config=None):
         super(Shellfile, self).__init__(jobfile, mode, workdir, config=config)
-        # "sge", "local", "localhost", "batchcompute", "slurm"
-        if self.mode not in ["sge", "local", "localhost", "batchcompute", "slurm"]:
+        if self.mode not in BACKEND:
             self.mode = self.has_sge and "sge" or "localhost"
         if not logdir:
             if self.temp:
