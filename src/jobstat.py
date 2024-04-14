@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # coding:utf-8
+
 '''For summary all jobs
 Usage: qs [jobfile|logdir|logfile]
        qcs --help
+       qslurm
 '''
 
 import os
@@ -333,6 +335,46 @@ def batchStat():
     for line in out[1:]:
         tb.add_row(line)
     print(tb)
+
+
+def qslurm():
+    if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
+        sys.exit(__doc__)
+    username = os.getenv("USER")
+    with os.popen("squeue") as fi:
+        alljobs = fi.readlines()[1:]
+    jobs = {}
+    for j in alljobs:
+        j = j.split()
+        jobs.setdefault(j[3], defaultdict(int))[j[4]] += 1
+    print(style("-"*55, mode="bold"))
+    print(style("{0:<20} {1:>16} {2:>8} {3:>8}".format(
+        "user", "jobs(slurm)", "run", "queue"), mode="bold"))
+    print(style("-"*55, mode="bold"))
+    for u in sorted(jobs.items(), key=lambda x: sum(x[1].values()), reverse=True):
+        '''
+        R    正在运行
+        PD  资源不足，排队中
+        CG   正在完成中
+        CA    被人为取消
+        CD    运行完成
+        F    运行失败
+        NF    节点问题导致作业运行失败，
+        PR  被抢占
+        S   被挂起
+        TO  超时被杀
+        '''
+        user = u[0]
+        job = sum(u[1].values())
+        run = u[1]["R"]
+        qw = u[1]["PD"]
+        if user == username:
+            print(style("{0:<20} {1:>16} {2:>8} {3:>8}".format(
+                user, job, run, qw), fore="red", mode="bold"))
+        else:
+            print(style("{0:<20} {1:>16} {2:>8} {3:>8}".format(
+                user, job, run, qw)))
+    print(style("-"*55, mode="bold"))
 
 
 if __name__ == "__main__":
