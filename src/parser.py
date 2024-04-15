@@ -121,8 +121,6 @@ def default_parser():
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
     base.add_argument("--dag-extend", action="store_true", default=False,
                       help="do not execute anything and print the extend directed acyclic graph of jobs in the dot language.")
-    base.add_argument("--local", default=False, action="store_true",
-                      help="submit your jobs in localhost, same as '--mode local'.")
     base.add_argument("--strict", action="store_true", default=False,
                       help="use strict to run, means if any errors, clean all jobs and exit.")
     base.add_argument("--quiet", action="store_true", default=False,
@@ -132,6 +130,7 @@ def default_parser():
     base.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
                       type=float, default=DEFAULT_MAX_SUBMIT_PER_SEC, metavar="<float>")
     timeout_parser(p)
+    backend_parser(p)
     return p
 
 
@@ -145,6 +144,13 @@ def timeout_parser(parser):
                            type=str, metavar="<float/str>")
     time_args.add_argument('--max-timeout-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
                            type=int, default=0, metavar="<int>")
+
+
+def backend_parser(parser):
+    backend_args = parser.add_mutually_exclusive_group(required=False)
+    for backend in BACKEND:
+        backend_args.add_argument("--{}".format(backend), default=False, action="store_true",
+                                  help="submit your jobs to {0}, same as '--mode {0}'.".format(backend))
 
 
 def sge_parser(parser):

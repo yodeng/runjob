@@ -12,8 +12,9 @@ def execute(parser):
     args = context.args
     if not globals().get(args.func):
         return
-    if args.local:
-        args.mode = "local"
+    for backend in BACKEND:
+        if getattr(args, backend, None):
+            args.mode = backend
     if args.dot:
         args.quiet = True
     if args.jobfile is sys.stdin:
