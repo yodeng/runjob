@@ -88,7 +88,7 @@ class Jobutils(object):
             #SBATCH --job-name={name}
             #SBATCH -N 1            
             #SBATCH --ntasks-per-node={cpu}
-            #SBATCH --mem={mem}
+            #SBATCH --mem={mem}G
             #SBATCH --open-mode=append
             #SBATCH --output={logfile}
             #SBATCH --error={logfile}
