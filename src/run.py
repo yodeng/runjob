@@ -316,7 +316,7 @@ class RunJob(object):
                         self.logger.warning(str(e))
                         status = "error"
                 # slurm submit, but not running
-                elif stal[-1] == "submitted" and self.is_run and job.host == "slurm":
+                elif re.search("Submitted batch job \d+", sta) and self.is_run and job.host == "slurm":
                     pass
                 else:
                     status = "run"
