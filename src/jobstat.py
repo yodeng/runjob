@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-'''For summary all jobs
+'''For summary jobs
 Usage: qs [jobfile|logdir|logfile]
        qcs --help
        qslurm

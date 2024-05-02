@@ -15,7 +15,7 @@ def execute(parser):
     for backend in BACKEND:
         if getattr(args, backend, None):
             args.mode = backend
-    if args.dot:
+    if args.dag or args.dag_extend:
         args.quiet = True
     if args.jobfile is sys.stdin:
         jobfile = args.jobfile.readlines()

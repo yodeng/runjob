@@ -186,7 +186,7 @@ class DAG(object):
                 if node != rule and node in self.graph:
                     graph.rename_node(node, rule)
             return graph
-        return self.graph
+        return self
 
     def dot(self, node2rule={}):
         '''@node2rule: same color if node belong to same rule'''
