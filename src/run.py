@@ -513,6 +513,8 @@ class RunJob(object):
                 if p.poll() is None:
                     terminate_process(p.pid)
                 p.wait()
+            elif isfile(jb.stat_file + ".success") or isfile(jb.stat_file + ".error"):
+                pass
             elif jb.host in ["sge", "slurm"]:
                 self.qdel(jobname=jb.jobname)
             jb.remove_all_stat_files()
