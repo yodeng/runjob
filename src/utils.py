@@ -30,11 +30,14 @@ from .loger import *
 
 PY3 = sys.version_info.major == 3
 
-if not PY3:
+try:
     from Queue import Queue, Empty
-    from collections.abc import MutableSet
-else:
+except ImportError:
     from queue import Queue, Empty
+
+try:
+    from collections.abc import MutableSet
+except ImportError:
     from collections import MutableSet
 
 
