@@ -86,7 +86,6 @@ class Jobutils(object):
             #!/bin/bash
 
             #SBATCH --job-name={name}
-            #SBATCH -N 1            
             #SBATCH --ntasks-per-node={cpu}
             #SBATCH --mem={mem}G
             #SBATCH --open-mode=append
@@ -199,6 +198,7 @@ class Job(Jobutils):
         self.groups = None
         self.cpu = 0
         self.mem = 0
+        self.node = ""
         self.queue = set()
         self.subtimes = 0
         self.workdir = os.getcwd()

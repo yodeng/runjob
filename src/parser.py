@@ -153,14 +153,16 @@ def backend_parser(parser):
                                   help="submit your jobs to {0}, same as '--mode {0}'.".format(backend))
 
 
-def sge_parser(parser):
-    sge = parser.add_argument_group("sge/slurm arguments")
-    sge.add_argument("-q", "--queue", type=str, help="the queue/partition your job running, multi queue can be sepreated by whitespace. (default: all accessed queue)",
-                     nargs="*", metavar="<queue>")
-    sge.add_argument("-m", "--memory", type=int,
-                     help="the memory used per command (GB).", default=1, metavar="<int>")
-    sge.add_argument("-c", "--cpu", type=int,
-                     help="the cpu numbers you job used.", default=1, metavar="<int>")
+def batch_parser(parser):
+    batch = parser.add_argument_group("sge/slurm arguments")
+    batch.add_argument("-q", "--queue", type=str, help="queue/partition for running, multi queue can be sepreated by whitespace. (default: all accessed queue)",
+                       nargs="*", metavar="<queue>")
+    batch.add_argument("-m", "--memory", type=int,
+                       help="max memory used (GB).", default=1, metavar="<int>")
+    batch.add_argument("-c", "--cpu", type=int,
+                       help="max cpu number used.", default=1, metavar="<int>")
+    batch.add_argument("--node", type=str, help="node for running, multi node can be sepreated by whitespace. (default: all accessed node)",
+                       nargs="*", metavar="<node>")
 
 
 def batchcmp_parser(parser):
@@ -192,7 +194,7 @@ def job_parser():
                         type=str,  metavar="<cmd>")
     parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
-    sge_parser(parser)
+    batch_parser(parser)
     batchcmp_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunJob")
@@ -216,7 +218,7 @@ def flow_parser():
 
 
 def shell_job_parser(arglist):
-    parser = runjob_parser()
+    parser = job_parser()
     return parser.parse_known_args(arglist)[0]
 
 

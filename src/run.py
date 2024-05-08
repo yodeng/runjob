@@ -55,6 +55,7 @@ class RunJob(object):
         self.queue = config.queue
         self.maxjob = config.num
         self.cpu = config.cpu or 1
+        self.node = config.node or None
         self.mem = config.memory or 1
         self.groups = config.groups or 1
         self.strict = config.strict or False
@@ -309,6 +310,8 @@ class RunJob(object):
                             "qstat -j %s" % jobid, stderr=PIPE, shell=True)
                         info = info.decode().strip().split("\n")[-1]
                         if info.startswith("error") or ("error" in info and "Job is in error" in info):
+                            self.logger.debug(
+                                "batch job {} (job-id: {}) schedule error".format(jobname, jobid))
                             status = "error"
                     except BlockingIOError as e:
                         raise e
@@ -318,6 +321,21 @@ class RunJob(object):
                 # slurm submit, but not running
                 elif re.search("Submitted batch job \d+", sta) and self.is_run and job.host == "slurm":
                     pass
+                    '''
+                    jobid = self.batch_jobid.get(jobname, jobname)
+                    try:
+                        info = check_output(
+                            "scontrol show job %s" % jobid, stderr=PIPE, shell=True)
+                        if "Command=(null)" in info.decode():
+                            self.logger.debug(
+                                "batch job {} (job-id: {}) schedule error".format(jobname, jobid))
+                            status = "error"
+                    except BlockingIOError as e:
+                        raise e
+                    except Exception as e:
+                        self.logger.warning(str(e))
+                        status = "error"
+                    '''
                 else:
                     status = "run"
             else:
@@ -556,9 +574,16 @@ class RunJob(object):
                 cmd = job.qsub_cmd(jobmem, jobcpu)
                 if job.queue:
                     cmd += " -q " + " -q ".join(job.queue)
+                nodelist = job.node or self.node
+                if nodelist:
+                    nodelist = sorted(set(nodelist))
+                    cmd += " " + \
+                        " ".join(["-l hostname={}".format(node)
+                                 for node in nodelist])
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
-                jobid, output = self.batch_sub(cmd, wd=job.workdir)
+                job.batch_sub_cmd = cmd.replace("`", "\`")
+                jobid, output = self.batch_sub(job)
                 self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
             elif job.host == "slurm":
@@ -570,13 +595,21 @@ class RunJob(object):
                 if not job.queue:
                     with os.popen("sinfo -h | awk '{print $1}'") as fi:
                         job.queue = set(fi.read().split())
-                headers += "#SBATCH --partition={0}\n\n".format(
-                    ",".join(job.queue))
-                cmd = headers+job.cmd
+                headers += "#SBATCH --partition={0}\n".format(
+                    ",".join(sorted(job.queue)))
+                nodelist = job.node or self.node
+                if nodelist:
+                    nodelist = sorted(set(nodelist))
+                    headers += "#SBATCH --nodelist={0}\n".format(
+                        ",".join(nodelist))
+                    headers += "#SBATCH --nodes={}\n".format(len(nodelist))
+                else:
+                    headers += "#SBATCH --nodes=1\n"
+                cmd = headers+"\n"+job.cmd
+                job.batch_sub_cmd = cmd
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
-                jobid, output = self.batch_sub(
-                    cmd, wd=job.workdir, mode="slurm")
+                jobid, output = self.batch_sub(job, mode="slurm")
                 self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
             elif job.host == "batchcompute":
@@ -599,16 +632,16 @@ class RunJob(object):
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
         self.submited = True
 
-    def batch_sub(self, cmd, wd=None, mode="sge"):
+    def batch_sub(self, job, mode="sge"):
         if mode == "sge":
-            p = Popen(cmd.replace("`", "\`"), stderr=PIPE, text=True,
-                      stdout=PIPE, shell=True, cwd=wd or self.workdir)
+            p = Popen(job.batch_sub_cmd, stderr=PIPE, text=True,
+                      stdout=PIPE, shell=True, cwd=job.workdir or self.workdir)
             stdout, stderr = p.communicate()
             output = stdout + stderr
             match = QSUB_JOB_ID_DECODER.search(output)
         elif mode == "slurm":
-            p = subprocess.run("cat -| sbatch", input=cmd, stderr=PIPE,
-                               stdout=PIPE, text=True, shell=True, cwd=wd or self.workdir)
+            p = subprocess.run("sbatch", input=job.batch_sub_cmd, stderr=PIPE,
+                               stdout=PIPE, text=True, shell=True, cwd=job.workdir or self.workdir)
             output = p.stdout + p.stderr
             match = SBATCH_JOB_ID_DECODER.search(output)
         if match:
