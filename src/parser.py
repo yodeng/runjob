@@ -113,7 +113,7 @@ def default_parser():
                       type=int, default=2, metavar="<int>")
     base.add_argument('-C', '--config',  action='store_true', default=False,
                       help="show configurations and exit.")
-    base.add_argument('-M', '--mode', type=str, default="sge", choices=BACKEND,
+    base.add_argument('-M', '--mode', type=str, default="sge", choices=context.backend,
                       help="the mode to submit your jobs, if no sge installed, always localhost.")
     base.add_argument('--ini', metavar="<configfile>",
                       help="input configfile for configurations search.")
@@ -135,7 +135,7 @@ def default_parser():
 
 
 def timeout_parser(parser):
-    time_args = parser.add_argument_group("time control arguments")
+    time_args = parser.add_argument_group("time arguments")
     time_args.add_argument('--max-queue-time', help="maximal time (d/h/m/s) between submit and running per job. (default: no-limiting)",
                            type=str, metavar="<float/str>")
     time_args.add_argument('--max-run-time', help="maximal time (d/h/m/s) start from running per job. (default: no-limiting)",
@@ -148,20 +148,20 @@ def timeout_parser(parser):
 
 def backend_parser(parser):
     backend_args = parser.add_mutually_exclusive_group(required=False)
-    for backend in BACKEND:
+    for backend in context.backend:
         backend_args.add_argument("--{}".format(backend), default=False, action="store_true",
                                   help="submit your jobs to {0}, same as '--mode {0}'.".format(backend))
 
 
 def batch_parser(parser):
-    batch = parser.add_argument_group("sge/slurm arguments")
-    batch.add_argument("-q", "--queue", type=str, help="queue/partition for running, multi queue can be sepreated by whitespace. (default: all accessed queue)",
+    batch = parser.add_argument_group("resource arguments")
+    batch.add_argument("-q", "--queue", type=str, help="queue/partition for running, multi queue can be sepreated by whitespace. (default: all accessed)",
                        nargs="*", metavar="<queue>")
-    batch.add_argument("-m", "--memory", type=int,
-                       help="max memory used (GB).", default=1, metavar="<int>")
     batch.add_argument("-c", "--cpu", type=int,
                        help="max cpu number used.", default=1, metavar="<int>")
-    batch.add_argument("--node", type=str, help="node for running, multi node can be sepreated by whitespace. (default: all accessed node)",
+    batch.add_argument("-m", "--memory", type=int,
+                       help="max memory used (GB).", default=1, metavar="<int>")
+    batch.add_argument("--node", type=str, help="node for running, multi node can be sepreated by whitespace. (default: all accessed)",
                        nargs="*", metavar="<node>")
 
 
@@ -180,7 +180,7 @@ def batchcmp_parser(parser):
 def job_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in {mode}.".format(
-            mode=", ".join(BACKEND[1:])),
+            mode=", ".join(context.backend[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -195,7 +195,8 @@ def job_parser():
     parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     batch_parser(parser)
-    batchcmp_parser(parser)
+    if "batchcompute" in context.backend:
+        batchcmp_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunJob")
     return parser
@@ -204,7 +205,7 @@ def job_parser():
 def flow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific job file running in {mode}.".format(
-            mode=", ".join(BACKEND[1:])),
+            mode=", ".join(context.backend[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)

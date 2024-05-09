@@ -14,6 +14,7 @@ from itertools import product
 from collections import OrderedDict
 
 from .utils import *
+from .context import context
 from .parser import shell_job_parser
 
 
@@ -380,7 +381,7 @@ class Job(Jobutils):
         cmds = list(filter(None, cmds))
         if not len(cmds):
             raise JobError("No cmd in %s job" % self.name)
-        if self.host not in BACKEND:
+        if self.host not in context.backend:
             self.host = "sge"
         if self.host == "sge" and not self.jobfile.has_sge:
             self.host = "localhost"
@@ -418,7 +419,7 @@ class Job(Jobutils):
                     self.mem = getattr(args, "memory")
                 if args.local:
                     args.mode = "local"
-                if args.mode and args.mode in BACKEND:
+                if args.mode and args.mode in context.backend:
                     self.host = args.mode
                 if args.jobname and not args.jobname[0].isdigit():
                     self.jobname = self.name = args.jobname
@@ -745,7 +746,7 @@ class Shellfile(Jobfile):
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None, config=None):
         super(Shellfile, self).__init__(jobfile, mode, workdir, config=config)
-        if self.mode not in BACKEND:
+        if self.mode not in context.backend:
             self.mode = self.has_sge and "sge" or "localhost"
         if not logdir:
             if self.temp:

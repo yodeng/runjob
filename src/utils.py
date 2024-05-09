@@ -41,9 +41,10 @@ except ImportError:
     from collections import MutableSet
 
 
-QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
+BACKEND = ["local", "localhost", "sge", "slurm"]
+
 SBATCH_JOB_ID_DECODER = re.compile("Submitted batch job (\d+)")
-BACKEND = ["local", "localhost", "sge", "slurm", "batchcompute"]
+QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
 TIMEDELTA_REGEX = re.compile(r'^((?P<weeks>[\.\d]+?)w)? *'
                              r'^((?P<days>[\.\d]+?)d)? *'
                              r'((?P<hours>[\.\d]+?)h)? *'

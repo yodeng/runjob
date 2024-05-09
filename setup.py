@@ -144,7 +144,7 @@ class Packages(object):
             '{0} = {0}.main:runflow'.format(self.name),
             '{0} = {1}.main:{1}'.format("runsge", self.name),
             '{0} = {1}.main:{1}'.format("runshell", self.name),
-            '{0} = {1}.main:{1}'.format("runbatch", self.name),
+            '{0} = {1}.main:{0}'.format("runbatch", self.name),
             '{0} = {1}.jobstat:main'.format("qs", self.name),
             '{0} = {1}.jobstat:qslurm'.format("qslurm", self.name),
             '{0} = {1}.jobstat:batchStat'.format("qcs", self.name),
