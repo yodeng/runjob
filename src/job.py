@@ -51,7 +51,7 @@ class Jobutils(object):
     def raw2cmd(self, sleep_sec=0, report=False):
         raw_cmd = self.raw_cmd
         if self.groups and self.groups > 1 and len(self.raw_cmd.split("\n")) > 1:
-            raw_cmd = "/bin/bash -euxo pipefail -c " + \
+            raw_cmd = "/bin/bash -euo pipefail -c " + \
                 "'%s'" % "; ".join([i.strip()
                                    for i in self.raw_cmd.strip().split("\n") if i.strip()])
         if sleep_sec > 0:
