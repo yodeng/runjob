@@ -18,6 +18,9 @@ from .context import context
 from .parser import shell_job_parser
 
 
+context.backend = context.backend or BACKEND
+
+
 @total_ordering
 class Jobutils(object):
 

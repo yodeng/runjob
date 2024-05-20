@@ -155,13 +155,13 @@ def backend_parser(parser):
 
 def batch_parser(parser):
     batch = parser.add_argument_group("resource arguments")
-    batch.add_argument("-q", "--queue", type=str, help="queue/partition for running, multi queue can be sepreated by whitespace. (default: all accessed)",
+    batch.add_argument("-q", "--queue", type=str, help="queue/partition for running, multi-queue can be sepreated by whitespace. (default: all accessed)",
                        nargs="*", metavar="<queue>")
     batch.add_argument("-c", "--cpu", type=int,
                        help="max cpu number used.", default=1, metavar="<int>")
     batch.add_argument("-m", "--memory", type=int,
                        help="max memory used (GB).", default=1, metavar="<int>")
-    batch.add_argument("--node", type=str, help="node for running, multi node can be sepreated by whitespace. (default: all accessed)",
+    batch.add_argument("--node", type=str, help="node for running, multi-node can be sepreated by whitespace. (default: all accessed)",
                        nargs="*", metavar="<node>")
 
 
