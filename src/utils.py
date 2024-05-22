@@ -322,6 +322,19 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
     return wrapper
 
 
+def argvhelp(func=None, *, arglen=None):
+    if func is None:
+        return partial(argvhelp, arglen=arglen)
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if len(sys.argv) == 1 or "-h" in sys.argv or "--help" in sys.argv or arglen and len(sys.argv) != arglen+1:
+            sys.exit(textwrap.dedent(func.__doc__).strip())
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def getlog(logfile=None, level="info", name=__package__):
     logger = logging.getLogger(name)
     if level.lower() == "info":
