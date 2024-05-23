@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import importlib
 import configparser
 
@@ -46,6 +47,13 @@ class AttrDict(dict):
 
     def copy(self):
         return self.__class__(self)
+
+    def __getstate__(self):
+        return list(self.__dict__.items())
+
+    def __setstate__(self, items):
+        for key, val in items:
+            self.__dict__[key] = val
 
 
 class Dict(AttrDict):
@@ -227,6 +235,14 @@ class Config(Dict):
         c = copy(self)
         c.info = c
         return c
+
+    def to_json(self):
+        c = self.copy()
+        del c.info
+        return json.dumps(c)
+
+    def to_dict(self):
+        return json.loads(self.to_json())
 
     def __getitem__(self, name):
         res = self._getvalue(name)
