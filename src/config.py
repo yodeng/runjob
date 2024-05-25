@@ -236,10 +236,10 @@ class Config(Dict):
         c.info = c
         return c
 
-    def to_json(self):
+    def to_json(self, *args, **kw):
         c = self.copy()
         del c.info
-        return json.dumps(c)
+        return json.dumps(c, *args, *kw)
 
     def to_dict(self):
         return json.loads(self.to_json())
@@ -261,6 +261,11 @@ class Config(Dict):
         return values.args or values  # args first
 
     __getattr__ = __getitem__
+
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, self.to_dict())
+
+    __str__ = __repr__
 
 
 def load_config(*args, app=None, **kwargs):
