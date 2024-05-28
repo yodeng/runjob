@@ -222,6 +222,7 @@ class Job(Jobutils):
         self.config = config
         self.depends = set()
         self.extend = []
+        self.submited = False
 
     def from_rules(self, jobfile=None, rules=None):
         self.rules = rules

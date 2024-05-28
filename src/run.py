@@ -360,7 +360,7 @@ class RunJob(object):
         if status == "run" and job.is_end and self.is_run and self.submited:
             status = job.status
         self.logger.debug("job %s status %s", jobname, status)
-        if status != job.status and self.is_run and self.submited:
+        if status != job.status and self.is_run and self.submited and job.submited:
             if status == "run":
                 job.run_time = now()
             job.set_status(status)
@@ -564,8 +564,9 @@ class RunJob(object):
                 cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
-                p = Popen(cmd, shell=True, stdout=logcmd,
-                          stderr=logcmd, env=os.environ, cwd=job.workdir)
+                with tmp_chdir(job.workdir):
+                    p = Popen(cmd, shell=True, stdout=logcmd,
+                              stderr=logcmd, env=os.environ, cwd=job.workdir)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
                 job.raw2cmd(job.subtimes and abs(self.retry_sec) or 0)
@@ -584,7 +585,8 @@ class RunJob(object):
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
                 job.batch_sub_cmd = cmd.replace("`", "\`")
-                jobid, output = self.batch_sub(job)
+                with tmp_chdir(job.workdir):
+                    jobid, output = self.batch_sub(job)
                 self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
             elif job.host == "slurm":
@@ -610,7 +612,8 @@ class RunJob(object):
                 job.batch_sub_cmd = cmd
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
-                jobid, output = self.batch_sub(job, mode="slurm")
+                with tmp_chdir(job.workdir):
+                    jobid, output = self.batch_sub(job, mode="slurm")
                 self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
             elif job.host == "batchcompute":
@@ -631,6 +634,7 @@ class RunJob(object):
             self.log_status(job)
             job.subtimes += 1
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
+        job.submited = True
         self.submited = True
 
     def batch_sub(self, job, mode="sge"):
