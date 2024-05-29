@@ -51,12 +51,20 @@ class Jobutils(object):
     def stat_file(self):
         return join(self.logdir, "."+basename(self.logfile))
 
-    def raw2cmd(self, sleep_sec=0, report=False):
+    def raw2cmd(self, sleep_sec=0, groupsh=False):
         raw_cmd = self.raw_cmd
         if self.groups and self.groups > 1 and len(self.raw_cmd.split("\n")) > 1:
-            raw_cmd = "/bin/bash -euo pipefail -c " + \
-                "'%s'" % "; ".join([i.strip()
-                                   for i in self.raw_cmd.strip().split("\n") if i.strip()])
+            if not groupsh:
+                raw_cmd = "/bin/bash -euo pipefail -c " + \
+                    "'%s'" % "; ".join([i.strip()
+                                        for i in self.raw_cmd.strip().split("\n") if i.strip()])
+            else:
+                runfile = self.stat_file+".run"
+                mkdir(dirname(runfile))
+                with open(runfile, "w") as fo:
+                    fo.write("#!/bin/bash\nset -e\n\n")
+                    fo.write(self.raw_cmd.strip() + "\n")
+                raw_cmd = "sh " + runfile
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
         if self.host != "batchcompute":

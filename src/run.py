@@ -560,7 +560,8 @@ class RunJob(object):
             logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
             logcmd.flush()
             if job.host is not None and job.host in ["localhost", "local"]:
-                job.raw2cmd(job.subtimes and abs(self.retry_sec) or 0)
+                job.raw2cmd(job.subtimes and abs(
+                    self.retry_sec) or 0, groupsh=True)
                 cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
@@ -569,7 +570,8 @@ class RunJob(object):
                               stderr=logcmd, env=os.environ, cwd=job.workdir)
                 self.localprocess[job.name] = p
             elif job.host == "sge":
-                job.raw2cmd(job.subtimes and abs(self.retry_sec) or 0)
+                job.raw2cmd(job.subtimes and abs(
+                    self.retry_sec) or 0, groupsh=True)
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 job.update_queue(self.queue)
@@ -590,7 +592,8 @@ class RunJob(object):
                 self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
             elif job.host == "slurm":
-                job.raw2cmd(job.subtimes and abs(self.retry_sec) or 0)
+                job.raw2cmd(job.subtimes and abs(
+                    self.retry_sec) or 0, groupsh=True)
                 jobcpu = job.cpu or self.cpu
                 jobmem = job.mem or self.mem
                 headers = job.sbatch_header(jobmem, jobcpu)
