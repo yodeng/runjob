@@ -113,7 +113,7 @@ def default_parser():
                       type=int, default=2, metavar="<int>")
     base.add_argument('-C', '--config',  action='store_true', default=False,
                       help="show configurations and exit.")
-    base.add_argument('-M', '--mode', type=str, default="sge", choices=context.backend,
+    base.add_argument('-M', '--mode', type=str, default="sge", choices=context._backend,
                       help="the mode to submit your jobs, if no sge installed, always localhost.")
     base.add_argument('--ini', metavar="<configfile>",
                       help="input configfile for configurations search.")
@@ -148,7 +148,7 @@ def timeout_parser(parser):
 
 def backend_parser(parser):
     backend_args = parser.add_mutually_exclusive_group(required=False)
-    for backend in context.backend:
+    for backend in context._backend:
         backend_args.add_argument("--{}".format(backend), default=False, action="store_true",
                                   help="submit your jobs to {0}, same as '--mode {0}'.".format(backend))
 
@@ -180,7 +180,7 @@ def batchcmp_parser(parser):
 def job_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in {mode}.".format(
-            mode=", ".join(context.backend[1:])),
+            mode=", ".join(context._backend[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -195,7 +195,7 @@ def job_parser():
     parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     batch_parser(parser)
-    if "batchcompute" in context.backend:
+    if "batchcompute" in context._backend:
         batchcmp_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunJob")
@@ -205,7 +205,7 @@ def job_parser():
 def flow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific job file running in {mode}.".format(
-            mode=", ".join(context.backend[1:])),
+            mode=", ".join(context._backend[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)

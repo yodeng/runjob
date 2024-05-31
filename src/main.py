@@ -6,7 +6,7 @@ from .context import context
 from .run import RunJob, RunFlow
 from .parser import flow_parser, job_parser, init_parser
 
-context.backend = BACKEND
+context._backend = BACKEND
 
 
 def execute(parser):
@@ -14,7 +14,7 @@ def execute(parser):
     args = context.args
     if not globals().get(args.func):
         return
-    for backend in context.backend:
+    for backend in context._backend:
         if getattr(args, backend, None):
             args.mode = backend
     if args.dag or args.dag_extend:
@@ -54,5 +54,5 @@ def runflow():
 
 
 def runbatch():
-    context.backend.append("batchcompute")
+    context._backend.append("batchcompute")
     execute(job_parser())
