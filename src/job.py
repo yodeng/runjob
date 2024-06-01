@@ -679,8 +679,8 @@ class Jobfile(object):
                         job.raw_cmd).safe_substitute(sub_dict)
                     for dep in job.depends:
                         name, *exts = dep.split(".")
-                        exts = [job_temp.extend_detail.get(e, e) for e in exts]
-                        if exts:
+                        exts = [job_temp.extend_detail.get(e) for e in exts]
+                        if list(filter(None, exts)):
                             job_temp.depends.remove(dep)
                             dep_name = ".".join([name]+exts)
                             job_temp.depends.add(dep_name)

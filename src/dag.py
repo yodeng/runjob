@@ -5,6 +5,8 @@ from copy import copy
 from textwrap import dedent
 from collections import deque, OrderedDict
 
+from .utils import sort_by
+
 
 class DAG(object):
     """ Directed acyclic graph implementation. """
@@ -190,7 +192,7 @@ class DAG(object):
 
     def dot(self, node2rule={}):
         '''@node2rule: same color if node belong to same rule'''
-        all_nodes = sorted(self.all_nodes)
+        all_nodes = sorted(self.all_nodes, key=sort_by)
         ids = {node: i for i, node in enumerate(all_nodes)}
         huefactor = 2 / (3 * max(len(ids), 1))
         node2rule = {node: node2rule.get(node, node)

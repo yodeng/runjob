@@ -43,6 +43,7 @@ except ImportError:
 
 BACKEND = ["local", "localhost", "sge", "slurm"]
 
+NOT_ALPHA_DIGIT = re.compile("[^0-9A-Za-z]")
 SBATCH_JOB_ID_DECODER = re.compile("Submitted batch job (\d+)")
 QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
 TIMEDELTA_REGEX = re.compile(r'^((?P<weeks>[\.\d]+?)w)? *'
@@ -693,6 +694,16 @@ def tmp_chdir(dest):
         yield
     finally:
         os.chdir(curdir)
+
+
+def sort_by(s):
+    out = []
+    for p in NOT_ALPHA_DIGIT.split(s):
+        try:
+            out.append(float(p))
+        except ValueError:
+            out.append(p)
+    return out
 
 
 class TempFile(object):
