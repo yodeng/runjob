@@ -52,6 +52,7 @@ class Jobutils(object):
         return join(self.logdir, "."+basename(self.logfile))
 
     def raw2cmd(self, sleep_sec=0, groupsh=False):
+        self.raw_cmd = textwrap.dedent(self.raw_cmd).strip()
         raw_cmd = self.raw_cmd
         if self.groups and self.groups > 1 and len(self.raw_cmd.split("\n")) > 1:
             if not groupsh:
@@ -63,7 +64,7 @@ class Jobutils(object):
                 mkdir(dirname(runfile))
                 with open(runfile, "w") as fo:
                     fo.write("#!/bin/bash\nset -e\n\n")
-                    fo.write(self.raw_cmd.strip() + "\n")
+                    fo.write(self.raw_cmd + "\n")
                 raw_cmd = "sh " + runfile
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
@@ -72,12 +73,12 @@ class Jobutils(object):
                        "({1}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
                        "(echo [`date +'%F %T'`] ERROR && rm -fr {0}.run && touch {0}.error && exit 1)".format(
-                           self.stat_file, raw_cmd)
+                           self.stat_file, raw_cmd.strip())
         else:
             self.cmd = "(echo [`date +'%F %T'`] RUNNING...) && " \
                        "({0}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS) || " \
-                       "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd)
+                       "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd.strip())
         if self.subtimes > 0:
             self.cmd = self.cmd.replace("RUNNING", "RUNNING \(re-submit\)")
 
@@ -245,7 +246,7 @@ class Job(Jobutils):
             cmds[len(cmds)-1-n] = self.raw_cmd
         self.groups = len(cmds)
         self.cmd = "\n".join(cmds)
-        self.raw_cmd = self.cmd.strip()
+        self.raw_cmd = self.cmd.rstrip()
         self.cmd0 = self.cmd.strip()
         self.logfile = join(self.logdir, self.name + ".log")
         self.raw2cmd()
@@ -300,7 +301,7 @@ class Job(Jobutils):
             cmds[len(cmds)-1-n] = self.raw_cmd
         self.groups = len(cmds)
         self.cmd = "\n".join(cmds)
-        self.raw_cmd = self.cmd.strip()
+        self.raw_cmd = self.cmd.rstrip()
         self.cmd0 = self.cmd.strip()
         self.logfile = join(self.logdir, self.name + ".log")
         self.raw2cmd()
@@ -310,8 +311,8 @@ class Job(Jobutils):
 
     def _parse_jobs(self, lines=None, no_begin=False):
         cmds = []
-        for j in lines:
-            j = j.strip()
+        for line in lines:
+            j = line.strip()
             if not j or j.startswith("#"):
                 continue
             value = re.split("[\s:]", j, 1)[-1].strip(":").strip()
@@ -386,7 +387,7 @@ class Job(Jobutils):
             elif no_begin and not j.strip().endswith(":"):
                 if ":" in j and len(list(filter(None, re.split("[\s:]", j)))) == 2:
                     raise JobError("unrecognized job define: '{}'".format(j))
-                cmds.append(j)
+                cmds.append(line.rstrip())
             else:
                 raise JobError(
                     "unrecognized line error: {} {}".format(j, lines))
@@ -414,7 +415,7 @@ class Job(Jobutils):
 
     def _get_cmd(self, cmd=None):
         if re.search("\s+//", cmd) or re.search("//\s+", cmd):
-            self.raw_cmd = cmd.rsplit("//", 1)[0].strip()
+            self.raw_cmd = cmd.rsplit("//", 1)[0].rstrip()
             try:
                 argstring = shlex.split(cmd.rsplit("//", 1)[1].strip())
                 args = shell_job_parser(argstring)
@@ -442,7 +443,7 @@ class Job(Jobutils):
             except:
                 pass
         else:
-            self.raw_cmd = cmd.strip()
+            self.raw_cmd = cmd.rstrip()
 
     def to_local(self, jobname="", removelog=False):
         self.host = "localhost"
@@ -451,7 +452,7 @@ class Job(Jobutils):
             self._path) + "_%s.log" % jobname)
         if removelog and isfile(self.logfile):
             os.remove(self.logfile)
-        self.raw_cmd = self.cmd0.strip()
+        self.raw_cmd = self.cmd0.rstrip()
         self.raw2cmd()
 
     def checkrule(self):
@@ -605,7 +606,7 @@ class Jobfile(object):
                         not re.match("\s", _line) and \
                         (":" in line or re.search("(depends?([_\s])?\s*(on)?)", line)):
                     continue
-                job.append(line)
+                job.append(_line.rstrip())
             if len(job):
                 if job[0].endswith(":"):
                     self.add_job(job, method="from_task")

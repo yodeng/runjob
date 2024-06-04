@@ -551,7 +551,7 @@ class RunJob(object):
         job.submit_time = now()
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
-                logcmd.write(job.raw_cmd + "\n")
+                logcmd.write(textwrap.dedent(job.raw_cmd).strip() + "\n")
                 job.set_status("submit")
             elif job.subtimes > 0:
                 logcmd.write(style("\n-------- retry --------\n",
