@@ -26,6 +26,7 @@ class Context(metaclass=ConfigType):
             self.__class__.db = self.__class__.database = self.__class__.conf.database
             self.__class__.soft = self.__class__.bin = self.__class__.software = self.__class__.conf.software
         self.__class__.init_arg(args)
+        self.__class__.init_log()
 
     @classmethod
     def add_config(cls, config=None):
