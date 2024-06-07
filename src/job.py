@@ -65,7 +65,7 @@ class Jobutils(object):
                 with open(runfile, "w") as fo:
                     fo.write("#!/bin/bash\nset -e\n\n")
                     fo.write(self.raw_cmd + "\n")
-                raw_cmd = "sh " + runfile
+                raw_cmd = "/bin/bash -euo pipefail " + runfile
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
         if self.host != "batchcompute":
