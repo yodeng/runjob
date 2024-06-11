@@ -600,7 +600,8 @@ class RunJob(object):
                 job.update_queue(self.queue)
                 if not job.queue:
                     with os.popen("sinfo -h | awk '{print $1}'") as fi:
-                        job.queue = set(fi.read().split())
+                        job.queue = set([i.strip("*")
+                                        for i in fi.read().split()])
                 headers += "#SBATCH --partition={0}\n".format(
                     ",".join(sorted(job.queue)))
                 nodelist = job.node or self.node

@@ -213,6 +213,7 @@ def flow_parser():
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-L", "--logdir", type=str,
                         help='the output log dir. (default: join(workdir, "logs"))', metavar="<logdir>")
+    batch_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunFlow")
     return parser
