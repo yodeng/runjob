@@ -7,7 +7,7 @@ import configparser
 from copy import copy
 from os.path import isfile, exists, join, abspath, realpath, split, expanduser, dirname
 
-from .utils import user_config_dir, which, is_exe, USER_CONF_FILE, PKG_CONF_FILE, CONF_FILE_NAME
+from .utils import user_config_dir, which, is_exe, load_it, USER_CONF_FILE, PKG_CONF_FILE, CONF_FILE_NAME
 
 
 if sys.version_info[0] == 3:
@@ -139,7 +139,7 @@ class Config(Dict):
             self.__config.read(self._path)
         for s in self.__config.sections():
             for k, v in self.__config[s].items():
-                self[s][k] = v
+                self[s][k] = load_it(v)
 
     def rget(self, key, *keys, default=None):
         '''default value: None'''
@@ -164,20 +164,17 @@ class Config(Dict):
             c.read(config)
         return c
 
-    def update_config(self, config):
-        parser = self.__get_conf_parser(config)
-        if parser:
-            for s in parser.sections():
-                self[s].update(dict(parser[s].items()))
-
-    def add_config(self, config):
+    def update_config(self, config, override=True):
         parser = self.__get_conf_parser(config)
         if parser:
             for s in parser.sections():
                 d = self[s]
                 for k, v in parser[s].items():
-                    if k not in d:
-                        d[k] = v
+                    if v != "" and (override or k not in d or k in d and d[k] == ""):
+                        d[k] = load_it(v)
+
+    def add_config(self, config):
+        self.update_config(config, override=False)
 
     def update_dict(self, args=None, **kwargs):
         if args and hasattr(args, "__dict__"):
@@ -194,26 +191,26 @@ class Config(Dict):
                     continue
                 if fo.tell():
                     fo.write("\n")
-                fo.write("[%s]\n" % s)
+                fo.write(f"[{s}]\n")
                 for k, v in info.items():
-                    fo.write("%s = %s\n" % (k, v))
+                    fo.write(f"{k} = {v}\n")
 
     def print_config(self):
         print("Configuration files to search (order by order):")
         for cf in self.search_order:
-            print(" - %s" % abspath(cf))
+            print(f" - {abspath(cf)}")
         print("\nAvailable Config:")
         for k, info in sorted(self.items()):
             if not info or type(info) != Dict:
                 continue
-            print("[%s]" % k)
+            print(f"[{k}]")
             for v, p in sorted(info.items()):
                 if "secret" in v:
                     try:
                         p = hide_key(p)
                     except:
                         pass
-                print(" - %s : %s" % (v, p))
+                print(f" - {v} : {p}")
 
     def update_executable_bin(self):
         '''

@@ -18,6 +18,7 @@ import contextlib
 import pkg_resources
 
 from string import Template
+from ast import literal_eval
 from datetime import datetime
 from fractions import Fraction
 from threading import Thread, Lock, _start_new_thread
@@ -704,6 +705,31 @@ def sort_by(s):
         except ValueError:
             out.append(p)
     return out
+
+
+def converter(in_str):
+    try:
+        out = literal_eval(in_str)
+    except Exception:
+        out = in_str
+    return out
+
+
+def load_it(obj):
+    if isinstance(obj, dict):
+        return {k: load_it(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [load_it(elem) for elem in obj]
+    if isinstance(obj, str):
+        if obj == 'None':
+            return None
+        if obj.isnumeric():
+            return int(obj)
+        if obj.replace('.', '', 1).isnumeric():
+            return float(obj)
+        if obj.upper() in ('TRUE', 'FALSE', 'T', 'F'):
+            return obj.upper() in ('TRUE', 'T')
+    return converter(obj)
 
 
 class TempFile(object):
