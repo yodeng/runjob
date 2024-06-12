@@ -170,7 +170,7 @@ class Config(Dict):
             for s in parser.sections():
                 d = self[s]
                 for k, v in parser[s].items():
-                    if v != "" and (override or k not in d or k in d and d[k] == ""):
+                    if k not in d or v != "" and (override or d[k] == ""):
                         d[k] = load_it(v)
 
     def add_config(self, config):
