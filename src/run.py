@@ -874,6 +874,7 @@ class RunFlow(RunJob):
         self.jobfile = config.jobfile
         self.queue = config.queue
         self.cpu = config.cpu or 1
+        self.node = config.node or None
         self.mem = config.memory or 1
         self.maxjob = config.num
         self.strict = config.strict or False
