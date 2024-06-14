@@ -205,6 +205,8 @@ class Config(Dict):
                 continue
             print(f"[{k}]")
             for v, p in sorted(info.items()):
+                if type(p) == Dict and not p:
+                    p = None
                 if "secret" in v:
                     try:
                         p = hide_key(p)
