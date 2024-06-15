@@ -76,9 +76,34 @@ class CustomHelpFormatter(HelpFormatter):
         return action.dest
 
 
+class ShowConfigAction(argparse.Action):
+
+    def __init__(self,
+                 option_strings,
+                 dest=argparse.SUPPRESS,
+                 default=argparse.SUPPRESS,
+                 help=None):
+        super(ShowConfigAction, self).__init__(
+            option_strings=option_strings,
+            dest=dest,
+            default=default,
+            nargs=0,
+            help=help)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        context.init(app=__package__, args=namespace)
+        context.conf.print_config()
+        parser.exit()
+
+
 def show_help_on_empty_command():
     if len(sys.argv) == 1:
         sys.argv.append('--help')
+
+
+def show_config(p):
+    p.add_argument('--show-config',  action=ShowConfigAction,
+                   help="show configurations and exit.")
 
 
 def color_description(parser):
@@ -111,11 +136,9 @@ def default_parser():
                       help="force to submit jobs even already successed.")
     base.add_argument('-R', '--retry-sec', help="retry the error job after N seconds.",
                       type=int, default=2, metavar="<int>")
-    base.add_argument('-C', '--config',  action='store_true', default=False,
-                      help="show configurations and exit.")
     base.add_argument('-M', '--mode', type=str, default="sge", choices=context._backend,
                       help="the mode to submit your jobs, if no sge installed, always localhost.")
-    base.add_argument('--ini', metavar="<configfile>",
+    base.add_argument('--config', metavar="<configfile>",
                       help="input configfile for configurations search.")
     base.add_argument("--dag", action="store_true", default=False,
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
@@ -129,6 +152,7 @@ def default_parser():
                       type=float, default=DEFAULT_MAX_CHECK_PER_SEC, metavar="<float>")
     base.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
                       type=float, default=DEFAULT_MAX_SUBMIT_PER_SEC, metavar="<float>")
+    show_config(base)
     timeout_parser(p)
     backend_parser(p)
     return p
@@ -260,11 +284,7 @@ def client_parser():
 
 def init_parser(parser):
     args = parser.parse_args()
-    context.add_config(args.ini)
     context.init_arg(args)
-    if args.config:
-        context.conf.print_config()
-        parser.exit()
     if args.jobfile.isatty():
         parser.print_help()
         parser.exit()

@@ -23,7 +23,9 @@ from collections import defaultdict
 from .utils import *
 from .stat_bc import *
 from .cluster import *
+from .parser import *
 from .job import Jobfile
+from .context import context
 from .config import load_config
 from ._version import __version__
 
@@ -217,7 +219,8 @@ def main():
 
 def bcArgs():
     parser = argparse.ArgumentParser(
-        description="for query job status in batch compute.")
+        description="for query job status in batch compute.",
+        formatter_class=CustomHelpFormatter)
     parser.add_argument("-t", "--top", type=int, default=10,
                         help="show top number job. (default: 10)", metavar="<int>")
     parser.add_argument("-a", "--all", action="store_true", default=False,
@@ -236,27 +239,22 @@ def bcArgs():
                         help="AccessKeyID while access oss.", metavar="<str>")
     parser.add_argument('--access-key-secret', type=str,
                         help="AccessKeySecret while access oss.", metavar="<str>")
-    parser.add_argument('-ini', '--ini',
+    parser.add_argument('--config', type=str,
                         help="input configfile for configurations search.", metavar="<configfile>")
-    parser.add_argument("-config", '--config',   action='store_true',
-                        help="show configurations and exit.",  default=False)
+    show_config(parser)
     # parser.add_argument("-l", "--logdir", type=str,
     # help="summary job status in you job directory", metavar="<jobfile>")
     parser.add_argument('-v', '--version',
                         action='version', version="v" + __version__)
+    show_help_on_empty_command()
     args = parser.parse_args()
     return args
 
 
 def batchStat():
     args = bcArgs()
-    conf = load_config()
-    if args.ini:
-        conf.update_config(args.ini)
-    conf.update_dict(**args.__dict__)
-    if args.config:
-        conf.print_config()
-        sys.exit()
+    context.init(args=args)
+    conf = context.conf
     region = REGION.get(args.region.upper(), CN_BEIJING)
     access_key_id = conf.rget("args", "access_key_id")
     access_key_secret = conf.rget("args", "access_key_secret")
