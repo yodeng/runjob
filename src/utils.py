@@ -651,6 +651,12 @@ class OrderedSet(OrderedDict, MutableSet):
     def add(self, elem):
         self[elem] = None
 
+    append = add
+
+    def extend(self, elems):
+        for e in elems:
+            self.add(e)
+
     def discard(self, elem):
         self.pop(elem, None)
 

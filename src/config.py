@@ -228,7 +228,8 @@ class Config(Dict):
 
     @property
     def search_order(self):
-        return self.cf[::-1]
+        search_cf = self.cf[::-1]
+        return sorted(set(search_cf), key=search_cf.index)
 
     def copy(self):
         c = copy(self)
@@ -238,7 +239,7 @@ class Config(Dict):
     def to_json(self, *args, **kw):
         c = self.copy()
         del c.info
-        return json.dumps(c, *args, *kw)
+        return json.dumps(c, *args, **kw)
 
     def to_dict(self):
         return json.loads(self.to_json())
