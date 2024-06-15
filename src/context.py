@@ -18,15 +18,15 @@ class Context(metaclass=ConfigType):
     args = conf.args
     log = getlog()
 
-    def __init__(self, *cf, init_bin=False, args=None, **kw):
+    def __init__(self, *cf, init_bin=False, args=None, app=__package__, **kw):
+        self.__class__.conf = load_config(
+            *cf, init_bin=init_bin or kw.get("init_envs"), app=app)
         if cf or init_bin or kw.get("init_envs"):
-            self.__class__.conf = load_config(
-                *cf, init_bin=init_bin or kw.get("init_envs"))
             self.__class__.args = self.__class__.conf.args
             self.__class__.db = self.__class__.database = self.__class__.conf.database
             self.__class__.soft = self.__class__.bin = self.__class__.software = self.__class__.conf.software
         self.__class__.init_arg(args)
-        self.__class__.init_log()
+        self.__class__.init_log(name=app)
 
     @classmethod
     def add_config(cls, config=None):
@@ -71,9 +71,10 @@ class Context(metaclass=ConfigType):
         cls.conf.update_executable_bin()
 
     @classmethod
-    def init_all(cls, args=None, conf=None, init_bin=False):
+    def init_all(cls, args=None, conf=None, init_bin=False, app=__package__):
+        cls.conf = load_config(app=app)
         cls.init_arg(args)
-        cls.init_log()
+        cls.init_log(name=app)
         cls.add_path()
         cls.add_config(conf)
         if init_bin:
@@ -82,8 +83,8 @@ class Context(metaclass=ConfigType):
     Initial = init_all
 
     @classmethod
-    def init(cls,  *cf, init_bin=False, args=None, **kw):
-        cls(*cf, init_bin=init_bin, args=args, **kw)
+    def init(cls,  *cf, init_bin=False, args=None, app=__package__, **kw):
+        cls(*cf, init_bin=init_bin, args=args, app=app, **kw)
 
     def __getattr__(self, attr):
         return self.__dict__.get(attr, self.conf.__getitem__(attr))

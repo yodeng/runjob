@@ -432,8 +432,11 @@ def call_cmd(cmd, verbose=False, run=True):
         print(cmd)
     if not run:
         return
-    call(cmd, shell=isinstance(cmd, str),
-         stdout=not verbose and -3 or None, stderr=-2, timeout=3)
+    try:
+        call(cmd, shell=isinstance(cmd, str),
+             stdout=not verbose and -3 or None, stderr=-2, timeout=3)
+    except:
+        pass
 
 
 def which(program, paths=None):
