@@ -111,6 +111,18 @@ def color_description(parser):
         parser.description, fore="red", mode="underline")
 
 
+def rate_parser(p):
+    rate_args = p.add_argument_group("rate arguments")
+    rate_args.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit.",
+                           type=int, default=0, metavar="<int>")
+    rate_args.add_argument('-R', '--retry-sec', help="retry the error job after N seconds.",
+                           type=int, default=2, metavar="<int>")
+    rate_args.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
+                           type=float, default=DEFAULT_MAX_CHECK_PER_SEC, metavar="<float>")
+    rate_args.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
+                           type=float, default=DEFAULT_MAX_SUBMIT_PER_SEC, metavar="<float>")
+
+
 def default_parser():
     p = argparse.ArgumentParser(add_help=False)
     base = p.add_argument_group("base arguments")
@@ -130,12 +142,8 @@ def default_parser():
                       help='log debug info.', default=False)
     base.add_argument("-l", "--log", type=str,
                       help='append log info to file. (default: stdout)', metavar="<file>")
-    base.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit.",
-                      type=int, default=0, metavar="<int>")
     base.add_argument("-f", "--force", default=False, action="store_true",
                       help="force to submit jobs even already successed.")
-    base.add_argument('-R', '--retry-sec', help="retry the error job after N seconds.",
-                      type=int, default=2, metavar="<int>")
     base.add_argument('-M', '--mode', type=str, default="sge", choices=context._backend,
                       help="the mode to submit your jobs, if no sge installed, always localhost.")
     base.add_argument('--config', metavar="<configfile>",
@@ -148,11 +156,8 @@ def default_parser():
                       help="use strict to run, means if any errors, clean all jobs and exit.")
     base.add_argument("--quiet", action="store_true", default=False,
                       help="suppress all output and logging.")
-    base.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
-                      type=float, default=DEFAULT_MAX_CHECK_PER_SEC, metavar="<float>")
-    base.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
-                      type=float, default=DEFAULT_MAX_SUBMIT_PER_SEC, metavar="<float>")
     show_config(base)
+    rate_parser(p)
     timeout_parser(p)
     backend_parser(p)
     return p
