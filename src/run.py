@@ -935,6 +935,8 @@ class RunFlow(RunJob):
             for i in v:
                 self.jobsgraph.add_node_if_not_exists(i)
                 self.jobsgraph.add_edge(i, k)
+        for jb in self.jobs:
+            self.jobsgraph.add_node_if_not_exists(jb.name)
         for jn in self.jobsgraph.all_nodes.copy():
             if jn not in self.jobnames:
                 self.jobsgraph.delete_node(jn)
@@ -942,6 +944,3 @@ class RunFlow(RunJob):
             names = [i for i, j in Counter(
                 self.jfile.alljobnames).items() if j > 1]
             self.throw("duplicate job name: %s" % " ".join(names))
-        if self.jobsgraph.size() == 0:
-            for jb in self.jobs:
-                self.jobsgraph.add_node_if_not_exists(jb.name)
