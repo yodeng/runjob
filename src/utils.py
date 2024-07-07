@@ -14,6 +14,7 @@ import argparse
 import textwrap
 import threading
 import traceback
+import subprocess
 import contextlib
 import pkg_resources
 
@@ -427,14 +428,16 @@ def terminate_process(pid):
         pass
 
 
-def call_cmd(cmd, verbose=False, run=True):
+def call_cmd(cmd, verbose=False, run=True, daemon=False):
     if verbose:
         print(cmd)
     if not run:
         return
+    func_call = getattr(subprocess, "Popen") if daemon else getattr(
+        subprocess, "call")
     try:
-        call(cmd, shell=isinstance(cmd, str),
-             stdout=not verbose and -3 or None, stderr=-2, timeout=3)
+        func_call(cmd, shell=isinstance(cmd, str),
+                  stdout=not verbose and -3 or None, stderr=-2, timeout=3)
     except:
         pass
 

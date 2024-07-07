@@ -521,8 +521,8 @@ class RunJob(object):
                 call_cmd(["scancel", jobid])
             self.batch_jobid.pop(jobname, None)
         else:
-            call_cmd(['qdel', "*_%d*" % os.getpid()])
-            call_cmd(["scancel"] + list(self.batch_jobid.values()))
+            call_cmd(['qdel', "*_%d*" % os.getpid()], daemon=True)
+            call_cmd(["scancel"] + list(self.batch_jobid.values()), daemon=True)
             self.batch_jobid.clear()
 
     def deletejob(self, jb=None):
