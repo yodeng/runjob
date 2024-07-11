@@ -332,7 +332,13 @@ def argvhelp(func=None, *, arglen=None):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if len(sys.argv) == 1 or "-h" in sys.argv or "--help" in sys.argv or arglen and len(sys.argv) != arglen+1:
-            sys.exit(textwrap.dedent(func.__doc__).strip())
+            msg = textwrap.dedent(f"""
+                {style("Usage:", fore="red", mode="bold")}
+
+                    {style(func.__doc__.strip(), mode="bold")}
+
+                """)
+            sys.exit(msg)
         return func(*args, **kwargs)
 
     return wrapper
