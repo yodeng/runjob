@@ -168,7 +168,7 @@ class Config(Dict):
         parser = self.__get_conf_parser(config)
         if parser:
             for s in parser.sections():
-                d = self[s]
+                d = self._getvalue(s)
                 for k, v in parser[s].items():
                     if k not in d or v != "" and (override or d[k] == ""):
                         d[k] = load_it(v)
