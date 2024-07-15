@@ -20,6 +20,7 @@ import pkg_resources
 
 from string import Template
 from ast import literal_eval
+from itertools import cycle
 from datetime import datetime
 from fractions import Fraction
 from threading import Thread, Lock, _start_new_thread

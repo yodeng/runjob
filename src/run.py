@@ -56,6 +56,8 @@ class RunJob(object):
         self.maxjob = config.num
         self.cpu = config.cpu or 1
         self.node = config.node or None
+        self.round_node = cycle(
+            self.node) if self.node and config.round_node else None
         self.mem = config.memory or 1
         self.groups = config.groups or 1
         self.strict = config.strict or False
@@ -521,8 +523,8 @@ class RunJob(object):
                 call_cmd(["scancel", jobid])
             self.batch_jobid.pop(jobname, None)
         else:
-            call_cmd(['qdel', "*_%d*" % os.getpid()], daemon=True)
-            call_cmd(["scancel"] + list(self.batch_jobid.values()), daemon=True)
+            call_cmd(['qdel', "*_%d*" % os.getpid()])
+            call_cmd(["scancel"] + list(self.batch_jobid.values()))
             self.batch_jobid.clear()
 
     def deletejob(self, jb=None):
@@ -578,12 +580,7 @@ class RunJob(object):
                 cmd = job.qsub_cmd(jobmem, jobcpu)
                 if job.queue:
                     cmd += " -q " + " -q ".join(job.queue)
-                nodelist = job.node or self.node
-                if nodelist:
-                    nodelist = sorted(set(nodelist))
-                    cmd += " " + \
-                        " ".join(["-l hostname={}".format(node)
-                                 for node in nodelist])
+                cmd += self.node_select(job)
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
                 job.batch_sub_cmd = cmd.replace("`", "\`")
@@ -604,14 +601,7 @@ class RunJob(object):
                                         for i in fi.read().split()])
                 headers += "#SBATCH --partition={0}\n".format(
                     ",".join(sorted(job.queue)))
-                nodelist = job.node or self.node
-                if nodelist:
-                    nodelist = sorted(set(nodelist))
-                    headers += "#SBATCH --nodelist={0}\n".format(
-                        ",".join(nodelist))
-                    headers += "#SBATCH --nodes={}\n".format(len(nodelist))
-                else:
-                    headers += "#SBATCH --nodes=1\n"
+                headers += self.node_select(job)
                 cmd = headers+"\n"+job.cmd
                 job.batch_sub_cmd = cmd
                 mkdir(job.workdir)
@@ -640,6 +630,35 @@ class RunJob(object):
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
         job.submited = True
         self.submited = True
+
+    def node_select(self, job):
+        cmd_or_header = ""
+        nodelist = []
+        if job.host == "sge":
+            if job.node:
+                nodelist = sorted(set(job.node))
+            elif self.node and self.round_node:
+                nodelist = [next(self.round_node), ]
+            elif self.node and not self.round_node:
+                nodelist = sorted(set(self.node))
+            if nodelist:
+                cmd_or_header += " " + \
+                    " ".join(["-l hostname={}".format(node)
+                             for node in nodelist])
+        elif job.host == "slurm":
+            if job.node:
+                nodelist = sorted(set(job.node))
+            elif self.node and self.round_node:
+                nodelist = [next(self.round_node), ]
+            elif self.node and not self.round_node:
+                nodelist = sorted(set(self.node))
+            if nodelist:
+                cmd_or_header += "#SBATCH --nodelist={0}\n".format(
+                    ",".join(nodelist))
+                cmd_or_header += "#SBATCH --nodes={}\n".format(len(nodelist))
+            else:
+                cmd_or_header += "#SBATCH --nodes=1\n"
+        return cmd_or_header
 
     def batch_sub(self, job, mode="sge"):
         if mode == "sge":
@@ -875,6 +894,8 @@ class RunFlow(RunJob):
         self.queue = config.queue
         self.cpu = config.cpu or 1
         self.node = config.node or None
+        self.round_node = cycle(
+            self.node) if self.node and config.round_node else None
         self.mem = config.memory or 1
         self.maxjob = config.num
         self.strict = config.strict or False

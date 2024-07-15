@@ -192,6 +192,8 @@ def batch_parser(parser):
                        help="max memory used (GB).", default=1, metavar="<int>")
     batch.add_argument("--node", type=str, help="node for running, multi-node can be sepreated by whitespace. (default: all accessed)",
                        nargs="*", metavar="<node>")
+    batch.add_argument("--round-node", action="store_true", help="round all define node per job for load balance",
+                       default=False)
 
 
 def batchcmp_parser(parser):
