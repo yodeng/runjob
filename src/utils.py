@@ -435,16 +435,15 @@ def terminate_process(pid):
         pass
 
 
-def call_cmd(cmd, verbose=False, run=True, daemon=False):
+def call_cmd_without_exception(cmd, verbose=False, run=True, daemon=False):
     if verbose:
         print(cmd)
     if not run:
         return
-    func_call = getattr(subprocess, "Popen") if daemon else getattr(
-        subprocess, "call")
+    func_name = "Popen" if daemon else "call"
     try:
-        func_call(cmd, shell=isinstance(cmd, str),
-                  stdout=not verbose and -3 or None, stderr=-2, timeout=3)
+        getattr(subprocess, func_name)(cmd, shell=isinstance(cmd, str),
+                                       stdout=not verbose and -3 or None, stderr=-2, timeout=3)
     except:
         pass
 

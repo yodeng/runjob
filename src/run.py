@@ -512,19 +512,34 @@ class RunJob(object):
     def qdel(self, jobname=""):
         self._qdel(jobname)
 
+    def call_without_exception(self, cmd, verbose=False, run=True, daemon=False, timeout=3):
+        if not run:
+            return
+        func_name = "Popen" if daemon else "call"
+        if verbose:
+            self.logger.info(f"{func_name}: {cmd}")
+        else:
+            self.logger.debug(f"{func_name}: {cmd}")
+        try:
+            getattr(subprocess, func_name)(cmd, shell=isinstance(cmd, str),
+                                           stdout=not verbose and -3 or None, stderr=-2, timeout=timeout)
+        except:
+            pass
+
     # Override these methods to implement other subclass
     def _qdel(self, jobname=""):
         if jobname in self.batch_jobid:
             jobid = self.batch_jobid.get(jobname, jobname)
             jb = self.totaljobdict[jobname]
             if jb.host == "sge":
-                call_cmd(["qdel", jobid])
+                self.call_without_exception(["qdel", jobid])
             elif jb.host == "slurm":
-                call_cmd(["scancel", jobid])
+                self.call_without_exception(["scancel", jobid])
             self.batch_jobid.pop(jobname, None)
         else:
-            call_cmd(['qdel', "*_%d*" % os.getpid()])
-            call_cmd(["scancel"] + list(self.batch_jobid.values()))
+            self.call_without_exception(['qdel', "*_%d*" % os.getpid()])
+            self.call_without_exception(
+                ["scancel"] + list(self.batch_jobid.values()))
             self.batch_jobid.clear()
 
     def deletejob(self, jb=None):
