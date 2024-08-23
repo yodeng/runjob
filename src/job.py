@@ -426,7 +426,7 @@ class Job(Jobutils):
                 for i in ['max_queue_time', 'max_run_time', 'max_wait_time']:
                     k = i.replace("time", "sec")
                     t = min(human2seconds(
-                        getattr(args, i, sys.maxsize)), getattr(self, k))
+                        hasattr(args, i) and getattr(args, i) or sys.maxsize), getattr(self, k))
                     setattr(self, k, t)
                 if getattr(args, "memory", None):
                     self.mem = getattr(args, "memory")
@@ -459,9 +459,10 @@ class Job(Jobutils):
         if self.rules:
             if len(self.rules) <= 4:
                 raise JobError("rules lack of elements")
-            if self.rules[0] != "job_begin" or self.rules[-1] != "job_end" or \
-                    "cmd_begin" not in self.rules or "cmd_end" not in self.rules:
-                raise JobError("job rule define error: %s" % self.rules)
+            rules = [i.strip() for i in self.rules]
+            if rules[0] != "job_begin" or rules[-1] != "job_end" or \
+                    "cmd_begin" not in rules or "cmd_end" not in rules:
+                raise JobError(f"job rule define error: {self.rules}")
 
     def get_job(self):
         cmd = self.cmd.split("\n")
