@@ -16,6 +16,7 @@ class Context(metaclass=ConfigType):
     db = database = conf.database
     soft = bin = software = conf.software
     args = conf.args
+    _args = None
     log = getlog()
 
     def __init__(self, *cf, init_bin=False, args=None, app=__package__, **kw):
@@ -56,6 +57,7 @@ class Context(metaclass=ConfigType):
             return
         if hasattr(args, "config") and args.config and isfile(args.config):
             cls.add_config(args.config)
+        cls._args = args
         cls.conf.update_args(args)
 
     @classmethod
