@@ -537,9 +537,18 @@ class RunJob(object):
                 self.call_without_exception(["scancel", jobid])
             self.batch_jobid.pop(jobname, None)
         else:
-            self.call_without_exception(['qdel', "*_%d*" % os.getpid()])
-            self.call_without_exception(
-                ["scancel"] + list(self.batch_jobid.values()))
+            sge_jobids, slurm_jobids = set(), set()
+            for name, jid in self.batch_jobid.items():
+                host = self.totaljobdict[name].host
+                if host == "sge":
+                    sge_jobids.add(jid)
+                elif host == "slurm":
+                    slurm_jobids.add(jid)
+            if sge_jobids:
+                # self.call_without_exception(['qdel', "*_%d*" % os.getpid()])
+                self.call_without_exception(['qdel',] + list(sge_jobids))
+            if slurm_jobids:
+                self.call_without_exception(["scancel",] + list(slurm_jobids))
             self.batch_jobid.clear()
 
     def deletejob(self, jb=None):
