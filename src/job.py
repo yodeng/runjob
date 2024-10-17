@@ -419,7 +419,7 @@ class Job(Jobutils):
             try:
                 argstring = shlex.split(cmd.rsplit("//", 1)[1].strip())
                 args = shell_job_parser(argstring)
-                for i in ['force', 'local', 'max_timeout_retry', 'workdir', 'jobname',
+                for i in ['force', 'local', 'sge', 'slurm', 'max_timeout_retry', 'workdir', 'jobname',
                           'groups', 'mode', 'queue', 'memory', 'cpu', 'out_maping']:
                     if getattr(args, i, False):
                         setattr(self, i, getattr(args, i))
@@ -430,8 +430,11 @@ class Job(Jobutils):
                     setattr(self, k, t)
                 if getattr(args, "memory", None):
                     self.mem = getattr(args, "memory")
+                for backed in context._backend:
+                    if getattr(self, backed, None):
+                        self.host = args.mode = backed
                 if args.local:
-                    args.mode = "local"
+                    self.host = args.mode = "local"
                 if args.mode and args.mode in context._backend:
                     self.host = args.mode
                 if args.jobname and not args.jobname[0].isdigit():
@@ -480,6 +483,8 @@ class Jobfile(object):
         self.has_sge = is_sge_submit()
         self.workdir = abspath(workdir or os.getcwd())
         self.temp = None
+        if not mode or mode not in context._backend:
+            mode = default_backend()
         if isinstance(jobfile, (tuple, list)):
             self.temp = TempFile(prefix=".{}_".format(
                 __package__), dir=self.workdir)
@@ -497,7 +502,7 @@ class Jobfile(object):
         self.mode = mode or "sge"
         if self.mode == "sge" and not self.has_sge or \
                 self.mode == "slurm" and not is_slurm_host():
-            self.mode = "localhost"
+            self.mode = default_backend()
         if "local" in self.mode:
             self.mode = "localhost"
         self.totaljobs = OrderedDict()

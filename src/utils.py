@@ -319,7 +319,7 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
             else:
                 break
         else:
-            raise MaxRetryError("max retry %s error" % max_num)
+            raise MaxRetryError(f"max retry {max_num} error")
         if callback:
             return callback(res)
         return res
@@ -500,6 +500,14 @@ def is_sge_submit():
 
 def is_slurm_host():
     return which("sinfo") and which("sbatch") and which("scancel")
+
+
+def default_backend():
+    if is_sge_submit():  # sge first
+        return "sge"
+    elif is_slurm_host():
+        return "slurm"
+    return "localhost"
 
 
 class AppDirs(object):

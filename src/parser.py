@@ -144,8 +144,8 @@ def default_parser():
                       help='append log info to file. (default: stdout)', metavar="<file>")
     base.add_argument("-f", "--force", default=False, action="store_true",
                       help="force to submit jobs even already successed.")
-    base.add_argument('-M', '--mode', type=str, default="sge", choices=context._backend,
-                      help="the mode to submit your jobs, if no sge installed, always localhost.")
+    base.add_argument('-M', '--mode', type=str, default="auto", choices=context._backend,
+                      help="the mode to submit your jobs, auto detect.")
     base.add_argument('--config', metavar="<configfile>",
                       help="input configfile for configurations search.")
     base.add_argument("--dag", action="store_true", default=False,

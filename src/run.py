@@ -925,7 +925,7 @@ class RunFlow(RunJob):
         self.strict = config.strict or False
         self.workdir = config.workdir or os.getcwd()
         self.jfile = jfile = Jobfile(
-            self.jobfile, mode=config.mode or "sge", config=config)
+            self.jobfile, mode=config.mode or default_backend(), config=config)
         self.jpath = self.jfile._path
         self.mode = jfile.mode
         self.name = os.getpid()
