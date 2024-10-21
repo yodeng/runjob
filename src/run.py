@@ -166,7 +166,7 @@ class RunJob(object):
     def __make_groups(self, jobs=None):
         if len(jobs) > 1:
             j_header = jobs[0]
-            j_header.groups = len(jobs[1:])
+            j_header.groups = len(jobs)
             for j in jobs[1:]:
                 j_header.raw_cmd += "\n" + j.raw_cmd
                 if j in self.jobs:
