@@ -297,9 +297,9 @@ class RunJob(object):
                 sta = fi.read().strip()
                 stal = sta.split()
             if sta:
-                if stal[-1] == "SUCCESS":
+                if stal[-1].upper() == "SUCCESS":
                     status = "success"
-                elif stal[-1] == "ERROR":
+                elif stal[-1].upper() == "ERROR":
                     status = "error"
                 elif stal[-1] == "Exiting.":
                     status = "exit"
