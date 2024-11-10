@@ -184,7 +184,7 @@ class RunJob(object):
         return {k: sorted(v, key=len)[0] for k, v in out.items()}
 
     def check_already_success(self):
-        for job in self.jobs[:]:
+        for job in sorted(self.jobs):
             lf = job.logfile
             job.subtimes = 0
             job.remove_all_stat_files()
