@@ -146,6 +146,7 @@ def main():
                             alljobnames = line.split(
                                 "Total jobs to submit:")[1].split()
                             alljobnames = [j.strip(",") for j in alljobnames]
+                            stat.clear()
                 stat2 = {}
                 for k, v in stat.items():
                     stat2.setdefault(v, []).append(k)
