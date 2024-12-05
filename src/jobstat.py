@@ -157,14 +157,15 @@ def main():
                 for k, v in stat2.items():
                     num = len(v)
                     if k in ["success", "already success"]:
-                        print(style("{0:<20} {1:>5}".format(
-                            k+":", num)))
+                        out_line = style("{0:<20} {1:>5}".format(k+":", num))
                     elif k == "error":
-                        print(style("{0:<20} {1:>5} ".format(
-                            "error:", num), mode="bold", fore="red"), ", ".join(v))
+                        out_line = style("{0:<20} {1:>5}".format(
+                            "error:", num), mode="bold", fore="red")
                     else:
-                        print(style("{0:<20} {1:>5} ".format(
-                            k + ":", num)), ", ".join(v))
+                        out_line = style("{0:<20} {1:>5}".format(k + ":", num))
+                    if num < 5 or k not in ["success", "already success"]:
+                        out_line += "  {}".format(", ".join(v))
+                    print(out_line)
                 wait = sorted(set(alljobnames) - set(stat.keys()))
                 print(style("{0:<20} {1:>5} ".format(
                     "wait:", len(wait)), ", ".join(wait)))

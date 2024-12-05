@@ -133,7 +133,7 @@ def default_parser():
     base.add_argument("-n", "--num", type=int,
                       help="the max job number runing at the same time. (default: all of the jobfile, max 1000)", metavar="<int>")
     base.add_argument("-s", "--start", type=int,
-                      help="which line number(1-base) be used for the first job. (default: %(default)s)", metavar="<int>", default=1)
+                      help="which line number (1-base) be used for the first job. (default: %(default)s)", metavar="<int>", default=1)
     base.add_argument("-e", "--end", type=int,
                       help="which line number (include) be used for the last job. (default: last line of the jobfile)", metavar="<int>")
     base.add_argument("-w", "--workdir", type=str, help="work directory.",
@@ -240,7 +240,7 @@ def flow_parser():
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
-    parser.add_argument('-i', '--injname', help="job names you need to run. (default: all job names of the jobfile)",
+    parser.add_argument('-i', '--injname', help="job names defined to run. (default: all job names of the jobfile)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-L", "--logdir", type=str,
                         help='the output log dir. (default: join(workdir, "logs"))', metavar="<logdir>")
