@@ -384,6 +384,28 @@ def now():
     return time.time()
 
 
+def human_size(num):
+    for unit in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s" % (num, unit)
+        num /= 1024.0
+    return "%.1f%s" % (num, 'Y')
+
+
+def human_size_parse(size):
+    s, u = re.search("(\d+(?:\.\d+)?)(\D*)", str(size)).group(1, 2)
+    s = float(s)
+    if s < 1 and not u:
+        u = "M"
+    if u:
+        for unit in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+            if u.upper().strip()[0] == unit:
+                return int(s)
+            s *= 1024
+    else:
+        return int(s)
+
+
 def seconds2human(s):
     m, s = divmod(s, 60)
     h, m = divmod(int(m), 60)
@@ -731,6 +753,11 @@ def sort_by(s):
         except ValueError:
             out.append(p)
     return out
+
+
+def free_disk_space(path=None):
+    ph = path or os.getcwd()
+    return human_size(os.statvfs(ph).f_bfree * os.statvfs(ph).f_frsize)
 
 
 def converter(in_str):
