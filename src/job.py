@@ -420,7 +420,7 @@ class Job(Jobutils):
                 argstring = shlex.split(cmd.rsplit("//", 1)[1].strip())
                 args = shell_job_parser(argstring)
                 for i in ['force', 'local', 'sge', 'slurm', 'max_timeout_retry', 'workdir', 'jobname',
-                          'groups', 'mode', 'queue', 'memory', 'cpu', 'out_maping']:
+                          'groups', 'mode', 'queue', 'memory', 'cpu', "node", 'out_maping']:
                     if getattr(args, i, False):
                         setattr(self, i, getattr(args, i))
                 for i in ['max_queue_time', 'max_run_time', 'max_wait_time']:
