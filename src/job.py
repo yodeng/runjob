@@ -69,13 +69,13 @@ class Jobutils(object):
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
         if self.host != "batchcompute":
-            self.cmd = "(echo [`date +'%F %T'`] RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
+            self.cmd = "(echo [`date +'%F %T'`] $USER@`hostname`:`pwd` RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
                        "({1}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
                        "(echo [`date +'%F %T'`] ERROR && rm -fr {0}.run && touch {0}.error && exit 1)".format(
                            self.stat_file, raw_cmd.strip())
         else:
-            self.cmd = "(echo [`date +'%F %T'`] RUNNING...) && " \
+            self.cmd = "(echo [`date +'%F %T'`] $USER@`hostname`:`pwd` RUNNING...) && " \
                        "({0}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS) || " \
                        "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd.strip())

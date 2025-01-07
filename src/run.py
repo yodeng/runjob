@@ -588,7 +588,7 @@ class RunJob(object):
             if job.host is not None and job.host in ["localhost", "local"]:
                 job.raw2cmd(job.subtimes and abs(
                     self.retry_sec) or 0, groupsh=True)
-                cmd = "(echo 'Your job (\"%s\") has been submitted in localhost') && " % job.name + job.cmd
+                cmd = f'''(echo "Your job ('{job.name}') has been submitted in {socket.gethostname()}") && {job.cmd}'''
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
                 with tmp_chdir(job.workdir):
