@@ -788,6 +788,8 @@ def load_it(obj):
 class TempFile(object):
 
     def __init__(self, suffix=None, prefix=None, dir=None):
+        if dir and (not isdir(dir) or not os.access(dir, os.W_OK | os.X_OK)):
+            dir = None
         self.temp = tempfile.NamedTemporaryFile(
             suffix=suffix, prefix=prefix, delete=False, dir=dir)
 
