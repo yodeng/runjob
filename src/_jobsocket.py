@@ -131,3 +131,6 @@ def job_client():
             raise RuntimeError("No server port define")
     send_job_status(args.file, args.name, args.status,
                     host=args.host, port=int(args.port))
+
+
+job_report = job_client

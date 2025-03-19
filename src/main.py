@@ -45,14 +45,12 @@ def execute(parser):
         raise e
 
 
-def runjob():
-    execute(job_parser())
-
-
-def runflow():
-    execute(flow_parser())
-
-
-def runbatch():
-    context._backend.append("batchcompute")
-    execute(job_parser())
+def entry_exec():
+    entry = basename(sys.argv[0])
+    if entry == "runbatch":
+        context._backend.append("batchcompute")
+        execute(job_parser())
+    elif entry in ("runflow", "runjob"):
+        execute(flow_parser())
+    elif entry in ("runsge", "runshell"):
+        execute(job_parser())

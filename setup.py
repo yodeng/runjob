@@ -139,22 +139,13 @@ class Packages(object):
 
     @property
     def _entrys(self):
-        eps = [
-            '{0} = {1}.main:{0}'.format("runflow", self.name),
-            '{0} = {0}.main:runflow'.format(self.name),
-            '{0} = {1}.main:{1}'.format("runsge", self.name),
-            '{0} = {1}.main:{1}'.format("runshell", self.name),
-            '{0} = {1}.main:{0}'.format("runbatch", self.name),
-            '{0} = {1}.jobstat:main'.format("qs", self.name),
-            '{0} = {1}.jobstat:qslurm'.format("qslurm", self.name),
-            '{0} = {1}.jobstat:batchStat'.format("qcs", self.name),
-            '{0} = {1}._jobsocket:job_server'.format(
-                self.name+"-server", self.name),
-            '{0} = {1}._jobsocket:job_client'.format(
-                self.name+"-report", self.name),
-            '{0} = {1}._jobsocket:job_client'.format(
-                self.name+"-client", self.name),
-        ]
+        eps = [f"{cmd} = {self.name}.main:entry_exec" for cmd in (
+            "runflow", "runjob", "runsge", "runshell", "runbatch")] + \
+            [f'qs = {self.name}.jobstat:main',
+             f'qslurm = {self.name}.jobstat:qslurm',
+             f'qcs = {self.name}.jobstat:batchStat'] + \
+            [f"{self.name}-{cmd} = {self.name}._jobsocket:job_{cmd}" for cmd in (
+                "server", "client", "report")]
         return eps
 
 
