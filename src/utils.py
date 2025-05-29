@@ -524,6 +524,26 @@ def is_slurm_host():
     return which("sinfo") and which("sbatch") and which("scancel")
 
 
+def default_slurm_queue():
+    q = None
+    try:
+        with os.popen("sinfo -h | awk '{print $1}'") as fi:
+            q = sorted(set([i.strip("*") for i in fi.read().split()]))
+    except:
+        pass
+    return q
+
+
+def default_slurm_node():
+    n = None
+    try:
+        with os.popen("sinfo -Nh | awk '{print $1}'") as fi:
+            node = sorted(set([i.strip("*") for i in fi.read().split()]))
+    except:
+        pass
+    return node
+
+
 def default_backend():
     if is_sge_submit():  # sge first
         return "sge"
@@ -743,6 +763,14 @@ def tmp_chdir(dest):
         yield
     finally:
         os.chdir(curdir)
+
+
+def safe_cycle(itr):
+    it = cycle(itr)
+    lock = Lock()
+    while True:
+        with lock:
+            yield next(it)
 
 
 def sort_by(s):

@@ -56,7 +56,7 @@ class RunJob(object):
         self.maxjob = config.num
         self.cpu = config.cpu or 1
         self.node = config.node or None
-        self.round_node = cycle(
+        self.round_node = safe_cycle(
             self.node) if self.node and config.round_node else None
         self.mem = config.memory or 1
         self.groups = config.groups or 1
@@ -77,6 +77,10 @@ class RunJob(object):
         self._init()
         self.lock = Lock()
         self._status_queue = Queue()
+        context.default_slurm_queue = default_slurm_queue()
+        context.default_slurm_node = default_slurm_node()
+        self._default_slurm_node = context.default_slurm_node and safe_cycle(
+            context.default_slurm_node) or None
         self._status_socket_file = join(
             self.logdir, ".{}.{}.socket".format(os.getpid(), __package__))
 
@@ -598,8 +602,10 @@ class RunJob(object):
             elif job.host == "sge":
                 job.raw2cmd(job.subtimes and abs(
                     self.retry_sec) or 0, groupsh=True)
-                jobcpu = job.cpu or self.cpu
-                jobmem = job.mem or self.mem
+                jobcpu = context.args.cpu and max(
+                    job.cpu, context.args.cpu) or job.cpu or self.cpu
+                jobmem = context.args.memory and max(
+                    job.mem, context.args.memory) or job.mem or self.mem
                 job.update_queue(self.queue)
                 cmd = job.qsub_cmd(jobmem, jobcpu)
                 if job.queue:
@@ -615,14 +621,13 @@ class RunJob(object):
             elif job.host == "slurm":
                 job.raw2cmd(job.subtimes and abs(
                     self.retry_sec) or 0, groupsh=True)
-                jobcpu = job.cpu or self.cpu
-                jobmem = job.mem or self.mem
+                jobcpu = context.args.cpu and max(
+                    job.cpu, context.args.cpu) or job.cpu or self.cpu
+                jobmem = context.args.memory and max(
+                    job.mem, context.args.memory) or job.mem or self.mem
                 headers = job.sbatch_header(jobmem, jobcpu)
                 job.update_queue(self.queue)
-                if not job.queue:
-                    with os.popen("sinfo -h | awk '{print $1}'") as fi:
-                        job.queue = set([i.strip("*")
-                                        for i in fi.read().split()])
+                job.queue = job.queue or context.default_slurm_queue
                 headers += "#SBATCH --partition={0}\n".format(
                     ",".join(sorted(job.queue)))
                 headers += self.node_select(job)
@@ -635,8 +640,10 @@ class RunJob(object):
                 self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
             elif job.host == "batchcompute":
-                jobcpu = job.cpu or self.cpu
-                jobmem = job.mem or self.mem
+                jobcpu = context.args.cpu and max(
+                    job.cpu, context.args.cpu) or job.cpu or self.cpu
+                jobmem = context.args.memory and max(
+                    job.mem, context.args.memory) or job.mem or self.mem
                 c = Cluster(config=self.conf)
                 c.AddClusterMount()
                 task = Task(c)
@@ -676,6 +683,8 @@ class RunJob(object):
                 nodelist = [next(self.round_node), ]
             elif self.node and not self.round_node:
                 nodelist = sorted(set(self.node))
+            elif not self.node and self._default_slurm_node and context.conf.round_node:
+                nodelist = [next(self._default_slurm_node), ]
             if nodelist:
                 cmd_or_header += "#SBATCH --nodelist={0}\n".format(
                     ",".join(nodelist))
@@ -918,7 +927,7 @@ class RunFlow(RunJob):
         self.queue = config.queue
         self.cpu = config.cpu or 1
         self.node = config.node or None
-        self.round_node = cycle(
+        self.round_node = safe_cycle(
             self.node) if self.node and config.round_node else None
         self.mem = config.memory or 1
         self.maxjob = config.num
@@ -938,6 +947,10 @@ class RunFlow(RunJob):
         self.sec = config.sec or 2
         self._init()
         self.lock = Lock()
+        context.default_slurm_queue = default_slurm_queue()
+        context.default_slurm_node = default_slurm_node()
+        self._default_slurm_node = context.default_slurm_node and safe_cycle(
+            context.default_slurm_node) or None
 
     def _init(self):
         self.jobnames = [j.name for j in self.jobs]
