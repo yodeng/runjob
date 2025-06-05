@@ -17,6 +17,7 @@ import traceback
 import subprocess
 import contextlib
 import pkg_resources
+import importlib.util
 
 from string import Template
 from ast import literal_eval
@@ -290,6 +291,17 @@ class mute(object):
         if instance is None:
             return self
         return types.MethodType(self, instance)
+
+
+def load_module_from_path(path):
+    path = os.path.abspath(path)
+    _, filename = os.path.split(path)
+    module_name, _ = os.path.splitext(filename)
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def retry(func=None, *, max_num=3, delay=5, callback=None):
