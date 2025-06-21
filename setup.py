@@ -2,9 +2,10 @@ import os
 import sys
 import sysconfig
 import subprocess
+import importlib.util
 
 from setuptools import setup
-from functools import partial
+from functools import partial, wraps
 from setuptools.extension import Extension
 
 
@@ -47,18 +48,21 @@ class Packages(object):
 
     @property
     def version(self):
-        v = {}
-        if not os.path.isfile(self.version_file):
-            for f in os.listdir(self.source_dir):
+        for a, b, c in os.walk(self.source_dir):
+            for i in c:
+                f = os.path.join(a, i)
                 if f.endswith("version.py"):
-                    self.version_file = os.path.join(self.source_dir, f)
-                    break
-        if not os.path.isfile(self.version_file):
-            raise IOError("version not found")
-        with open(self.version_file) as fi:
-            c = fi.read()
-        exec(compile(c, self.version_file, "exec"), v)
-        return v["__version__"]
+                    try:
+                        v = load_module_from_path(f)
+                        break
+                    except:
+                        continue
+            else:
+                continue
+            break
+        else:
+            return "unknow"
+        return v.__version__
 
     @property
     def git_version(self):
@@ -112,6 +116,10 @@ class Packages(object):
         for a, b, v in os.walk(self.source_dir):
             p = a.replace(self.source_dir, self.name).replace("/", ".")
             pd[p] = a.replace(self.source_dir, "src")
+            for d in b:
+                pkg = os.path.join(a, d).replace(
+                    "src", "").replace("/", ".").strip(".")
+                pd[pkg] = os.path.join(a, d)
         return pd
 
     def install(self, ext=False):
@@ -149,9 +157,33 @@ class Packages(object):
         return eps
 
 
+def dont_write_bytecode(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        ori = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            return func(*args, **kwargs)
+        finally:
+            sys.dont_write_bytecode = ori
+    return wrapper
+
+
+@dont_write_bytecode
+def load_module_from_path(path):
+    path = os.path.abspath(path)
+    _, filename = os.path.split(path)
+    module_name, _ = os.path.splitext(filename)
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def main():
     pkgs = Packages("runjob")
-    pkgs.install(ext=False)
+    pkgs.install(ext=0)
 
 
 if __name__ == "__main__":
