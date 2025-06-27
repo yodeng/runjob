@@ -808,6 +808,39 @@ def converter(in_str):
     return out
 
 
+def common_substring(l):
+    table = []
+    for s in l:
+        # adds in table all substrings of s - duplicate substrings in s are added only once
+        table += set(s[j:k] for j in range(len(s))
+                     for k in range(j+1, len(s)+1))
+    # sort substrings by length (descending)
+    table = sorted(table, key=lambda x: -len(x))
+    # get the position of duplicates and get the first one (longest)
+    duplicates = [i for i, x in enumerate(table) if table.count(x) == len(l)]
+    if len(duplicates) > 0:
+        return table[duplicates[0]]
+    else:
+        return ""
+
+
+def get_common_suffpref(l, order=1):
+    common_string = 0
+    max_length = min([len(i) for i in l])
+    for i in range(max_length):
+        index = i
+        if order == -1:
+            index = i+1
+        if all(map(lambda x: x[order*index] == l[0][order*index], l)):
+            common_string += 1
+        else:
+            break
+    if order == 1 or common_string == 0:
+        return l[0][:common_string]
+    else:
+        return l[0][-common_string:]
+
+
 def load_it(obj):
     if isinstance(obj, dict):
         return {k: load_it(v) for k, v in obj.items()}
