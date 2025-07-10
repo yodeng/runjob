@@ -5,7 +5,7 @@ from copy import copy
 from textwrap import dedent
 from collections import deque, OrderedDict
 
-from .utils import sort_by
+from .utils import string_num_orders
 
 
 class DAG(object):
@@ -192,7 +192,7 @@ class DAG(object):
 
     def dot(self, node2rule={}):
         '''@node2rule: same color if node belong to same rule'''
-        all_nodes = sorted(self.all_nodes, key=sort_by)
+        all_nodes = sorted(self.all_nodes, key=string_num_orders)
         ids = {node: i for i, node in enumerate(all_nodes)}
         huefactor = 2 / (3 * max(len(ids), 1))
         node2rule = {node: node2rule.get(node, node)

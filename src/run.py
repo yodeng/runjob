@@ -768,7 +768,7 @@ class RunJob(object):
 
     def pending_jobs(self, *names):
         jobs = []
-        for j in sorted(names, key=sort_by):
+        for j in sorted(names, key=string_num_orders):
             jb = self.totaljobdict[j]
             if jb not in self.jobqueue:
                 jobs.append(jb)

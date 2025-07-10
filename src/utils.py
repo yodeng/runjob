@@ -16,7 +16,6 @@ import threading
 import traceback
 import subprocess
 import contextlib
-import pkg_resources
 import importlib.util
 
 from string import Template
@@ -24,6 +23,8 @@ from ast import literal_eval
 from itertools import cycle
 from datetime import datetime
 from fractions import Fraction
+from shutil import which as _which
+from importlib.metadata import distribution
 from threading import Thread, Lock, _start_new_thread
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
@@ -293,17 +294,6 @@ class mute(object):
         return types.MethodType(self, instance)
 
 
-def load_module_from_path(path):
-    path = os.path.abspath(path)
-    _, filename = os.path.split(path)
-    module_name, _ = os.path.splitext(filename)
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
 def retry(func=None, *, max_num=3, delay=5, callback=None):
     if func is None:
         return partial(retry, max_num=max_num, delay=delay, callback=callback)
@@ -453,7 +443,7 @@ def touch(fname, times=None):
 def is_entry_cmd():
     prog = abspath(realpath(sys.argv[0]))
     return basename(prog) in \
-        list(pkg_resources.get_entry_map(__package__).values())[0].keys() \
+        [e.name for e in distribution(__package__).entry_points] \
         and join(sys.prefix, "bin", basename(prog)) == prog
 
 
@@ -482,7 +472,22 @@ def call_cmd_without_exception(cmd, verbose=False, run=True, daemon=False):
         pass
 
 
-def which(program, paths=None):
+def which(program):
+    ex = dirname(sys.executable)
+    found_path = None
+    fpath, fname = split(program)
+    if fpath:
+        program = canonicalize(program)
+        if is_exe(program):
+            found_path = program
+    else:
+        if is_exe(join(ex, program)):
+            return join(ex, program)
+        found_path = _which(program)
+    return found_path
+
+
+def which_exe(program, paths=None):
     ex = dirname(sys.executable)
     found_path = None
     fpath, fname = split(program)
@@ -785,7 +790,7 @@ def safe_cycle(itr):
             yield next(it)
 
 
-def sort_by(s):
+def string_num_orders(s):
     out = []
     for p in NOT_ALPHA_DIGIT.split(s):
         try:
@@ -895,3 +900,28 @@ class TempFile(object):
 CONF_FILE_NAME = "config.ini"
 USER_CONF_FILE = join(user_config_dir(), CONF_FILE_NAME)
 PKG_CONF_FILE = join(dirname(abspath(__file__)), CONF_FILE_NAME)
+
+
+def dont_write_bytecode(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        ori = sys.dont_write_bytecode
+        try:
+            sys.dont_write_bytecode = True
+            return func(*args, **kwargs)
+        finally:
+            sys.dont_write_bytecode = ori
+    return wrapper
+
+
+@dont_write_bytecode
+def load_module_from_path(path, add_to_sys=True):
+    path = os.path.abspath(path)
+    _, filename = os.path.split(path)
+    module_name, _ = os.path.splitext(filename)
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    if add_to_sys:
+        sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
