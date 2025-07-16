@@ -751,14 +751,28 @@ class Jobfile(object):
         if value:
             ns = re.split("[\s,]", value)
             out = list(filter(None, ns))
-        return [i.strip("$") for i in out]
+        return [i.lstrip("$") for i in out]
 
-    def check_orders(self):
+    def check_orders(self, match_name=True):
+        names = set(self.totaljobs.keys())
         for k, v in self.orders.items():
-            for n in v:
+            for n in v.copy():
                 if n not in self.totaljobs:
-                    raise JobOrderError(
-                        "no depends named '{}' in job '{}'".format(n, k))
+                    if n == "all" or n == "*":
+                        v.update(names)
+                        v.remove(n)
+                        continue
+                    try:
+                        re_match = [s for s in names if re.search(n, s)]
+                    except:
+                        raise JobOrderError(
+                            "no depends named '{}' in job '{}'".format(n, k))
+                    if re_match and match_name:
+                        v.update(re_match)
+                        v.remove(n)
+                    else:
+                        raise JobOrderError(
+                            "no depends named '{}' in job '{}'".format(n, k))
 
 
 class Shellfile(Jobfile):
