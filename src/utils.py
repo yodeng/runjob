@@ -447,14 +447,17 @@ def is_entry_cmd():
         and join(sys.prefix, "bin", basename(prog)) == prog
 
 
-def terminate_process(pid):
+def terminate_process(pid, sig=signal.SIGKILL, recursive=True):
     try:
         pproc = psutil.Process(pid)
-        for cproc in pproc.children(recursive=True):
-            # cproc.terminate() # SIGTERM
-            cproc.kill()  # SIGKILL
+        if recursive:
+            for cproc in pproc.children(recursive=True):
+                # cproc.terminate() # SIGTERM
+                # cproc.kill()  # SIGKILL
+                cproc.send_signal(sig)
         # pproc.terminate()
-        pproc.kill()
+        # pproc.kill()
+        pproc.send_signal(sig)
     except:
         pass
 

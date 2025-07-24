@@ -33,9 +33,8 @@ from ._version import __version__
 def main():
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
         sys.exit(__doc__)
-    has_qstat = os.getenv("SGE_ROOT")
     username = os.getenv("USER")
-    if has_qstat:
+    if is_sge_submit():
         with os.popen("qstat -u \* | grep -P '^\s*\d+\s+'") as fi:
             alljobs = fi.readlines()
         jobs = {}
@@ -58,6 +57,8 @@ def main():
                 print(style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
                     user, job, run, qw)))
         print(style("-"*47, mode="bold"))
+    elif is_slurm_host():
+        qslurm()
     else:
         try:
             users = os.popen(
