@@ -28,7 +28,7 @@ from importlib.metadata import distribution
 from threading import Thread, Lock, _start_new_thread
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
-from collections import Counter, deque, OrderedDict, defaultdict
+from collections import Counter, deque, OrderedDict, defaultdict, Iterable
 from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, split, splitext, join, expanduser
 
 from .loger import *
@@ -345,6 +345,9 @@ def argvhelp(func=None, *, arglen=None):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+dochelp = helpdoc = argvhelp
 
 
 def getlog(logfile=None, level="info", name=__package__):
@@ -757,6 +760,7 @@ def exception_hook(et, ev, eb):
 
 
 def suppress_exceptions(*expts, msg="", trace_exception=True):
+    @wraps(func)
     def outer_wrapper(func):
         def wrapper(*args, **kwargs):
             sys.excepthook = trace_exception and sys.__excepthook__ or exception_hook
@@ -783,6 +787,62 @@ def tmp_chdir(dest):
         yield
     finally:
         os.chdir(curdir)
+
+
+@contextlib.contextmanager
+def add_to_sys_path(path):
+    sys.path.insert(0, path)
+    try:
+        yield
+    finally:
+        sys.path.remove(path)
+
+
+@contextlib.contextmanager
+def suppress_stdout_stderr():
+    with open(os.devnull, 'w') as fnull:
+        with contextlib.redirect_stderr(fnull) as err, contextlib.redirect_stdout(fnull) as out:
+            yield (err, out)
+
+
+def check_module_exists(name):
+    return importlib.util.find_spec(name) is not None
+
+
+class SuppressStdoutStderr(object):
+
+    def __enter__(self):
+        self.outnull_file = open(os.devnull, 'w')
+        self.errnull_file = open(os.devnull, 'w')
+
+        self.old_stdout_fileno_undup = sys.stdout.fileno()
+        self.old_stderr_fileno_undup = sys.stderr.fileno()
+
+        self.old_stdout_fileno = os.dup(sys.stdout.fileno())
+        self.old_stderr_fileno = os.dup(sys.stderr.fileno())
+
+        self.old_stdout = sys.stdout
+        self.old_stderr = sys.stderr
+
+        os.dup2(self.outnull_file.fileno(), self.old_stdout_fileno_undup)
+        os.dup2(self.errnull_file.fileno(), self.old_stderr_fileno_undup)
+
+        sys.stdout = self.outnull_file
+        sys.stderr = self.errnull_file
+        return self
+
+    def __exit__(self, *_):
+        sys.stdout = self.old_stdout
+        sys.stderr = self.old_stderr
+
+        os.dup2(self.old_stdout_fileno, self.old_stdout_fileno_undup)
+        os.dup2(self.old_stderr_fileno, self.old_stderr_fileno_undup)
+
+        os.close(self.old_stdout_fileno)
+        os.close(self.old_stderr_fileno)
+
+        self.outnull_file.close()
+        self.errnull_file.close()
 
 
 def safe_cycle(itr):
@@ -928,3 +988,35 @@ def load_module_from_path(path, add_to_sys=True):
         sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def isiterable(obj):
+    return not isinstance(obj, str) and isinstance(obj, Iterable)
+
+
+def flatten(x):
+    return [y for l in x for y in flatten(
+        l)] if isiterable(x) else [x]
+
+
+def flatten_json(nested_json, exclude=[''], sep='.'):
+    out = dict()
+
+    def _flatten(x, name='', exclude=exclude):
+        if type(x) is dict:
+            for a in x:
+                if a not in exclude:
+                    _flatten(x[a], f'{name}{a}{sep}')
+        elif type(x) is list:
+            i = 0
+            for a in x:
+                _flatten(a, f'{name}{i}{sep}')
+                i += 1
+        else:
+            out[name[:-1]] = x
+    _flatten(nested_json)
+    return out
+
+
+def chunk(lst, size=80):
+    return [lst[i:i+size] for i in range(0, len(lst), size)]
