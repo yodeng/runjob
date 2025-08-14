@@ -549,21 +549,23 @@ def is_slurm_host():
 
 def default_slurm_queue():
     q = None
-    try:
-        with os.popen("sinfo -h | awk '{print $1}'") as fi:
-            q = sorted(set([i.strip("*") for i in fi.read().split()]))
-    except:
-        pass
+    if which("sinfo"):
+        try:
+            with os.popen("sinfo -h | awk '{print $1}'") as fi:
+                q = sorted(set([i.strip("*") for i in fi.read().split()]))
+        except:
+            pass
     return q
 
 
 def default_slurm_node():
-    n = None
-    try:
-        with os.popen("sinfo -Nh | awk '{print $1}'") as fi:
-            node = sorted(set([i.strip("*") for i in fi.read().split()]))
-    except:
-        pass
+    node = None
+    if which("sinfo"):
+        try:
+            with os.popen("sinfo -Nh | awk '{print $1}'") as fi:
+                node = sorted(set([i.strip("*") for i in fi.read().split()]))
+        except:
+            pass
     return node
 
 
