@@ -104,7 +104,7 @@ class Packages(object):
         exts = []
         for f in self.listdir:
             e = Extension(self.name + "." + os.path.splitext(f)[0].replace("/", "."),
-                          [os.path.join(self.source_dir, f), ], extra_compile_args=["-O3", ],)
+                          [os.path.join(self.source_dir, f), ], extra_compile_args=["-O3", "-Wall", "-std=c99"],)
             e.cython_directives = {
                 'language_level': sysconfig._PY_VERSION_SHORT_NO_DOT[0]}
             exts.append(e)
