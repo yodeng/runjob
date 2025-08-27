@@ -1,13 +1,15 @@
 import os
 import sys
+import pdb
 import json
+import argparse
 import importlib
 import configparser
 
 from copy import copy
 from os.path import isfile, exists, join, abspath, realpath, split, expanduser, dirname
 
-from .utils import user_config_dir, which, is_exe, load_it, USER_CONF_FILE, PKG_CONF_FILE, CONF_FILE_NAME
+from .utils import user_config_dir, which, is_exe, load_it, option_on_command_line, USER_CONF_FILE, PKG_CONF_FILE, CONF_FILE_NAME
 
 
 if sys.version_info[0] == 3:
@@ -118,6 +120,7 @@ class Config(Dict):
         super(Config, self).__init__()
         self.info = self
         self.cf = []
+        self.command_line_options = {}
         self.bin = self.soft = self.software
         self.database = self.db
         self.bin_dirs = bin_dir and [bin_dir, ] or [join(sys.prefix, "bin"), ]
@@ -171,13 +174,25 @@ class Config(Dict):
                 d = self._getvalue(s)
                 for k, v in parser[s].items():
                     if k not in d or v != "" and (override or d[k] == ""):
-                        d[k] = load_it(v)
+                        if v != "":
+                            d[k] = load_it(v)
 
     def add_config(self, config):
         self.update_config(config, override=False)
 
     def update_dict(self, args=None, **kwargs):
-        if args and hasattr(args, "__dict__"):
+        if args and isinstance(args, argparse.ArgumentParser):  # parser
+            _args, _ = args.parse_known_args()
+            prefix_char = args.prefix_chars
+            for action in args._actions:
+                if action.dest not in _args:
+                    continue
+                self.command_line_options[action.dest] = option_on_command_line(
+                    prefix_chars=prefix_char, option_strings=action.option_strings)
+            for k, v in _args.__dict__.items():
+                if self.command_line_options.get(k) or k not in self["args"] or self["args"][k] == "":
+                    self["args"][k] = v
+        elif args and hasattr(args, "__dict__"):  # args NameSpace
             self["args"].update(args.__dict__)
         self["args"].update(kwargs)
 
@@ -252,13 +267,22 @@ class Config(Dict):
         for k, v in self.items():
             if type(v) != Dict:
                 continue
-            if v.get(name):
+            if name in v and (k == "args" or v.get(name) != ""):
                 values[k] = v.get(name)
-        if not values:
+        if not len(values):
             return res
         if len(values) == 1 or len(set(values.values())) == 1:
             return list(values.values())[0]
-        return values.args or values  # args first
+        if name in self.command_line_options:  # args value
+            if self.command_line_options[name]:  # args command line value
+                return values["args"]
+            if "args" in values:  # args default value
+                values.pop("args")
+                if len(values) == 1 or len(set(values.values())) == 1:
+                    return list(values.values())[0]
+                else:
+                    return values
+        return values.get("args", values)  # args value first
 
     __getattr__ = __getitem__
 
