@@ -13,6 +13,20 @@ except ImportError:
     from argparse import HelpFormatter
 
 
+def option_on_command_line(args=None, prefix_chars="-", option_strings=None):
+    args = args or sys.argv[1:]
+    if not option_strings or not isinstance(option_strings, (list, tuple)):
+        return False
+    arg_names = []
+    for arg_string in args:
+        if arg_string and arg_string[0] in prefix_chars and "=" in arg_string:
+            option_string, explicit_arg = arg_string.split("=", 1)
+            arg_names.append(option_string)
+        else:
+            arg_names.append(arg_string)
+    return any(potential_arg in arg_names for potential_arg in option_strings)
+
+
 class CustomHelpFormatter(HelpFormatter):
 
     def _get_help_string(self, action):
