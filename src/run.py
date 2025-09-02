@@ -326,7 +326,7 @@ class RunJob(object):
                         self.logger.warning(str(e))
                         status = "error"
                 # slurm submit, but not running
-                elif re.search("Submitted batch job \d+", sta) and self.is_run and job.host == "slurm":
+                elif re.search(r"Submitted batch job \d+", sta) and self.is_run and job.host == "slurm":
                     pass
                     '''
                     jobid = self.batch_jobid.get(jobname, jobname)
@@ -613,7 +613,7 @@ class RunJob(object):
                 cmd += self.node_select(job)
                 mkdir(job.workdir)
                 touch(job.stat_file + ".submit")
-                job.batch_sub_cmd = cmd.replace("`", "\`")
+                job.batch_sub_cmd = cmd.replace("`", r"\`")
                 with tmp_chdir(job.workdir):
                     jobid, output = self.batch_sub(job)
                 self.batch_jobid[job.jobname] = jobid

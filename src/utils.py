@@ -50,8 +50,8 @@ except ImportError:
 BACKEND = ["local", "localhost", "sge", "slurm"]
 
 NOT_ALPHA_DIGIT = re.compile("[^0-9A-Za-z]")
-SBATCH_JOB_ID_DECODER = re.compile("Submitted batch job (\d+)")
-QSUB_JOB_ID_DECODER = re.compile("Your job (\d+) \(.+?\) has been submitted")
+SBATCH_JOB_ID_DECODER = re.compile(r"Submitted batch job (\d+)")
+QSUB_JOB_ID_DECODER = re.compile(r"Your job (\d+) \(.+?\) has been submitted")
 TIMEDELTA_REGEX = re.compile(r'^((?P<weeks>[\.\d]+?)w)? *'
                              r'^((?P<days>[\.\d]+?)d)? *'
                              r'((?P<hours>[\.\d]+?)h)? *'
@@ -399,7 +399,7 @@ def human_size(num):
 
 
 def human_size_parse(size):
-    s, u = re.search("(\d+(?:\.\d+)?)(\D*)", str(size)).group(1, 2)
+    s, u = re.search(r"(\d+(?:\.\d+)?)(\D*)", str(size)).group(1, 2)
     s = float(s)
     if s < 1 and not u:
         u = "M"
@@ -718,7 +718,7 @@ class RateLimiter(object):
 
 class CmdTemplate(Template):
     delimiter = "$"
-    idpattern = "(?a:[_a-z][_\.a-z0-9]*)"
+    idpattern = r"(?a:[_a-z][_\.a-z0-9]*)"
 
 
 @total_ordering

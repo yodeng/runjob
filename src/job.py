@@ -80,7 +80,7 @@ class Jobutils(object):
                        "(echo [`date +'%F %T'`] SUCCESS) || " \
                        "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd.strip())
         if self.subtimes > 0:
-            self.cmd = self.cmd.replace("RUNNING", "RUNNING \(re-submit\)")
+            self.cmd = self.cmd.replace("RUNNING", r"RUNNING \(re-submit\)")
 
     def qsub_cmd(self, mem=1, cpu=1):
         cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu} -S /bin/bash'
@@ -292,7 +292,7 @@ class Job(Jobutils):
             if name in self.jobfile.totaljobs:
                 raise KeyError(
                     "duplicate job name '{}': {}".format(name, tasks))
-            elif re.search("\s", name):
+            elif re.search(r"\s", name):
                 raise KeyError(
                     "no space allowed in jobname: '{}'".format(name))
             self.name = name
@@ -315,21 +315,21 @@ class Job(Jobutils):
             j = line.strip()
             if not j or j.startswith("#"):
                 continue
-            value = re.split("[\s:]", j, 1)[-1].strip(":").strip()
+            value = re.split(r"[\s:]", j, 1)[-1].strip(":").strip()
             if j in ["job_begin", "job_end"]:
                 continue
-            elif re.match("names?[\s:]", j):
+            elif re.match(r"names?[\s:]", j):
                 name = value
-                name = re.sub("\s+", "_", name)
+                name = re.sub(r"\s+", "_", name)
                 if name.lower() == "none":
                     raise JobError("None name in %s" % j)
                 self.name = name
-            elif re.match("status?[\s:]", j):
+            elif re.match(r"status?[\s:]", j):
                 self.status = value
-            elif re.match("sched_options?[\s:]", j) or \
-                    re.match("options?[\s:]", j) or \
-                    re.match("args?[\s:]", j) or \
-                    re.match("qsub_args?[\s:]", j):
+            elif re.match(r"sched_options?[\s:]", j) or \
+                    re.match(r"options?[\s:]", j) or \
+                    re.match(r"args?[\s:]", j) or \
+                    re.match(r"qsub_args?[\s:]", j):
                 self.sched_options = value
                 self.cpu, self.mem = 1, 1
                 args = self.sched_options.split()
@@ -346,17 +346,17 @@ class Job(Jobutils):
                             k = r.split("=")[0].strip()
                             v = r.split("=")[1].strip()
                             if k == "vf":
-                                self.mem = int(re.sub("\D", "", v))
+                                self.mem = int(re.sub(r"\D", "", v))
                             elif k in ["p", "np", "nprc"]:
                                 self.cpu = int(v)
-            elif re.match("depends?[\s:]", j):
+            elif re.match(r"depends?[\s:]", j):
                 self.depends = set(self.jobfile._get_value_list(value))
-            elif re.match("host[\s:]", j):
+            elif re.match(r"host[\s:]", j):
                 self.host = value
-            elif re.match("local(host)?s?[\s:]", j):
+            elif re.match(r"local(host)?s?[\s:]", j):
                 if self._get_bool(value):
                     self.host = "localhost"
-            elif re.match("force[\s:]", j):
+            elif re.match(r"force[\s:]", j):
                 self.force = self._get_bool(value)
             elif j == "cmd_begin":
                 no_begin = True
@@ -364,28 +364,28 @@ class Job(Jobutils):
             elif j == "cmd_end":
                 no_begin = False
                 continue
-            elif re.match("cmd?[\s:]", j):
+            elif re.match(r"cmd?[\s:]", j):
                 cmds.append(value)
-            elif re.match("extends?[\s:]", j):
+            elif re.match(r"extends?[\s:]", j):
                 self.extend = self.jobfile._get_value_list(value)
-            elif re.match("memory[\s:]", j) or re.match("mem[\s:]", j):
-                self.mem = int(re.sub("\D", "", value))
-            elif re.match("cpu[\s:]", j):
+            elif re.match(r"memory[\s:]", j) or re.match(r"mem[\s:]", j):
+                self.mem = int(re.sub(r"\D", "", value))
+            elif re.match(r"cpu[\s:]", j):
                 self.cpu = int(value)
-            elif re.match("queues?[\s:]", j):
+            elif re.match(r"queues?[\s:]", j):
                 self.queue = self.jobfile._get_value_list(value)
-            elif re.match("max[_-]queue[_-]time[\s:]", j):
+            elif re.match(r"max[_-]queue[_-]time[\s:]", j):
                 self.max_queue_sec = human2seconds(value)
-            elif re.match("max[_-]run[_-]time[\s:]", j):
+            elif re.match(r"max[_-]run[_-]time[\s:]", j):
                 self.max_run_sec = human2seconds(value)
-            elif re.match("max[_-]wait[_-]time[\s:]", j):
+            elif re.match(r"max[_-]wait[_-]time[\s:]", j):
                 self.max_wait_sec = human2seconds(value)
-            elif re.match("max[_-]timeout[_-]retry[\s:]", j):
+            elif re.match(r"max[_-]timeout[_-]retry[\s:]", j):
                 self.max_timeout_retry = int(value)
-            elif re.match("time[\s:]", j):
+            elif re.match(r"time[\s:]", j):
                 self.max_run_sec = human2seconds(value)
             elif no_begin and not j.strip().endswith(":"):
-                if ":" in j and len(list(filter(None, re.split("[\s:]", j)))) == 2:
+                if ":" in j and len(list(filter(None, re.split(r"[\s:]", j)))) == 2:
                     raise JobError("unrecognized job define: '{}'".format(j))
                 cmds.append(line.rstrip())
             else:
@@ -414,7 +414,7 @@ class Job(Jobutils):
         return False
 
     def _get_cmd(self, cmd=None):
-        if re.search("\s+//", cmd) or re.search("//\s+", cmd):
+        if re.search(r"\s+//", cmd) or re.search(r"//\s+", cmd):
             self.raw_cmd = cmd.rsplit("//", 1)[0].rstrip()
             try:
                 argstring = shlex.split(cmd.rsplit("//", 1)[1].strip())
@@ -516,7 +516,7 @@ class Jobfile(object):
             if not line.strip() or line.startswith("#"):
                 continue
             line = line.split("#")[0].rstrip()
-            if re.match("logs?_?(dir)?[\s:]", line) or re.match("includes?[\s:]", line):
+            if re.match(r"logs?_?(dir)?[\s:]", line) or re.match(r"includes?[\s:]", line):
                 continue
             elif line.startswith("order"):
                 line = line.split()
@@ -532,7 +532,7 @@ class Jobfile(object):
                 o1, o2 = line.split("->")
                 o1 = self._get_value_list(o1)
                 o2 = self._get_value_list(o2)
-            elif ":" in line and not line.strip().endswith(":") and not re.match("\s", line):
+            elif ":" in line and not line.strip().endswith(":") and not re.match(r"\s", line):
                 o1, o2 = line.split(":")
                 o1 = self._get_value_list(o1)
                 o2 = self._get_value_list(o2)
@@ -540,8 +540,8 @@ class Jobfile(object):
                 o2, o1 = line.split("<-")
                 o1 = self._get_value_list(o1)
                 o2 = self._get_value_list(o2)
-            elif not re.match("\s", line):
-                deps = re.search("(depends?([_\s])?\s*(on)?)", line)
+            elif not re.match(r"\s", line):
+                deps = re.search(r"(depends?([_\s])?\s*(on)?)", line)
                 if deps:
                     o1, o2 = line.split(deps.group())
                     o1 = self._get_value_list(o1)
@@ -571,13 +571,13 @@ class Jobfile(object):
                     continue
                 _line = _line.split("#")[0]
                 line = _line.strip()
-                if re.match("logs?_?(dir)?[\s:]", line):
+                if re.match(r"logs?_?(dir)?[\s:]", line):
                     if not self.config or not self.config.logdir:
                         self.logdir = normpath(
                             join(self.workdir, line.split()[-1]))
                     continue
-                elif re.match("includes?[\s:]", line):
-                    value = re.split("[\s:]", line, 1)[-1].strip(":").strip()
+                elif re.match(r"includes?[\s:]", line):
+                    value = re.split(r"[\s:]", line, 1)[-1].strip(":").strip()
                     includes = self._get_value_list(value)
                     for rule_path in includes:
                         rulefile = partial(join, dirname(self._path))
@@ -593,7 +593,7 @@ class Jobfile(object):
                             self.jobs.extend(jfile.jobs)
                             self.totaljobs.update(jfile.totaljobs)
                     continue
-                elif re.match("envs?[\s:]", line) or re.match("var?[\s:]", line):
+                elif re.match(r"envs?[\s:]", line) or re.match(r"var?[\s:]", line):
                     _env = True
                 elif line == "job_begin":
                     if len(job) and job[-1] == "job_end":
@@ -609,8 +609,8 @@ class Jobfile(object):
                         job = []
                 elif line.startswith("order") or "->" in line or \
                         "<-" in line or \
-                        not re.match("\s", _line) and \
-                        (":" in line or re.search("(depends?([_\s])?\s*(on)?)", line)):
+                        not re.match(r"\s", _line) and \
+                        (":" in line or re.search(r"(depends?([_\s])?\s*(on)?)", line)):
                     continue
                 job.append(_line.rstrip())
             if len(job):
@@ -719,7 +719,7 @@ class Jobfile(object):
         self.totaljobs[job.name] = job
 
     def add_envs(self, lines=None):
-        if not lines or not (re.match("envs?[\s:]", lines[0]) or re.match("vars?[\s:]", lines[0])):
+        if not lines or not (re.match(r"envs?[\s:]", lines[0]) or re.match(r"vars?[\s:]", lines[0])):
             return
         for line in lines[1:]:
             line = line.split("#")[0]
@@ -749,7 +749,7 @@ class Jobfile(object):
     def _get_value_list(self, value=""):
         out = []
         if value:
-            ns = re.split("[\s,]", value)
+            ns = re.split(r"[\s,]", value)
             out = list(filter(None, ns))
         return [i.lstrip("$") for i in out]
 
