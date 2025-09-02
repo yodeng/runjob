@@ -4,8 +4,8 @@ import logging
 
 from pathlib import Path
 
+from .utils import Queue
 from .context import context
-from .utils import Queue, _start_new_thread
 from .parser import server_parser, client_parser
 
 HOSTNAME = socket.getfqdn(socket.gethostname())

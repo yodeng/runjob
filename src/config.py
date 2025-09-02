@@ -6,7 +6,6 @@ import argparse
 import importlib
 import configparser
 
-from copy import copy
 from os.path import isfile, exists, join, abspath, realpath, split, expanduser, dirname
 
 from .utils import user_config_dir, which, is_exe, load_it, option_on_command_line, USER_CONF_FILE, PKG_CONF_FILE, CONF_FILE_NAME
@@ -118,9 +117,8 @@ class Config(Dict):
         Return `Config` object
         '''
         super(Config, self).__init__()
-        self.info = self
         self.cf = []
-        self.command_line_options = {}
+        self._command_line_options = {}
         self.bin = self.soft = self.software
         self.database = self.db
         self.bin_dirs = bin_dir and [bin_dir, ] or [join(sys.prefix, "bin"), ]
@@ -187,10 +185,10 @@ class Config(Dict):
             for action in args._actions:
                 if action.dest not in _args:
                     continue
-                self.command_line_options[action.dest] = option_on_command_line(
+                self._command_line_options[action.dest] = option_on_command_line(
                     prefix_chars=prefix_char, option_strings=action.option_strings)
             for k, v in _args.__dict__.items():
-                if self.command_line_options.get(k) or k not in self["args"] or self["args"][k] == "":
+                if self._command_line_options.get(k) or k not in self["args"] or self["args"][k] == "":
                     self["args"][k] = v
         elif args and hasattr(args, "__dict__"):  # args NameSpace
             self["args"].update(args.__dict__)
@@ -215,12 +213,12 @@ class Config(Dict):
         for cf in self.search_order:
             print(f" - {abspath(cf)}")
         print("\nAvailable Config:")
-        for k, info in sorted(self.items()):
-            if not info or type(info) != Dict:
+        for k, info in sorted(self.to_dict().items()):
+            if not info or not isinstance(info, dict) or k == "_command_line_options":
                 continue
             print(f"[{k}]")
             for v, p in sorted(info.items()):
-                if type(p) == Dict and not p:
+                if isinstance(p, dict) and not p:
                     p = None
                 if "secret" in v:
                     try:
@@ -228,6 +226,28 @@ class Config(Dict):
                     except:
                         pass
                 print(f" - {v} : {p}")
+
+    @classmethod
+    def load(cls, *config_files, app=None, **kwargs):
+        '''
+        @config_files: search config by config_files orders
+        @app: search config in app_config_dir if no config_files define
+        @init_bin <bool>: default: Fasle, this will add '{sys.prefix}/bin/' to 'Config.soft' if set True
+        '''
+        cfs = []
+        if config_files:  # ignore app config
+            cfs.extend(config_files[::-1])
+        elif app:
+            spec = importlib.util.find_spec(app)
+            if spec:
+                cfs.append(join(dirname(spec.origin), CONF_FILE_NAME))
+            cfs.append(join(user_config_dir(app=app), CONF_FILE_NAME))
+        else:
+            cfs.extend([PKG_CONF_FILE, USER_CONF_FILE])
+        conf = cls(config_file=None, **kwargs)
+        for cf in cfs:
+            conf.update_config(cf)
+        return conf
 
     def update_executable_bin(self):
         '''
@@ -246,15 +266,8 @@ class Config(Dict):
         search_cf = self.cf[::-1]
         return sorted(set(search_cf), key=search_cf.index)
 
-    def copy(self):
-        c = copy(self)
-        c.info = c
-        return c
-
     def to_json(self, *args, **kw):
-        c = self.copy()
-        del c.info
-        return json.dumps(c, *args, **kw)
+        return json.dumps(self, *args, **kw)
 
     def to_dict(self):
         return json.loads(self.to_json())
@@ -273,8 +286,8 @@ class Config(Dict):
             return res
         if len(values) == 1 or len(set(values.values())) == 1:
             return list(values.values())[0]
-        if name in self.command_line_options:  # args value
-            if self.command_line_options[name]:  # args command line value
+        if name in self._command_line_options:  # args value
+            if self._command_line_options[name]:  # args command line value
                 return values["args"]
             if "args" in values:  # args default value
                 values.pop("args")
@@ -291,27 +304,11 @@ class Config(Dict):
 
     __str__ = __repr__
 
+    def __eq__(self, other):
+        return self.to_dict() == other.to_dict()
 
-def load_config(*args, app=None, **kwargs):
-    '''
-    @config_files: search config by args orders
-    @app: search config in app_config_dir if no config_files define
-    @init_bin <bool>: default: Fasle, this will add 'sys.prefix/bin/' to 'Config.soft' if set True
-    '''
-    cfs = []
-    if args:  # ignore app config
-        cfs.extend(args[::-1])
-    elif app:
-        spec = importlib.util.find_spec(app)
-        if spec:
-            cfs.append(join(dirname(spec.origin), CONF_FILE_NAME))
-        cfs.append(join(user_config_dir(app=app), CONF_FILE_NAME))
-    else:
-        cfs.extend([PKG_CONF_FILE, USER_CONF_FILE])
-    conf = Config(config_file=None, **kwargs)
-    for cf in cfs:
-        conf.update_config(cf)
-    return conf
+
+load_config = Config.load
 
 
 def hide_key(s):
