@@ -123,8 +123,7 @@ class Packages(object):
         return pd
 
     def install(self, ext=False):
-        kwargs = {}
-        kwargs.update(
+        kwargs = dict(
             name=self.name,
             version=self.version,
             license="MIT",
@@ -132,7 +131,7 @@ class Packages(object):
             package_dir=self._package_dir,
             package_data={self.name: ["*.ini", "*.json"], },
             install_requires=self.requirements,
-            python_requires='>=3.8',
+            python_requires='>=3.7',
             long_description=self.description,
             long_description_content_type='text/markdown',
             entry_points={'console_scripts': self._entrys},
