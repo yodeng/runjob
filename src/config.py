@@ -1,4 +1,5 @@
 import os
+import io
 import sys
 import pdb
 import json
@@ -109,6 +110,14 @@ class ConfigType(type):
     __getitem__ = __getattr__
 
 
+class JsonEncoder(json.JSONEncoder):
+
+    def default(self, field):
+        if isinstance(field, io.IOBase):
+            return str(field)
+        return json.JSONEncoder.default(self, field)
+
+
 class Config(Dict):
 
     def __init__(self, config_file=None, init_bin=False, bin_dir=None, **kw):
@@ -117,23 +126,23 @@ class Config(Dict):
         Return `Config` object
         '''
         super(Config, self).__init__()
-        self.cf = []
+        self._cf = []
         self._command_line_options = {}
         self.bin = self.soft = self.software
         self.database = self.db
-        self.bin_dirs = bin_dir and [bin_dir, ] or [join(sys.prefix, "bin"), ]
+        self._bin_dirs = bin_dir and [bin_dir, ] or [join(sys.prefix, "bin"), ]
         if init_bin or kw.get("init_envs") or kw.get("init_env"):
             self.update_executable_bin()
         if config_file is None:
             return
         if not isinstance(config_file, (str, bytes)) and isinstance(config_file, Iterable) and hasattr(config_file, "name"):
             self._path = abspath(config_file.name)
-            self.cf.append(self._path)
+            self._cf.append(self._path)
             self.__config = Conf()
             self.__config.read_file(config_file)
         else:
             self._path = abspath(config_file)
-            self.cf.append(self._path)
+            self._cf.append(self._path)
             if not isfile(self._path):
                 return
             self.__config = Conf()
@@ -154,11 +163,11 @@ class Config(Dict):
 
     def __get_conf_parser(self, config):
         if not isinstance(config, (str, bytes)) and isinstance(config, Iterable) and hasattr(config, "name"):
-            self.cf.append(abspath(config.name))
+            self._cf.append(abspath(config.name))
             c = Conf()
             c.read_file(config)
         else:
-            self.cf.append(abspath(config))
+            self._cf.append(abspath(config))
             if not isfile(config):
                 return
             c = Conf()
@@ -197,35 +206,34 @@ class Config(Dict):
     def update_args(self, args=None):
         self.update_dict(args)
 
-    def write_config(self, configile):
-        with open(configile, "w") as fo:
-            for s, info in self.items():
-                if not info or type(info) != Dict:
-                    continue
-                if fo.tell():
-                    fo.write("\n")
-                fo.write(f"[{s}]\n")
-                for k, v in info.items():
-                    fo.write(f"{k} = {v}\n")
-
     def print_config(self):
+        private_items = ("_command_line_options", "_bin_dirs", "_cf")
         print("Configuration files to search (order by order):")
         for cf in self.search_order:
             print(f" - {abspath(cf)}")
         print("\nAvailable Config:")
+        keyness_values = []
         for k, info in sorted(self.to_dict().items()):
-            if not info or not isinstance(info, dict) or k == "_command_line_options":
+            if k in private_items:
                 continue
-            print(f"[{k}]")
-            for v, p in sorted(info.items()):
-                if isinstance(p, dict) and not p:
-                    p = None
-                if "secret" in v:
-                    try:
-                        p = hide_key(p)
-                    except:
-                        pass
-                print(f" - {v} : {p}")
+            elif not isinstance(info, dict):
+                keyness_values.append((k, info))
+                continue
+            else:
+                print(f"[{k}]")
+                for v, p in sorted(info.items()):
+                    if isinstance(p, dict) and not p:
+                        p = None
+                    if "secret" in v:
+                        try:
+                            p = hide_key(p)
+                        except:
+                            pass
+                    print(f" - {v} : {p}")
+        if keyness_values:
+            print("[*]")
+            for k, info in keyness_values:
+                print(f" - {k}: {info}")
 
     @classmethod
     def load(cls, *config_files, app=None, **kwargs):
@@ -253,7 +261,7 @@ class Config(Dict):
         '''
         only directory join(sys.prefix, "bin") 
         '''
-        for bin_dir in self.bin_dirs:
+        for bin_dir in self._bin_dirs:
             for bin_path in os.listdir(bin_dir):
                 exe_path = join(bin_dir, bin_path)
                 if is_exe(exe_path):
@@ -263,14 +271,15 @@ class Config(Dict):
 
     @property
     def search_order(self):
-        search_cf = self.cf[::-1]
+        search_cf = self._cf[::-1]
         return sorted(set(search_cf), key=search_cf.index)
 
     def to_json(self, *args, **kw):
-        return json.dumps(self, *args, **kw)
+        return json.dumps(self, *args, cls=JsonEncoder, **kw)
 
     def to_dict(self):
-        return json.loads(self.to_json())
+        d = json.loads(self.to_json())
+        return {k: v for k, v in d.items() if not (isinstance(v, dict) and not v)}
 
     def __getitem__(self, name):
         res = self._getvalue(name)
