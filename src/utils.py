@@ -23,29 +23,31 @@ from ast import literal_eval
 from itertools import cycle
 from datetime import datetime
 from fractions import Fraction
+from queue import Queue, Empty
 from threading import Thread, Lock
 from shutil import which as _which
-from collections.abc import Iterable
 from importlib.metadata import distribution
+from collections.abc import MutableSet, Iterable
 from functools import total_ordering, wraps, partial
 from subprocess import check_output, call, Popen, PIPE
 from collections import Counter, deque, OrderedDict, defaultdict
-from os.path import dirname, basename, isfile, isdir, exists, normpath, realpath, abspath, split, splitext, join, expanduser
+
+from os.path import (
+    dirname,
+    basename,
+    isfile,
+    isdir,
+    exists,
+    normpath,
+    realpath,
+    abspath,
+    split,
+    splitext,
+    join,
+    expanduser,
+)
 
 from .loger import *
-
-PY3 = sys.version_info.major == 3
-
-try:
-    from Queue import Queue, Empty
-except ImportError:
-    from queue import Queue, Empty
-
-try:
-    from collections.abc import MutableSet
-except ImportError:
-    from collections import MutableSet
-
 
 BACKEND = ["local", "localhost", "sge", "slurm"]
 

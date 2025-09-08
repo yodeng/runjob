@@ -9,13 +9,18 @@ import configparser
 
 from os.path import isfile, exists, join, abspath, realpath, split, expanduser, dirname
 
-from .utils import user_config_dir, which, is_exe, load_it, option_on_command_line, USER_CONF_FILE, PKG_CONF_FILE, CONF_FILE_NAME
-
-
-if sys.version_info[0] == 3:
-    from collections.abc import Iterable
-else:
-    from collections import Iterable
+from .utils import (
+    Iterable,
+    total_ordering,
+    user_config_dir,
+    which,
+    is_exe,
+    load_it,
+    option_on_command_line,
+    USER_CONF_FILE,
+    PKG_CONF_FILE,
+    CONF_FILE_NAME,
+)
 
 
 class Conf(configparser.ConfigParser):
@@ -115,7 +120,28 @@ class JsonEncoder(json.JSONEncoder):
     def default(self, field):
         if isinstance(field, io.IOBase):
             return str(field)
+        elif isinstance(field, configValue):
+            return field._value
         return json.JSONEncoder.default(self, field)
+
+
+@total_ordering
+class configValue(object):
+
+    def __init__(self, value, src=None):
+        self._value = value
+        self._src = src
+
+    def __repr__(self):
+        return self._value.__repr__()
+
+    __str__ = __repr__
+
+    def __eq__(self, other):
+        return isinstance(other, configValue) and self._value == other._value or self._value == other
+
+    def __lt__(self, other):
+        return isinstance(other, configValue) and self._value < other._value or self._value < other
 
 
 class Config(Dict):
@@ -149,7 +175,7 @@ class Config(Dict):
             self.__config.read(self._path)
         for s in self.__config.sections():
             for k, v in self.__config[s].items():
-                self[s][k] = load_it(v)
+                self[s][k] = configValue(load_it(v), src=config_file)
 
     def rget(self, key, *keys, default=None):
         '''default value: None'''
@@ -182,7 +208,7 @@ class Config(Dict):
                 for k, v in parser[s].items():
                     if k not in d or v != "" and (override or d[k] == ""):
                         if v != "":
-                            d[k] = load_it(v)
+                            d[k] = configValue(load_it(v), src=config)
 
     def add_config(self, config):
         self.update_config(config, override=False)
@@ -198,10 +224,12 @@ class Config(Dict):
                     prefix_chars=prefix_char, option_strings=action.option_strings)
             for k, v in _args.__dict__.items():
                 if self._command_line_options.get(k) or k not in self["args"] or self["args"][k] == "":
-                    self["args"][k] = v
+                    self["args"][k] = configValue(v, src="args")
         elif args and hasattr(args, "__dict__"):  # args NameSpace
-            self["args"].update(args.__dict__)
-        self["args"].update(kwargs)
+            for k, v in args.__dict__.items():
+                self["args"][k] = configValue(v, src="args")
+        for k, v in kwargs.items():
+            self["args"][k] = configValue(v, src="dict")
 
     def update_args(self, args=None):
         self.update_dict(args)

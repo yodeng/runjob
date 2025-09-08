@@ -3,13 +3,7 @@ import sys
 
 from .cluster import *
 
-PY2 = sys.version_info[0] == 2
-PY3 = sys.version_info[0] == 3
-
-if PY2:
-    STRING = (str, unicode)
-if PY3:
-    STRING = (str, bytes)
+STRING = (str, bytes)
 
 
 def __items2list(items):
