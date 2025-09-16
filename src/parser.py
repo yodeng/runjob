@@ -290,6 +290,11 @@ def client_parser():
 
 
 def init_parser(parser):
+    try:
+        import argcomplete
+        argcomplete.autocomplete(parser)
+    except:
+        pass
     args = parser.parse_args()
     context.init_arg(args)
     if args.jobfile.isatty():
