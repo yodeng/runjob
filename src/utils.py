@@ -468,6 +468,15 @@ def terminate_process(pid, sig=signal.SIGKILL, recursive=True):
         pass
 
 
+def is_running(pid=None):
+    try:
+        p = psutil.Process(pid)
+    except:
+        return False
+    else:
+        return p.is_running()
+
+
 def call_cmd_without_exception(cmd, verbose=False, run=True, daemon=False):
     if verbose:
         print(cmd)

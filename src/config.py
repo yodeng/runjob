@@ -133,7 +133,7 @@ class configValue(object):
         self._src = src
 
     def __repr__(self):
-        return self._value.__repr__()
+        return "%s(%s)" % (self.__class__.__name__, self._value.__repr__())
 
     __str__ = __repr__
 
@@ -309,14 +309,31 @@ class Config(Dict):
         d = json.loads(self.to_json())
         return {k: v for k, v in d.items() if not (isinstance(v, dict) and not v)}
 
+    def keys(self):
+        return self.to_dict().keys()
+
+    def values(self):
+        return self.to_dict().values()
+
+    def __iter__(self):
+        return self.keys()
+
+    def items(self):
+        _item = dict(super(Config, self).items())
+        dump = json.loads(json.dumps(_item, cls=JsonEncoder))
+        d = {k: v for k, v in dump.items() if not (
+            isinstance(v, dict) and not v)}
+        return d.items()
+
+    def __contains__(self, item):
+        return item in self.to_dict()
+
     def __getitem__(self, name):
         res = self._getvalue(name)
-        if type(res) != Dict or res:
+        if res or not isinstance(res, (dict, Dict)):
             return res
         values = Dict()
         for k, v in self.items():
-            if type(v) != Dict:
-                continue
             if name in v and (k == "args" or v.get(name) != ""):
                 values[k] = v.get(name)
         if not len(values):
