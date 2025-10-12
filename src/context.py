@@ -6,7 +6,8 @@ import logging
 from functools import wraps
 from os.path import isfile, isdir, join, dirname, abspath
 
-from .utils import getlog
+from .utils import mkdir
+from .loger import getlog, Formatter
 from .config import ConfigType, load_config
 
 
@@ -50,6 +51,17 @@ class Context(metaclass=ConfigType):
     @classmethod
     def add_envs(cls, **kw):
         os.environ.update(kw)
+
+    @classmethod
+    def add_log(cls, logfile=None, create_if_not_exists=False):
+        if logfile:
+            logfile = abspath(logfile)
+            if create_if_not_exists:
+                mkdir(dirname(logfile))
+            if isdir(dirname(logfile)):
+                handler = logging.FileHandler(logfile, mode='a')
+                handler.setFormatter(Formatter())
+                cls.log.addHandler(handler)
 
     @classmethod
     def init_arg(cls, args=None):

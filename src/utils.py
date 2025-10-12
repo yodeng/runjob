@@ -353,23 +353,6 @@ def argvhelp(func=None, *, arglen=None):
 dochelp = helpdoc = argvhelp
 
 
-def getlog(logfile=None, level="info", name=__package__):
-    logger = logging.getLogger(name)
-    if level.lower() == "info":
-        logger.setLevel(logging.INFO)
-    elif level.lower() == "debug":
-        logger.setLevel(logging.DEBUG)
-    if logfile is None:
-        if logger.hasHandlers():
-            return logger
-        h = logging.StreamHandler(sys.stdout)
-    else:
-        h = logging.FileHandler(logfile, mode='a')
-    h.setFormatter(Formatter())
-    logger.addHandler(h)
-    return logger
-
-
 def get_job_state(state):
     s = state.lower() if state else state
     if s == 'running':

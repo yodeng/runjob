@@ -1,3 +1,4 @@
+import sys
 import logging
 
 
@@ -75,3 +76,20 @@ class Formatter(logging.Formatter):
         log_fmt = fmt["color"] + fmt["fmt"] + self.reset
         formatter = logging.Formatter(log_fmt)
         return formatter.format(record)
+
+
+def getlog(logfile=None, level="info", name=__package__):
+    logger = logging.getLogger(name)
+    if level.lower() == "info":
+        logger.setLevel(logging.INFO)
+    elif level.lower() == "debug":
+        logger.setLevel(logging.DEBUG)
+    if logfile is None:
+        if logger.hasHandlers():
+            return logger
+        h = logging.StreamHandler(sys.stdout)
+    else:
+        h = logging.FileHandler(logfile, mode='a')
+    h.setFormatter(Formatter())
+    logger.addHandler(h)
+    return logger
