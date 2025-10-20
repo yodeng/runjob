@@ -118,18 +118,20 @@ class ConfigType(type):
 class JsonEncoder(json.JSONEncoder):
 
     def default(self, field):
-        if isinstance(field, io.IOBase):
+        try:
+            serializa = json.JSONEncoder.default(self, field)
+        except TypeError:
             return str(field)
-        elif isinstance(field, configValue):
-            return field._value
-        return json.JSONEncoder.default(self, field)
 
 
 @total_ordering
 class configValue(object):
 
     def __init__(self, value, src=None):
-        self._value = value
+        if isinstance(value, configValue):
+            self._value = value._value
+        else:
+            self._value = value
         self._src = src
 
     def __repr__(self):
@@ -142,6 +144,24 @@ class configValue(object):
 
     def __lt__(self, other):
         return isinstance(other, configValue) and self._value < other._value or self._value < other
+
+    def __hash__(self):
+        return hash(self._value)
+
+    def __getattr__(self, attr):
+        return getattr(self._value, attr)
+
+    def __getitem__(self, item):
+        return self._value[item]
+
+    def __setitem__(self, key, value):
+        self._value[key] = value
+
+    def __delitem__(self, key):
+        del self._value[key]
+
+    def __contains__(self, item):
+        return item in self._value
 
 
 class Config(Dict):
@@ -175,7 +195,7 @@ class Config(Dict):
             self.__config.read(self._path)
         for s in self.__config.sections():
             for k, v in self.__config[s].items():
-                self[s][k] = configValue(load_it(v), src=config_file)
+                self[s][k] = load_it(v)
 
     def rget(self, key, *keys, default=None):
         '''default value: None'''
@@ -208,7 +228,7 @@ class Config(Dict):
                 for k, v in parser[s].items():
                     if k not in d or v != "" and (override or d[k] == ""):
                         if v != "":
-                            d[k] = configValue(load_it(v), src=config)
+                            d[k] = load_it(v)
 
     def add_config(self, config):
         self.update_config(config, override=False)
@@ -224,12 +244,12 @@ class Config(Dict):
                     prefix_chars=prefix_char, option_strings=action.option_strings)
             for k, v in _args.__dict__.items():
                 if self._command_line_options.get(k) or k not in self["args"] or self["args"][k] == "":
-                    self["args"][k] = configValue(v, src="args")
+                    self["args"][k] = v
         elif args and hasattr(args, "__dict__"):  # args NameSpace
             for k, v in args.__dict__.items():
-                self["args"][k] = configValue(v, src="args")
+                self["args"][k] = v
         for k, v in kwargs.items():
-            self["args"][k] = configValue(v, src="dict")
+            self["args"][k] = v
 
     def update_args(self, args=None):
         self.update_dict(args)

@@ -392,7 +392,7 @@ def human_size_parse(size):
         for unit in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
             if u.upper().strip()[0] == unit:
                 return int(s)
-            s *= 1024
+            s *= u.islower() and 1000 or 1024
     else:
         return int(s)
 
@@ -1031,3 +1031,25 @@ def flatten_json(nested_json, exclude=[''], sep='.'):
 
 def chunk(lst, size=80):
     return [lst[i:i+size] for i in range(0, len(lst), size)]
+
+
+def remove_argument(parser, flag=None, sub=None):
+    for action in parser._action_groups:
+        for group_action in action._group_actions[:]:
+            opts = group_action.option_strings
+            if isinstance(group_action, _SubParsersAction):
+                if sub and sub in group_action.choices:
+                    if flag:
+                        sub_parser = group_action.choices[sub]
+                        remove_argument(sub_parser, flag, sub)
+                    else:
+                        for choices_action in group_action._choices_actions[:]:
+                            if choices_action.dest == sub:
+                                group_action._choices_actions.remove(
+                                    choices_action)
+                else:
+                    for cmd, sub_parser in group_action.choices.items():
+                        remove_argument(sub_parser, flag, cmd)
+            if (opts and flag in opts) or group_action.dest == flag:
+                parser._actions.remove(group_action)
+                action._group_actions.remove(group_action)
