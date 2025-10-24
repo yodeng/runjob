@@ -1053,3 +1053,25 @@ def remove_argument(parser, flag=None, sub=None):
             if (opts and flag in opts) or group_action.dest == flag:
                 parser._actions.remove(group_action)
                 action._group_actions.remove(group_action)
+
+
+def to_async(func):
+    import asyncio
+
+    @wraps(func)
+    async def run(*args, loop=None, executor=None, **kwargs):
+        # default executor: concurrent.futures.ThreadPoolExecutor
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        pfunc = partial(func, *args, **kwargs)
+        return await loop.run_in_executor(executor, pfunc)
+    return run
+
+
+def async_map(coroutine_func, *iterables):
+    import asyncio
+
+    async def run(tasks):
+        return await asyncio.gather(*tasks)
+    fs = [coroutine_func(args) for args in iterables]
+    return asyncio.run(run(fs))
