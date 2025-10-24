@@ -331,17 +331,27 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
     return wrapper
 
 
+def inner_indent(text, tab_sz, tab_chr=' '):
+    def indented_lines():
+        for i, line in enumerate(text.splitlines(True)):
+            yield (
+                tab_chr * tab_sz + line if line.strip() else line
+            ) if i else line
+    return ''.join(indented_lines())
+
+
 def argvhelp(func=None, *, arglen=None):
     if func is None:
         return partial(argvhelp, arglen=arglen)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+
         if len(sys.argv) == 1 or "-h" in sys.argv or "--help" in sys.argv or arglen and len(sys.argv) != arglen+1:
             msg = textwrap.dedent(f"""
                 {style("Usage:", fore="red", mode="bold")}
 
-                    {style(func.__doc__.strip(), mode="bold")}
+                    {inner_indent(style(func.__doc__.strip(), mode="bold"), 16)}
 
                 """)
             sys.exit(msg)
@@ -1053,3 +1063,25 @@ def remove_argument(parser, flag=None, sub=None):
             if (opts and flag in opts) or group_action.dest == flag:
                 parser._actions.remove(group_action)
                 action._group_actions.remove(group_action)
+
+
+def to_async(func):
+    import asyncio
+
+    @wraps(func)
+    async def run(*args, loop=None, executor=None, **kwargs):
+        # default executor: concurrent.futures.ThreadPoolExecutor
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        pfunc = partial(func, *args, **kwargs)
+        return await loop.run_in_executor(executor, pfunc)
+    return run
+
+
+def async_map(coroutine_func, *iterables):
+    import asyncio
+
+    async def run(tasks):
+        return await asyncio.gather(*tasks)
+    fs = [coroutine_func(args) for args in iterables]
+    return asyncio.run(run(fs))
