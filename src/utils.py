@@ -331,17 +331,27 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
     return wrapper
 
 
+def inner_indent(text, tab_sz, tab_chr=' '):
+    def indented_lines():
+        for i, line in enumerate(text.splitlines(True)):
+            yield (
+                tab_chr * tab_sz + line if line.strip() else line
+            ) if i else line
+    return ''.join(indented_lines())
+
+
 def argvhelp(func=None, *, arglen=None):
     if func is None:
         return partial(argvhelp, arglen=arglen)
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+
         if len(sys.argv) == 1 or "-h" in sys.argv or "--help" in sys.argv or arglen and len(sys.argv) != arglen+1:
             msg = textwrap.dedent(f"""
                 {style("Usage:", fore="red", mode="bold")}
 
-                    {style(func.__doc__.strip(), mode="bold")}
+                    {inner_indent(style(func.__doc__.strip(), mode="bold"), 16)}
 
                 """)
             sys.exit(msg)
