@@ -9,6 +9,7 @@ import socket
 import signal
 import psutil
 import logging
+import inspect
 import tempfile
 import argparse
 import textwrap
@@ -1063,3 +1064,50 @@ def remove_argument(parser, flag=None, sub=None):
             if (opts and flag in opts) or group_action.dest == flag:
                 parser._actions.remove(group_action)
                 action._group_actions.remove(group_action)
+
+
+def to_async(func):
+    '''wrap synchronous function to async coroutine'''
+    if is_async_callable(func):
+        return func
+    import asyncio
+
+    @wraps(func)
+    async def wrapper(*args, loop=None, executor=None, **kwargs):
+        # default executor: concurrent.futures.ThreadPoolExecutor
+        if loop is None:
+            loop = asyncio.get_event_loop()
+        pfunc = partial(func, *args, **kwargs)
+        return await loop.run_in_executor(executor, pfunc)
+    return wrapper
+
+
+def to_sync(coroutine):
+    '''wrap async coroutine to synchronous function'''
+    if not is_async_callable(coroutine):
+        return coroutine
+    import asyncio
+
+    @wraps(coroutine)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(coroutine(*args, **kwargs))
+    return wrapper
+
+
+def async_map(coroutine_func, *iterables):
+    '''parallelly run async coroutine function in iterables'''
+    import asyncio
+
+    async def _run(tasks):
+        return await asyncio.gather(*tasks)
+    fs = [coroutine_func(args) for args in iterables]
+    return asyncio.run(_run(fs))
+
+
+def is_async_callable(obj):
+    while isinstance(obj, partial):
+        obj = obj.func
+    return inspect.iscoroutinefunction(obj) or (
+        callable(obj) and inspect.iscoroutinefunction(
+            getattr(obj, "__call__", None))
+    )

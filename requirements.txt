@@ -3,3 +3,4 @@ batchcompute
 prettytable
 configparser
 rich-argparse
+asyncio
