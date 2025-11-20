@@ -1111,3 +1111,20 @@ def is_async_callable(obj):
         callable(obj) and inspect.iscoroutinefunction(
             getattr(obj, "__call__", None))
     )
+
+
+def do_test(test_case, test_func_name=None, verbosity=1):
+    import unittest
+    suite = unittest.TestSuite()
+    loader = unittest.TestLoader()
+    if not issubclass(test_case, unittest.TestCase):
+        return
+    if not test_func_name:
+        suite.addTest(loader.loadTestsFromTestCase(test_case))
+    elif test_func_name.startswith("test_") and hasattr(test_case, test_func_name):
+        suite.addTest(test_case(test_func_name))
+    else:
+        return
+    runner = unittest.TextTestRunner(verbosity=verbosity)
+    _test = runner.run(suite)
+    return _test.wasSuccessful()
