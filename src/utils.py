@@ -386,11 +386,12 @@ def now():
     return time.time()
 
 
-def human_size(num):
+def human_size(num, deg=1024):
+    deg = float(deg)
     for unit in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
-        if abs(num) < 1024.0:
+        if abs(num) < deg:
             return "%3.1f%s" % (num, unit)
-        num /= 1024.0
+        num /= deg
     return "%.1f%s" % (num, 'Y')
 
 

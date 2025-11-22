@@ -69,13 +69,13 @@ class Jobutils(object):
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
         if self.host != "batchcompute":
-            self.cmd = "(echo [`date +'%F %T'`] $USER@`hostname`:`pwd` RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
+            self.cmd = "(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
                        "({1}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
                        "(echo [`date +'%F %T'`] ERROR && rm -fr {0}.run && touch {0}.error && exit 1)".format(
                            self.stat_file, raw_cmd.strip())
         else:
-            self.cmd = "(echo [`date +'%F %T'`] $USER@`hostname`:`pwd` RUNNING...) && " \
+            self.cmd = "(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING...) && " \
                        "({0}) && " \
                        "(echo [`date +'%F %T'`] SUCCESS) || " \
                        "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd.strip())
@@ -83,13 +83,15 @@ class Jobutils(object):
             self.cmd = self.cmd.replace("RUNNING", r"RUNNING \(re-submit\)")
 
     def qsub_cmd(self, mem=1, cpu=1):
-        cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem}g,p={cpu} -S /bin/bash'
+        cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem},p={cpu} -S /bin/bash'
+        if str(mem).isdigit():
+            mem = str(mem) + "g"
         cmd = cmd.format(
             cmd=self.cmd,
             workdir=self.workdir,
             name=self.jobpidname,
             logfile=self.logfile,
-            mem=mem,
+            mem=mem.lower(),
             cpu=cpu,
         )
         return cmd
@@ -100,15 +102,17 @@ class Jobutils(object):
 
             #SBATCH --job-name={name}
             #SBATCH --ntasks-per-node={cpu}
-            #SBATCH --mem={mem}G
+            #SBATCH --mem={mem}
             #SBATCH --open-mode=append
             #SBATCH --output={logfile}
             #SBATCH --error={logfile}
             ''').lstrip()
+        if str(mem).isdigit():
+            mem = str(mem) + "G"
         return headers.format(
             name=self.jobpidname,
             logfile=self.logfile,
-            mem=mem,
+            mem=mem.upper(),
             cpu=cpu,
         )
 
@@ -165,11 +169,13 @@ class Jobutils(object):
         @cpu <int>: default: 1
         @queue <list>: default: all access queue
         '''
+        if str(mem).isdigit():
+            mem = str(mem) + "g"
         job = textwrap.dedent('''
         job_begin
             name {name}
             host {host}
-            sched_options{queue} -l vf={mem}g,p={cpu}
+            sched_options{queue} -l vf={mem},p={cpu}
             cmd_begin
                 {cmd}
             cmd_end
@@ -184,7 +190,7 @@ class Jobutils(object):
         if isinstance(cmd, (list, tuple)):
             cmd = ("\n" + " "*8).join(cmd)
         job = job.format(cmd=cmd.strip(), name=name, host=host,
-                         mem=mem, cpu=cpu, queue=queue)
+                         mem=mem.upper(), cpu=cpu, queue=queue)
         return job+"\n"
 
     def log_to_file(self, info=None):
@@ -337,7 +343,7 @@ class Job(Jobutils):
                     if i in ["-c", "--cpu"]:
                         self.cpu = max(int(args[n+1]), 1)
                     elif i in ["-m", "--memory"]:
-                        self.mem = max(int(args[i+1]), 1)
+                        self.mem = str(args[i+1])
                     elif i in ["-q", "--queue"]:
                         self.queue.add(args[n+1])
                     elif i == "-l":
@@ -346,7 +352,7 @@ class Job(Jobutils):
                             k = r.split("=")[0].strip()
                             v = r.split("=")[1].strip()
                             if k == "vf":
-                                self.mem = int(re.sub(r"\D", "", v))
+                                self.mem = str(v)
                             elif k in ["p", "np", "nprc"]:
                                 self.cpu = int(v)
             elif re.match(r"depends?[\s:]", j):
@@ -369,7 +375,7 @@ class Job(Jobutils):
             elif re.match(r"extends?[\s:]", j):
                 self.extend = self.jobfile._get_value_list(value)
             elif re.match(r"memory[\s:]", j) or re.match(r"mem[\s:]", j):
-                self.mem = int(re.sub(r"\D", "", value))
+                self.mem = str(value)
             elif re.match(r"cpu[\s:]", j):
                 self.cpu = int(value)
             elif re.match(r"queues?[\s:]", j):

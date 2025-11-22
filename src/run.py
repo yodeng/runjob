@@ -572,6 +572,18 @@ class RunJob(object):
             for jb in self.jobqueue.queue:
                 jb.remove_all_stat_files()
 
+    def _calc_mem(self, job):
+        jobmem = str(job.mem or self.mem).upper()
+        if jobmem.isdigit():
+            jobmem += "G"
+        if context.args.memory and option_on_command_line(option_strings="memory"):
+            args_memory = str(context.args.memory).upper()
+            if args_memory.isdigit():
+                args_memory += "G"
+            if human_size_parse(args_memory) > human_size_parse(jobmem):
+                jobmem = args_memory
+        return jobmem
+
     def submit(self, job):
         if not self.is_run or job.do_not_submit:
             return
@@ -604,8 +616,7 @@ class RunJob(object):
                     self.retry_sec) or 0, groupsh=True)
                 jobcpu = context.args.cpu and max(
                     job.cpu, context.args.cpu) or job.cpu or self.cpu
-                jobmem = context.args.memory and max(
-                    job.mem, context.args.memory) or job.mem or self.mem
+                jobmem = self._calc_mem(job)
                 job.update_queue(self.queue)
                 cmd = job.qsub_cmd(jobmem, jobcpu)
                 if job.queue:
@@ -623,8 +634,7 @@ class RunJob(object):
                     self.retry_sec) or 0, groupsh=True)
                 jobcpu = context.args.cpu and max(
                     job.cpu, context.args.cpu) or job.cpu or self.cpu
-                jobmem = context.args.memory and max(
-                    job.mem, context.args.memory) or job.mem or self.mem
+                jobmem = self._calc_mem(job)
                 headers = job.sbatch_header(jobmem, jobcpu)
                 job.update_queue(self.queue)
                 job.queue = job.queue or context.default_slurm_queue
