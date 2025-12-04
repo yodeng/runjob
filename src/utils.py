@@ -26,7 +26,6 @@ from datetime import datetime
 from fractions import Fraction
 from queue import Queue, Empty
 from threading import Thread, Lock
-from shutil import which as _which
 from importlib.metadata import distribution
 from collections.abc import MutableSet, Iterable
 from functools import total_ordering, wraps, partial
@@ -496,6 +495,7 @@ def which(program):
     else:
         if is_exe(join(ex, program)):
             return join(ex, program)
+        from shutil import which as _which
         found_path = _which(program)
     return found_path
 
@@ -789,6 +789,13 @@ def suppress_exceptions(*expts, msg="", trace_exception=True):
 
 
 @contextlib.contextmanager
+def suppress_stdout_stderr():
+    with open(os.devnull, 'w') as fnull:
+        with contextlib.redirect_stderr(fnull) as err, contextlib.redirect_stdout(fnull) as out:
+            yield (err, out)
+
+
+@contextlib.contextmanager
 def tmp_chdir(dest):
     curdir = os.getcwd()
     try:
@@ -800,18 +807,16 @@ def tmp_chdir(dest):
 
 @contextlib.contextmanager
 def add_to_sys_path(path):
-    sys.path.insert(0, path)
+    if path in sys.path:
+        already_add = True
+    else:
+        sys.path.insert(0, path)
+        already_add = False
     try:
         yield
     finally:
-        sys.path.remove(path)
-
-
-@contextlib.contextmanager
-def suppress_stdout_stderr():
-    with open(os.devnull, 'w') as fnull:
-        with contextlib.redirect_stderr(fnull) as err, contextlib.redirect_stdout(fnull) as out:
-            yield (err, out)
+        if not already_add:
+            sys.path.remove(path)
 
 
 def check_module_exists(name):
@@ -918,13 +923,13 @@ def get_common_suffpref(l, order=1):
         return l[0][-common_string:]
 
 
-def load_it(obj):
+def dumps_value(obj):
     if isinstance(obj, dict):
-        return {k: load_it(v) for k, v in obj.items()}
+        return {k: dumps_value(v) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [load_it(elem) for elem in obj]
+        return [dumps_value(elem) for elem in obj]
     if isinstance(obj, str):
-        if obj == 'None':
+        if obj.upper() == 'NONE':
             return None
         if obj.isnumeric():
             return int(obj)
@@ -1098,11 +1103,29 @@ def to_sync(coroutine):
 def async_map(coroutine_func, *iterables):
     '''parallelly run async coroutine function in iterables'''
     import asyncio
+    coroutine_func = to_async(coroutine_func)
 
     async def _run(tasks):
         return await asyncio.gather(*tasks)
     fs = [coroutine_func(args) for args in iterables]
     return asyncio.run(_run(fs))
+
+
+def process_map(func, *iterables, timeout=None, chunksize=1, **kw):
+    from concurrent.futures import ProcessPoolExecutor
+    with ProcessPoolExecutor(**kw) as executor:
+        result = list(executor.map(func, iterables,
+                      timeout=timeout, chunksize=chunksize))
+    return result
+
+
+def thread_map(func, *iterables, timeout=None, chunksize=1, **kw):
+    from concurrent.futures import ThreadPoolExecutor
+    func = to_sync(func)
+    with ThreadPoolExecutor(**kw) as executor:
+        result = list(executor.map(func, iterables,
+                      timeout=timeout, chunksize=chunksize))
+    return result
 
 
 def is_async_callable(obj):

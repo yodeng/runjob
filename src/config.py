@@ -15,7 +15,7 @@ from .utils import (
     user_config_dir,
     which,
     is_exe,
-    load_it,
+    dumps_value,
     option_on_command_line,
     USER_CONF_FILE,
     PKG_CONF_FILE,
@@ -195,7 +195,7 @@ class Config(Dict):
             self.__config.read(self._path)
         for s in self.__config.sections():
             for k, v in self.__config[s].items():
-                self[s][k] = load_it(v)
+                self[s][k] = dumps_value(v)
 
     def rget(self, key, *keys, default=None):
         '''default value: None'''
@@ -228,7 +228,7 @@ class Config(Dict):
                 for k, v in parser[s].items():
                     if k not in d or v != "" and (override or d[k] == ""):
                         if v != "":
-                            d[k] = load_it(v)
+                            d[k] = dumps_value(v)
 
     def add_config(self, config):
         self.update_config(config, override=False)
