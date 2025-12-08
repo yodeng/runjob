@@ -1,6 +1,4 @@
 {% set data = load_setup_py_data(setup_file='../setup.py', from_recipe_dir=True) %}
-{% set bc = "batchcompute" %}
-{% set bcv = "2.1.7" %}
 
 
 package:
@@ -12,7 +10,7 @@ build:
     noarch: python
     # string: py_0
     script:
-        - {{ PYTHON }} -m pip install --no-build-isolation --no-deps --no-cache-dir . https://pypi.io/packages/source/{{ bc[0] }}/{{ bc }}/{{ bc }}-{{ bcv }}.tar.gz
+        - {{ PYTHON }} -m pip install --no-build-isolation --no-deps --no-cache-dir .
 
 source:
     path: ..

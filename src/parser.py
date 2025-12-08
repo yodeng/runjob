@@ -196,18 +196,6 @@ def batch_parser(parser):
                        default=False)
 
 
-def batchcmp_parser(parser):
-    batchcmp = parser.add_argument_group("batchcompute arguments")
-    batchcmp.add_argument("--out-maping", type=str,
-                          help='the oss output directory if your mode is "batchcompute", all output file will be mapping to you OSS://BUCKET-NAME. if not set, any output will be reserved.', metavar="<dir>")
-    batchcmp.add_argument('--access-key-id', type=str,
-                          help="AccessKeyID while access oss.", metavar="<str>")
-    batchcmp.add_argument('--access-key-secret', type=str,
-                          help="AccessKeySecret while access oss.", metavar="<str>")
-    batchcmp.add_argument('--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
-                                                                            'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region.")
-
-
 def job_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in {mode}.".format(
@@ -226,8 +214,6 @@ def job_parser():
     parser.add_argument('--callback', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     batch_parser(parser)
-    if "batchcompute" in context._backend:
-        batchcmp_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunJob")
     return parser

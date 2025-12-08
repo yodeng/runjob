@@ -68,17 +68,11 @@ class Jobutils(object):
                 raw_cmd = "/bin/bash -euo pipefail " + runfile
         if sleep_sec > 0:
             raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
-        if self.host != "batchcompute":
-            self.cmd = "(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
-                       "({1}) && " \
-                       "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
-                       "(echo [`date +'%F %T'`] ERROR && rm -fr {0}.run && touch {0}.error && exit 1)".format(
-                           self.stat_file, raw_cmd.strip())
-        else:
-            self.cmd = "(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING...) && " \
-                       "({0}) && " \
-                       "(echo [`date +'%F %T'`] SUCCESS) || " \
-                       "(echo [`date +'%F %T'`] ERROR && exit 1)".format(raw_cmd.strip())
+        self.cmd = "(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
+                   "({1}) && " \
+                   "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
+                   "(echo [`date +'%F %T'`] ERROR && rm -fr {0}.run && touch {0}.error && exit 1)".format(
+                       self.stat_file, raw_cmd.strip())
         if self.subtimes > 0:
             self.cmd = self.cmd.replace("RUNNING", r"RUNNING \(re-submit\)")
 
@@ -277,13 +271,6 @@ class Job(Jobutils):
         self._get_cmd(cmd)
         self.raw2cmd()
         self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
-        if self.host == "batchcompute":
-            self.jobname = getpass.getuser() + "_" + \
-                re.sub("[^a-zA-Z0-9_-]", "-", name + "_%05d" % self.linenum)
-            self.name = self.jobname
-            self.cmd = self.raw_cmd
-            self.jobpidname = self.jobname.rsplit(
-                "_", 1)[0] + "_%d_%05d" % (os.getpid(), self.linenum)
         return self
 
     def from_task(self, jobfile, tasks=None):

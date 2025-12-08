@@ -13,7 +13,6 @@ import subprocess
 from . import dag
 from .job import *
 from .utils import *
-from .cluster import *
 from .context import context
 from .jobsocket import listen_job_status
 
@@ -94,7 +93,6 @@ class RunJob(object):
         self.err_msg = ""
         self.reseted = False
         self.localprocess = {}
-        self.cloudjob = {}
         self.batch_jobid = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
@@ -104,7 +102,6 @@ class RunJob(object):
         if self.conf.loglevel:
             self.logger.setLevel(self.conf.loglevel)
         self.conf.logger = self.logger
-        self.conf.cloudjob = self.cloudjob
         self.check_rate = Fraction(
             self.conf.max_check or DEFAULT_MAX_CHECK_PER_SEC).limit_denominator()
         self.sub_rate = Fraction(
@@ -247,9 +244,7 @@ class RunJob(object):
 
     def log_status(self, job):
         name = job.jobname
-        if name in self.cloudjob:
-            name += " (task-id: {})".format(self.cloudjob[name])
-        elif name in self.batch_jobid:
+        if name in self.batch_jobid:
             name += " (job-id: {})".format(self.batch_jobid[name])
         elif name in self.localprocess:
             name += " (pid: {})".format(self.localprocess[name].pid)
@@ -266,28 +261,7 @@ class RunJob(object):
         jobname = job.jobname
         status = job.status
         logfile = job.logfile
-        if self.is_run and job.host == "batchcompute":
-            if jobname in self.cloudjob:
-                time.sleep(0.1)
-                jobid = self.cloudjob[jobname]
-                try:
-                    j = job.client.get_job(jobid)
-                    sta = j.State
-                except ClientError as e:  # delete by another process, status Failed
-                    self.logger.debug("Job %s not Exists", jobid)
-                    self.cloudjob.pop(jobname)
-                    sta = "Failed"
-                if sta == "Running":
-                    status = "run"
-                elif sta == "Finished":
-                    status = "success"
-                elif sta == "Failed":
-                    status = "error"
-                elif sta == "Stopped":
-                    status = "stop"
-                elif sta == "Waiting":
-                    status = "wait"
-        elif self.is_run and not isfile(job.stat_file + ".submit"):
+        if self.is_run and not isfile(job.stat_file + ".submit"):
             if isfile(job.stat_file + ".success"):
                 status = "success"
             elif isfile(job.stat_file + ".error"):
@@ -372,10 +346,6 @@ class RunJob(object):
             job.set_status(status)
             if not self.signaled:
                 self.log_status(job)
-            if job.host == "batchcompute":
-                with open(logfile, "a") as fo:
-                    fo.write("[%s] %s\n" % (
-                        datetime.today().strftime("%F %X"), job.status.upper()))
         return status
 
     def get_status(self):
@@ -445,8 +415,6 @@ class RunJob(object):
                   self._status_queue).start()
 
     def _jobcheck(self):
-        if self.mode == "batchcompute":
-            self.set_rate(check_rate=1)
         rate_limiter = RateLimiter(
             max_calls=self.check_rate.numerator, period=self.check_rate.denominator)
         while not self.finished:
@@ -649,23 +617,6 @@ class RunJob(object):
                     jobid, output = self.batch_sub(job, mode="slurm")
                 self.batch_jobid[job.jobname] = jobid
                 logcmd.write(output)
-            elif job.host == "batchcompute":
-                jobcpu = context.args.cpu and max(
-                    job.cpu, context.args.cpu) or job.cpu or self.cpu
-                jobmem = context.args.memory and max(
-                    job.mem, context.args.memory) or job.mem or self.mem
-                c = Cluster(config=self.conf)
-                c.AddClusterMount()
-                task = Task(c)
-                task.AddOneTask(
-                    job=job, outdir=self.conf.args.out_maping)
-                if job.out_maping:
-                    task.modifyTaskOutMapping(job=job, mapping=job.out_maping)
-                task.Submit()
-                info = "Your job (%s) has been submitted in batchcompute (%s) %d times\n" % (
-                    task.name, task.id, job.subtimes + 1)
-                logcmd.write(info)
-                self.cloudjob[task.name] = task.id
             self.log_status(job)
             job.subtimes += 1
             self.logger.debug("%s job submit %s times", job.name, job.subtimes)
@@ -747,19 +698,6 @@ class RunJob(object):
             return self.logger.warning("no jobs need to submit")
         if not self.reseted:
             self.cleanup()
-        if self.mode == "batchcompute":
-            access_key_id = self.conf.args.access_key_id or self.conf.access_key_id
-            access_key_secret = self.conf.args.access_key_secret or self.conf.access_key_secret
-            region = REGION.get(self.conf.args.region.upper(), CN_BEIJING)
-            client = Client(region, access_key_id, access_key_secret)
-            quotas = client.get_quotas().AvailableClusterInstanceType
-            cfg_path = join(dirname(__file__), "ins_type.json")
-            with open(cfg_path) as fi:
-                self.conf.it_conf = json.load(fi)
-            availableTypes = [i for i in quotas if i in self.conf.it_conf]
-            self.conf.availableTypes = sorted(availableTypes, key=lambda x: (
-                self.conf.it_conf[x]["cpu"], self.conf.it_conf[x]["memory"]))
-            self.conf.client = self.client = client
         sub_rate_limiter = RateLimiter(
             max_calls=self.sub_rate.numerator, period=self.sub_rate.denominator)
         self.jobcheck()
@@ -799,27 +737,6 @@ class RunJob(object):
             for jb in self.jobqueue.queue:
                 jb.remove_all_stat_files()
                 jb.set_kill()
-        elif self.mode == "batchcompute":
-            user = getpass.getuser()
-            for jb in self.jobqueue.queue:
-                jobname = jb.name
-                try:
-                    jobid = self.cloudjob.get(jobname, "")
-                    j = self.client.get_job(jobid)
-                except ClientError as e:
-                    if e.status == 404:
-                        self.logger.error("Invalid JobId %s", jobid)
-                        continue
-                except:
-                    continue
-                if j.Name.startswith(user):
-                    if j.State not in ["Stopped", "Failed", "Finished"]:
-                        self.client.stop_job(jobid)
-                    self.client.delete_job(jobid)
-                    self.logger.info("Delete job %s done", j.Name)
-                else:
-                    self.logger.error(
-                        "Delete job error, you have no assess with job %s", j.Name)
         for j, p in self.localprocess.copy().items():
             jb = self.totaljobdict[j]
             self.deletejob(jb)
@@ -975,7 +892,6 @@ class RunFlow(RunJob):
         self.err_msg = ""
         self.reseted = False
         self.localprocess = {}
-        self.cloudjob = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
         self.__create_graph()

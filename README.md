@@ -7,7 +7,7 @@
 
 ## Summary
 
-runjob is a program for managing a group of related jobs running on a compute cluster `localhost`, [Sun Grid Engine](http://star.mit.edu/cluster/docs/0.93.3/guides/sge.html), [BatchCompute](https://help.aliyun.com/product/27992.html), [slurm](https://slurm.schedmd.com/documentation.html) .  It provides a convenient method for specifying dependencies between jobs and the resource requirements for each job (e.g. memory, CPU cores). It monitors the status of the jobs so you can tell when the whole group is done. Litter cpu or memory resource is used in the login compute node.
+runjob is a program for managing a group of related jobs running on a compute cluster `localhost`, [Sun Grid Engine](http://star.mit.edu/cluster/docs/0.93.3/guides/sge.html), [slurm](https://slurm.schedmd.com/documentation.html) .  It provides a convenient method for specifying dependencies between jobs and the resource requirements for each job (e.g. memory, CPU cores). It monitors the status of the jobs so you can tell when the whole group is done. Litter cpu or memory resource is used in the login compute node.
 
 ## OSCS
 
@@ -50,23 +50,21 @@ You can get the quick help like this:
 ##### runjob/runflow：
 
 	$ runjob --help
-	Usage: runjob [-h] [-v] [-j [<jobfile>]] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>] [-d] [-l <file>] [-f]
-	              [-M {local,localhost,sge,slurm}] [--config <configfile>] [--dag] [--dag-extend] [--strict] [--quiet] [--show-config]
-	              [-r <int>] [-R <int>] [--max-check <float>] [--max-submit <float>] [--max-queue-time <float/str>]
-	              [--max-run-time <float/str>] [--max-wait-time <float/str>] [--max-timeout-retry <int>]
-	              [--local | --localhost | --sge | --slurm] [-i [<str> ...]] [-L <logdir>] [-q [<queue> ...]] [-c <int>] [-m <int>]
-	              [--node [<node> ...]] [--round-node]
+	Usage: runjob [-h] [-v] [-j [<jobfile>]] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>] [-d] [-l <file>] [-f] [-M {local,localhost,sge,slurm}] [--config <configfile>] [--dag]
+	              [--dag-extend] [--strict] [--quiet] [--show-config] [-r <int>] [-R <int>] [--max-check <float>] [--max-submit <float>] [--max-queue-time <float/str>]
+	              [--max-run-time <float/str>] [--max-wait-time <float/str>] [--max-timeout-retry <int>] [--local | --localhost | --sge | --slurm] [-i [<str> ...]] [-L <logdir>]
+	              [-q [<queue> ...]] [-c <int>] [-m <int/str>] [--node [<node> ...]] [--round-node]
 	
 	runjob is a tool for managing parallel tasks from a specific job file running in localhost, sge, slurm.
 	
-	Optional Arguments:
+	Options:
 	  -h, --help            show this help message and exit
 	  --local               submit your jobs to local, same as '--mode local'.
 	  --localhost           submit your jobs to localhost, same as '--mode localhost'.
 	  --sge                 submit your jobs to sge, same as '--mode sge'.
 	  --slurm               submit your jobs to slurm, same as '--mode slurm'.
 	  -i, --injname [<str> ...]
-	                        job names you need to run. (default: all job names of the jobfile)
+	                        job names defined to run. (default: all job names of the jobfile)
 	  -L, --logdir <logdir>
 	                        the output log dir. (default: join(workdir, "logs"))
 	
@@ -75,7 +73,7 @@ You can get the quick help like this:
 	  -j, --jobfile [<jobfile>]
 	                        input jobfile, if empty, stdin is used. (required)
 	  -n, --num <int>       the max job number runing at the same time. (default: all of the jobfile, max 1000)
-	  -s, --start <int>     which line number(1-base) be used for the first job. (default: 1)
+	  -s, --start <int>     which line number (1-base) be used for the first job. (default: 1)
 	  -e, --end <int>       which line number (include) be used for the last job. (default: last line of the jobfile)
 	  -w, --workdir <workdir>
 	                        work directory. (default: /home/dengyong/soft/git/runjob)
@@ -83,7 +81,7 @@ You can get the quick help like this:
 	  -l, --log <file>      append log info to file. (default: stdout)
 	  -f, --force           force to submit jobs even already successed.
 	  -M, --mode {local,localhost,sge,slurm}
-	                        the mode to submit your jobs, if no sge installed, always localhost. (default: sge)
+	                        the mode to submit your jobs, auto detect. (default: auto)
 	  --config <configfile>
 	                        input configfile for configurations search.
 	  --dag                 do not execute anything and print the directed acyclic graph of jobs in the dot language.
@@ -113,24 +111,23 @@ You can get the quick help like this:
 	  -q, --queue [<queue> ...]
 	                        queue/partition for running, multi-queue can be sepreated by whitespace. (default: all accessed)
 	  -c, --cpu <int>       max cpu number used. (default: 1)
-	  -m, --memory <int>    max memory used (GB). (default: 1)
+	  -m, --memory <int/str>
+	                        max memory used (GB). (default: 1G)
 	  --node [<node> ...]   node for running, multi-node can be sepreated by whitespace. (default: all accessed)
 	  --round-node          round all define node per job for load balance
 
-##### runsge/runshell/runbatch:
+##### runsge/runshell:
 
 ```
 $ runsge --help
-Usage: runsge [-h] [-v] [-j [<jobfile>]] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>] [-d] [-l <file>] [-f]
-              [-M {local,localhost,sge,slurm}] [--config <configfile>] [--dag] [--dag-extend] [--strict] [--quiet] [--show-config]
-              [-r <int>] [-R <int>] [--max-check <float>] [--max-submit <float>] [--max-queue-time <float/str>]
-              [--max-run-time <float/str>] [--max-wait-time <float/str>] [--max-timeout-retry <int>]
-              [--local | --localhost | --sge | --slurm] [-N <jobname>] [-L <logdir>] [-g <int>] [--init <cmd>] [--call-back <cmd>]
-              [-q [<queue> ...]] [-c <int>] [-m <int>] [--node [<node> ...]] [--round-node]
+Usage: runsge [-h] [-v] [-j [<jobfile>]] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>] [-d] [-l <file>] [-f] [-M {local,localhost,sge,slurm}] [--config <configfile>] [--dag]
+              [--dag-extend] [--strict] [--quiet] [--show-config] [-r <int>] [-R <int>] [--max-check <float>] [--max-submit <float>] [--max-queue-time <float/str>]
+              [--max-run-time <float/str>] [--max-wait-time <float/str>] [--max-timeout-retry <int>] [--local | --localhost | --sge | --slurm] [-N <jobname>] [-L <logdir>]
+              [-g <int>] [--init <cmd>] [--callback <cmd>] [-q [<queue> ...]] [-c <int>] [-m <int/str>] [--node [<node> ...]] [--round-node]
 
 runsge is a tool for managing parallel tasks from a specific shell file runing in localhost, sge, slurm.
 
-Optional Arguments:
+Options:
   -h, --help            show this help message and exit
   --local               submit your jobs to local, same as '--mode local'.
   --localhost           submit your jobs to localhost, same as '--mode localhost'.
@@ -142,14 +139,14 @@ Optional Arguments:
                         the output log dir. (default: "/home/dengyong/soft/git/runjob/runsge_*_log_dir")
   -g, --groups <int>    N lines to consume a new job group. (default: 1)
   --init <cmd>          command before all jobs, will be running in localhost.
-  --call-back <cmd>     command after all jobs finished, will be running in localhost.
+  --callback <cmd>      command after all jobs finished, will be running in localhost.
 
 Base Arguments:
   -v, --version         show program's version number and exit
   -j, --jobfile [<jobfile>]
                         input jobfile, if empty, stdin is used. (required)
   -n, --num <int>       the max job number runing at the same time. (default: all of the jobfile, max 1000)
-  -s, --start <int>     which line number(1-base) be used for the first job. (default: 1)
+  -s, --start <int>     which line number (1-base) be used for the first job. (default: 1)
   -e, --end <int>       which line number (include) be used for the last job. (default: last line of the jobfile)
   -w, --workdir <workdir>
                         work directory. (default: /home/dengyong/soft/git/runjob)
@@ -157,7 +154,7 @@ Base Arguments:
   -l, --log <file>      append log info to file. (default: stdout)
   -f, --force           force to submit jobs even already successed.
   -M, --mode {local,localhost,sge,slurm}
-                        the mode to submit your jobs, if no sge installed, always localhost. (default: sge)
+                        the mode to submit your jobs, auto detect. (default: auto)
   --config <configfile>
                         input configfile for configurations search.
   --dag                 do not execute anything and print the directed acyclic graph of jobs in the dot language.
@@ -187,19 +184,21 @@ Resource Arguments:
   -q, --queue [<queue> ...]
                         queue/partition for running, multi-queue can be sepreated by whitespace. (default: all accessed)
   -c, --cpu <int>       max cpu number used. (default: 1)
-  -m, --memory <int>    max memory used (GB). (default: 1)
+  -m, --memory <int/str>
+                        max memory used (GB). (default: 1G)
   --node [<node> ...]   node for running, multi-node can be sepreated by whitespace. (default: all accessed)
   --round-node          round all define node per job for load balance
 ```
 
-##### qs/qcs:
+##### qs/qslurm:
 
 ```
 $ qs --help 
-For summary jobs
-Usage: qs [jobfile|logdir|logfile]
-       qcs --help
-       qslurm
+query local/sge/slurm jobs.
+
+Usage: 
+    qs [jobfile|logdir|logfile]
+    qslurm
 ```
 
 

@@ -23,8 +23,6 @@ from subprocess import check_output
 from collections import defaultdict
 
 from .utils import *
-from .stat_bc import *
-from .cluster import *
 from .parser import *
 from .job import Jobfile
 from .context import context
@@ -222,124 +220,6 @@ def qs():
         #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
 
 
-def bcArgs():
-    parser = argparse.ArgumentParser(
-        description="for query job status in batch compute.",
-        formatter_class=CustomHelpFormatter)
-    parser.add_argument("-t", "--top", type=int, default=10,
-                        help="show top number job. (default: 10)", metavar="<int>")
-    parser.add_argument("-a", "--all", action="store_true", default=False,
-                        help="show all jobs.")
-    parser.add_argument("-n", "--name", type=str,
-                        help="show jobName contains the specific name.", metavar="<str>")
-    parser.add_argument("-u", "--user", type=str, default=getpass.getuser(),
-                        help="show jobs with a user name matching. (defualt: %s)" % getpass.getuser(), metavar="<str>")
-    parser.add_argument('-r', '--region', type=str, default="beijing", choices=['beijing', 'hangzhou', 'huhehaote', 'shanghai',
-                                                                                'zhangjiakou', 'chengdu', 'hongkong', 'qingdao', 'shenzhen'], help="batch compute region. (default: beijing)")
-    parser.add_argument("-d", "--delete", type=str, nargs="*",
-                        help="delete job with jobId.", metavar="<jobId>")
-    parser.add_argument("-j", "--job", type=str,
-                        help="description of the job.", metavar="<jobId>")
-    parser.add_argument('--access-key-id', type=str,
-                        help="AccessKeyID while access oss.", metavar="<str>")
-    parser.add_argument('--access-key-secret', type=str,
-                        help="AccessKeySecret while access oss.", metavar="<str>")
-    parser.add_argument('--config', type=str,
-                        help="input configfile for configurations search.", metavar="<configfile>")
-    show_config(parser)
-    # parser.add_argument("-l", "--logdir", type=str,
-    # help="summary job status in you job directory", metavar="<jobfile>")
-    parser.add_argument('-v', '--version',
-                        action='version', version="v" + __version__)
-    show_help_on_empty_command()
-    args = parser.parse_args()
-    return args
-
-
-def batchStat():
-    args = bcArgs()
-    context.init(args=args)
-    conf = context.conf
-    region = REGION.get(args.region.upper(), CN_BEIJING)
-    access_key_id = conf.rget("args", "access_key_id")
-    access_key_secret = conf.rget("args", "access_key_secret")
-    if access_key_id is None:
-        access_key_id = conf.rget("OSS", "access_key_id")
-    if access_key_secret is None:
-        access_key_secret = conf.rget("OSS", "access_key_secret")
-    if access_key_secret is None or access_key_id is None:
-        sys.exit("No access to connect OSS")
-    client = Client(region, access_key_id, access_key_secret)
-    logger = getlog(name=__package__)
-    user = getpass.getuser()
-    if args.job:
-        try:
-            jd = client.get_job_description(args.job)
-        except:
-            print("Job Description Error %s" % args.job)
-            sys.exit(1)
-        print(json.dumps(jd.content, indent=4))
-        return
-    if args.delete:
-        for jobid in args.delete:
-            try:
-                j = client.get_job(jobid)
-            except ClientError as e:
-                if e.status == 404:
-                    logger.info("Invalid JobId %s", jobid)
-                    continue
-            except:
-                continue
-            if j.Name.startswith(user):
-                if j.State not in ["Stopped", "Failed", "Finished"]:
-                    client.stop_job(jobid)
-                client.delete_job(jobid)
-                logger.info("Delete job %s done", j.Name)
-            else:
-                logger.info(
-                    "Delete job error, you have no assess with job %s", j.Name)
-        return
-    jobs = list_jobs(client)
-    jobarr_owner = filter_list(items2arr(jobs['Items']), {
-                               'Name': {'like': args.user}})
-    jobarr_owner = sorted(
-        jobarr_owner, key=lambda _x: _x["CreationTime"], reverse=True)
-    if args.name:
-        filter_job = filter_list(jobarr_owner, {'Name': {'like': args.name}})
-    else:
-        filter_job = jobarr_owner
-    if args.top:
-        filter_job = filter_job[:args.top]
-    if args.all:
-        filter_job = jobarr_owner
-    out = []
-    out.append([style(i, mode="bold") for i in ["User", "JobId", "JobName",
-               "CreationTime", "StartTime", "EndTime", "Elapsed", "JobState"]])
-    for j in filter_job:
-        ct = j["CreationTime"].strftime(
-            "%F %X") if j["CreationTime"] is not None else "null"
-        st = j["StartTime"].strftime(
-            "%F %X") if j["StartTime"] is not None else "null"
-        et = j["EndTime"].strftime(
-            "%F %X") if j["EndTime"] is not None else "null"
-        jid = j["Id"]
-        jname = j["Name"].split(user+"_")[-1]
-        state = j["State"]
-        if j["StartTime"] is not None and j["EndTime"] is not None:
-            dt = j["EndTime"] - j["StartTime"]
-            m, s = divmod(dt.seconds, 60)
-            elapsed = "%dm%ds" % (m, s)
-        else:
-            elapsed = "null"
-        line = [user, jid, jname, ct, st, et, elapsed, get_job_state(state)]
-        out.append(line)
-    tb = prettytable.PrettyTable()
-    tb.field_names = out[0]
-    for line in out[1:]:
-        tb.add_row(line)
-    print(tb)
-
-
 def qslurm():
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
         sys.exit(__doc__)
@@ -378,7 +258,3 @@ def qslurm():
             print(style("{0:<20} {1:>16} {2:>8} {3:>8}".format(
                 user, job, run, qw)))
     print(style("-"*55, mode="bold"))
-
-
-if __name__ == "__main__":
-    batchStat()

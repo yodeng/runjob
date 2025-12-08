@@ -50,10 +50,7 @@ def execute(parser):
 
 def entry_exec():
     entry = basename(sys.argv[0])
-    if entry == "runbatch":
-        context._backend.append("batchcompute")
-        execute(job_parser())
-    elif entry in ("runflow", "runjob"):
+    if entry in ("runflow", "runjob"):
         execute(flow_parser())
     elif entry in ("runsge", "runshell"):
         execute(job_parser())
