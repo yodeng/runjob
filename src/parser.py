@@ -223,7 +223,7 @@ def job_parser():
                         help="N lines to consume a new job group.", metavar="<int>")
     parser.add_argument('--init', help="command before all jobs, will be running in localhost.",
                         type=str,  metavar="<cmd>")
-    parser.add_argument('--call-back', help="command after all jobs finished, will be running in localhost.",
+    parser.add_argument('--callback', help="command after all jobs finished, will be running in localhost.",
                         type=str,  metavar="<cmd>")
     batch_parser(parser)
     if "batchcompute" in context._backend:

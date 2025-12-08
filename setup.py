@@ -147,11 +147,10 @@ class Packages(object):
     @property
     def _entrys(self):
         eps = [f"{cmd} = {self.name}.main:entry_exec" for cmd in (
-            "runflow", "runjob", "runsge", "runshell", "runbatch")] + \
-            [f'qs = {self.name}.jobstat:main',
-             f'qslurm = {self.name}.jobstat:qslurm',
-             f'qcs = {self.name}.jobstat:batchStat'] + \
-            [f"{self.name}-{cmd} = {self.name}._jobsocket:job_{cmd}" for cmd in (
+            "runflow", "runjob", "runsge", "runshell")] + \
+            [f'qs = {self.name}.jobstat:qs',
+             f'qslurm = {self.name}.jobstat:qslurm',] + \
+            [f"{self.name}-{cmd} = {self.name}.jobsocket:job_{cmd}" for cmd in (
                 "server", "client", "report")]
         return eps
 

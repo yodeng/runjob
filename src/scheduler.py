@@ -33,14 +33,14 @@ class ScheduleJob(metaclass=SingletonType):
             timezone=timezone('Asia/Shanghai')
         )
 
-    def add_job(self, func, trigger="interval", args=None, kwargs=None, job_id="default", seconds=10, **trigger_args):
+    def add_job(self, func, trigger="interval", args=None, kwargs=None, job_id="default", name=None, seconds=10, **trigger_args):
         self.scheduler.add_job(
             func,
             trigger=trigger,  # date,interval,cron
             args=args,  # list|tuple of func  args
             kwargs=kwargs,  # dict of func kwargs
             id=job_id,
-            name=f"scheduler_{job_id}",
+            name=name or f"scheduler_{job_id}",
             seconds=seconds,
             **trigger_args
         )

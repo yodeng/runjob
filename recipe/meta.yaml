@@ -9,23 +9,24 @@ package:
 
 build:
     number: 0
-    string: py39
+    noarch: python
+    # string: py_0
     script:
-        - {{ PYTHON }} -m pip install https://pypi.io/packages/source/{{ bc[0] }}/{{ bc }}/{{ bc }}-{{ bcv }}.tar.gz
-        - {{ PYTHON }} -m pip install -vv .
+        - {{ PYTHON }} -m pip install --no-build-isolation --no-deps --no-cache-dir . https://pypi.io/packages/source/{{ bc[0] }}/{{ bc }}/{{ bc }}-{{ bcv }}.tar.gz
 
 source:
     path: ..
 
 requirements:
     host:
-        - python <3.10
+        - python >=3.7
         - pip
+        - setuptools
     run:
-        - python <3.10
+        - python >=3.7
         - pip
+        - setuptools
         - psutil >=5.7.0
-        - ratelimiter >=1.2.0
         - prettytable >=3.2.0
         - configparser >=5.0.2
 

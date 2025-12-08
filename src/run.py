@@ -15,7 +15,7 @@ from .job import *
 from .utils import *
 from .cluster import *
 from .context import context
-from ._jobsocket import listen_job_status
+from .jobsocket import listen_job_status
 
 
 class RunJob(object):
@@ -220,7 +220,7 @@ class RunJob(object):
         self.add_init_and_callback(cmd=self.conf._getvalue(
             "init") or self.conf.rget("args", "init"))
         self.add_init_and_callback(cmd=self.conf._getvalue(
-            "call_back") or self.conf.rget("args", "call_back"), flag=-1)
+            "callback") or self.conf.rget("args", "callback"), flag=-1)
 
     def add_init_and_callback(self, cmd="", name="", flag=0):
         name = name or (flag and "callback" or "init")

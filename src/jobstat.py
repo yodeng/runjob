@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-'''For summary jobs
-Usage: qs [jobfile|logdir|logfile]
-       qcs --help
-       qslurm
+'''
+query local/sge/slurm jobs.
+
+Usage: 
+    qs [jobfile|logdir|logfile]
+    qslurm
 '''
 
 import os
@@ -30,7 +32,7 @@ from .config import load_config
 from ._version import __version__
 
 
-def main():
+def qs():
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
         sys.exit(__doc__)
     username = os.getenv("USER")

@@ -4,6 +4,6 @@ from .utils import JobQueue, RunJobError, JobFailedError, mute
 from .loger import Formatter
 from .run import RunJob as runsge
 from .run import RunFlow as runjob
-from .config import load_config as Config
 from .context import Context, context
+from .config import Config, load_config
 from .parser import CustomHelpFormatter
