@@ -379,8 +379,9 @@ def get_job_state(state):
         return style(state, fore="white")
 
 
-def now():
-    if hasattr(time, 'monotonic'):
+def now(monotonic=False):
+    if hasattr(time, 'monotonic') and monotonic:
+        # from system start, interrupt by reboot
         return time.monotonic()
     return time.time()
 
@@ -1016,6 +1017,21 @@ def load_module_from_path(path, add_to_sys=True):
         sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
+
+
+class SingletonType(type):
+
+    _instance_lock = threading.Lock()
+
+    def __init__(self, *args, **kwargs):
+        super(SingletonType, self).__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        if not hasattr(self, "_instance"):
+            with self._instance_lock:
+                self._instance = super(
+                    SingletonType, self).__call__(*args, **kwargs)
+        return self._instance
 
 
 def isiterable(obj):
