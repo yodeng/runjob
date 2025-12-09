@@ -9,13 +9,13 @@ try:
 except:
     pass
 
-from .config import SingletonType
+from .utils import SingletonType
 
 
 class ScheduleJob(metaclass=SingletonType):
 
-    def __init__(self, stores=None):
-        jobstores = stores or MemoryJobStore()
+    def __init__(self, store=None):
+        jobstores = store or MemoryJobStore()
         executors = {
             "default": ThreadPoolExecutor(10),
             # "processpool": ProcessPoolExecutor(4)
@@ -33,14 +33,17 @@ class ScheduleJob(metaclass=SingletonType):
             timezone=timezone('Asia/Shanghai')
         )
 
-    def add_job(self, func, trigger="interval", args=None, kwargs=None, job_id="default", name=None, seconds=10, **trigger_args):
+    def add_job(self, func, trigger="interval", args=None, kwargs=None, job_id=None, name=None, seconds=10, **trigger_args):
+        # func can be wrapped with try ... exception ...
+        jid = job_id or func.__name__
+        jname = f"task_{jid}"
         self.scheduler.add_job(
             func,
             trigger=trigger,  # date,interval,cron
-            args=args,  # list|tuple of func  args
+            args=args,  # list|tuple of func args
             kwargs=kwargs,  # dict of func kwargs
-            id=job_id,
-            name=name or f"scheduler_{job_id}",
+            id=job_id or jid,
+            name=name or jname,
             seconds=seconds,
             **trigger_args
         )
@@ -81,6 +84,25 @@ class ScheduleJob(metaclass=SingletonType):
         elif resume_all:
             self.scheduler.resume()
 
+    def modify_job(self, job_id=None, **changes):
+        self.scheduler.modify_job(job_id=job_id, **changes)
+
+    def print_jobs(self):
+        self.scheduler.print_jobs()
+
     @property
     def is_running(self):
         return self.scheduler.running
+
+    @property
+    def state(self):
+        '''
+        STATE_STOPPED = 0: stopped state
+        STATE_RUNNING = 1: running state, started and processing jobs
+        STATE_PAUSED = 2: paused state, started but not processing jobs
+        '''
+        return self.scheduler.state
+
+
+def get_scheduler(store=None):
+    return ScheduleJob(store=store)

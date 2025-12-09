@@ -118,21 +118,6 @@ class ConfigType(type):
     __getitem__ = __getattr__
 
 
-class SingletonType(type):
-
-    _instance_lock = threading.Lock()
-
-    def __init__(self, *args, **kwargs):
-        super(SingletonType, self).__init__(*args, **kwargs)
-
-    def __call__(self, *args, **kwargs):
-        if not hasattr(self, "_instance"):
-            with self._instance_lock:
-                self._instance = super(
-                    SingletonType, self).__call__(*args, **kwargs)
-        return self._instance
-
-
 class JsonEncoder(json.JSONEncoder):
 
     def default(self, field):
