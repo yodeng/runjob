@@ -97,6 +97,13 @@ class Dict(AttrDict):
             super(Dict, self).__setitem__(name, d)
             return d
 
+    def __setitem__(self, key, value):
+        if isinstance(value, dict):
+            value = Dict(value)
+        return super(Dict, self).__setitem__(key, value)
+
+    __setattr__ = __setitem__
+
 
 class ConfigType(type):
 
