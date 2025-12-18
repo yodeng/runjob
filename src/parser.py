@@ -91,9 +91,22 @@ class ShowConfigAction(argparse.Action):
             help=help)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        context.init(app=__package__, args=namespace)
+        self.__remove_action(parser)
+        self._show_config(parser)
+        context.init_arg(parser)
         context.conf.print_config()
         parser.exit()
+
+    def _show_config(self, parser):
+        pass
+
+    def __remove_action(self, parser):
+        for action in parser._actions:
+            if isinstance(action, ShowConfigAction):
+                break
+        for opt in action.option_strings:
+            if opt in sys.argv[1:]:
+                sys.argv.remove(opt)
 
 
 def show_help_on_empty_command():
@@ -282,7 +295,7 @@ def init_parser(parser):
     except:
         pass
     args = parser.parse_args()
-    context.init_arg(args)
+    context.init_arg(parser)
     if args.jobfile.isatty():
         parser.print_help()
         parser.exit()

@@ -1,7 +1,9 @@
 import os
 import sys
+import pdb
 import types
 import logging
+import argparse
 
 from functools import wraps
 from os.path import isfile, isdir, join, dirname, abspath
@@ -67,7 +69,11 @@ class Context(metaclass=ConfigType):
     def init_arg(cls, args=None):
         if not args:
             return
-        if hasattr(args, "config") and args.config and isfile(args.config):
+        if isinstance(args, argparse.ArgumentParser):  # parser
+            _args, _ = args.parse_known_args()
+            if hasattr(_args, "config") and _args.config and isfile(_args.config):
+                cls.add_config(_args.config)
+        elif hasattr(args, "config") and args.config and isfile(args.config):
             cls.add_config(args.config)
         cls._args = args
         cls.conf.update_args(args)
@@ -95,10 +101,6 @@ class Context(metaclass=ConfigType):
             cls.init_bin()
 
     Initial = init_all
-
-    @classmethod
-    def init(cls,  *cf, init_bin=False, args=None, app=__package__, **kw):
-        cls(*cf, init_bin=init_bin, args=args, app=app, **kw)
 
     def __getattr__(self, attr):
         return self.__dict__.get(attr, self.conf.__getitem__(attr))

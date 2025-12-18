@@ -271,13 +271,22 @@ class Config(Dict):
             print(f" - {abspath(cf)}")
         print("\nAvailable Config:")
         keyness_values = []
-        for k, info in sorted(self.to_dict().items()):
+        args_map = self.to_dict()
+        if "args" in args_map:
+            args_value = args_map.pop("args")
+            args_cmd = {k: v for k, v in args_value.items(
+            ) if self._command_line_options.get(k)}
+            args_default = {k: v for k, v in args_value.items()
+                            if k not in args_cmd}
+            args_map["args: command-line"] = args_cmd
+            args_map["args: configuration files or default"] = args_default
+        for k, info in sorted(args_map.items()):
             if k in private_items:
                 continue
             elif not isinstance(info, dict):
                 keyness_values.append((k, info))
                 continue
-            else:
+            if len(info):
                 print(f"[{k}]")
                 for v, p in sorted(info.items()):
                     if isinstance(p, dict) and not p:

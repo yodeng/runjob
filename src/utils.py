@@ -26,6 +26,7 @@ from datetime import datetime
 from fractions import Fraction
 from queue import Queue, Empty
 from threading import Thread, Lock
+from argparse import _SubParsersAction
 from importlib.metadata import distribution
 from collections.abc import MutableSet, Iterable
 from functools import total_ordering, wraps, partial
@@ -1168,3 +1169,13 @@ def do_test(test_case, test_func_name=None, verbosity=1):
     runner = unittest.TextTestRunner(verbosity=verbosity)
     _test = runner.run(suite)
     return _test.wasSuccessful()
+
+
+def set_nested_value_loop(d, keys_str, value):
+    keys = keys_str.split('.')
+    current = d
+    for key in keys[:-1]:
+        if key not in current or not isinstance(current[key], dict):
+            current[key] = {}
+        current = current[key]
+    current[keys[-1]] = value
