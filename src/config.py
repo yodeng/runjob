@@ -17,6 +17,7 @@ from .utils import (
     which,
     is_exe,
     dumps_value,
+    set_nested_value_loop,
     option_on_command_line,
     USER_CONF_FILE,
     PKG_CONF_FILE,
@@ -204,8 +205,10 @@ class Config(Dict):
             self.__config = Conf()
             self.__config.read(self._path)
         for s in self.__config.sections():
+            d = {}
             for k, v in self.__config[s].items():
-                self[s][k] = dumps_value(v)
+                d[k] = dumps_value(v)
+            set_nested_value_loop(self, s, d)
 
     def rget(self, key, *keys, default=None):
         '''default value: None'''
@@ -239,6 +242,10 @@ class Config(Dict):
                     if k not in d or v != "" and (override or d[k] == ""):
                         if v != "":
                             d[k] = dumps_value(v)
+                if len(s.split(".")) > 1:
+                    if s in self:
+                        self.pop(s)
+                    set_nested_value_loop(self, s, d)
 
     def add_config(self, config):
         self.update_config(config, override=False)
