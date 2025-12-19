@@ -157,7 +157,7 @@ def default_parser():
                       help='append log info to file. (default: stdout)', metavar="<file>")
     base.add_argument("-f", "--force", default=False, action="store_true",
                       help="force to submit jobs even already successed.")
-    base.add_argument('-M', '--mode', type=str, default="auto", choices=context._backend,
+    base.add_argument('-M', '--mode', type=str, default="auto", choices=BACKEND,
                       help="the mode to submit your jobs, auto detect.")
     base.add_argument('--config', metavar="<configfile>",
                       help="input configfile for configurations search.")
@@ -190,7 +190,7 @@ def timeout_parser(parser):
 
 def backend_parser(parser):
     backend_args = parser.add_mutually_exclusive_group(required=False)
-    for backend in context._backend:
+    for backend in BACKEND:
         backend_args.add_argument("--{}".format(backend), default=False, action="store_true",
                                   help="submit your jobs to {0}, same as '--mode {0}'.".format(backend))
 
@@ -212,7 +212,7 @@ def batch_parser(parser):
 def job_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in {mode}.".format(
-            mode=", ".join(context._backend[1:])),
+            mode=", ".join(BACKEND[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -235,7 +235,7 @@ def job_parser():
 def flow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s is a tool for managing parallel tasks from a specific job file running in {mode}.".format(
-            mode=", ".join(context._backend[1:])),
+            mode=", ".join(BACKEND[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)

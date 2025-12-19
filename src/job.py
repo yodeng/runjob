@@ -18,9 +18,6 @@ from .context import context
 from .parser import shell_job_parser
 
 
-context._backend = context._backend or BACKEND
-
-
 @total_ordering
 class Jobutils(object):
 
@@ -387,7 +384,7 @@ class Job(Jobutils):
         cmds = list(filter(None, cmds))
         if not len(cmds):
             raise JobError("No cmd in %s job" % self.name)
-        if self.host not in context._backend:
+        if self.host not in BACKEND:
             self.host = "sge"
         if self.host == "sge" and not self.jobfile.has_sge:
             self.host = "localhost"
@@ -423,12 +420,12 @@ class Job(Jobutils):
                     setattr(self, k, t)
                 if getattr(args, "memory", None):
                     self.mem = getattr(args, "memory")
-                for backed in context._backend:
+                for backed in BACKEND:
                     if getattr(self, backed, None):
                         self.host = args.mode = backed
                 if args.local:
                     self.host = args.mode = "local"
-                if args.mode and args.mode in context._backend:
+                if args.mode and args.mode in BACKEND:
                     self.host = args.mode
                 if args.jobname and not args.jobname[0].isdigit():
                     self.jobname = self.name = args.jobname
@@ -476,7 +473,7 @@ class Jobfile(object):
         self.has_sge = is_sge_submit()
         self.workdir = abspath(workdir or os.getcwd())
         self.temp = None
-        if not mode or mode not in context._backend:
+        if not mode or mode not in BACKEND:
             mode = default_backend()
         if isinstance(jobfile, (tuple, list)):
             self.temp = TempFile(prefix=".{}_".format(
@@ -772,7 +769,7 @@ class Shellfile(Jobfile):
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None, config=None):
         super(Shellfile, self).__init__(jobfile, mode, workdir, config=config)
-        if self.mode not in context._backend:
+        if self.mode not in BACKEND:
             self.mode = self.has_sge and "sge" or "localhost"
         if not logdir:
             if self.temp:

@@ -9,15 +9,13 @@ from .context import context
 from .run import RunJob, RunFlow
 from .parser import flow_parser, job_parser, init_parser
 
-context._backend = BACKEND
-
 
 def execute(parser):
     init_parser(parser)
     args = context.args
     if not globals().get(args.func):
         return
-    for backend in context._backend:
+    for backend in BACKEND:
         if getattr(args, backend, None):
             args.mode = backend
     if args.dag or args.dag_extend:
