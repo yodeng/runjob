@@ -10,10 +10,10 @@ from os.path import isfile, isdir, join, dirname, abspath
 
 from .utils import mkdir
 from .loger import getlog, Formatter
-from .config import ConfigType, load_config
+from .config import ContextType, load_config
 
 
-class Context(metaclass=ConfigType):
+class Context(metaclass=ContextType):
 
     conf = load_config()
     db = database = conf.database
@@ -107,9 +107,11 @@ class Context(metaclass=ConfigType):
         cls(*cf, init_bin=init_bin, args=args, app=app, **kw)
 
     def __getattr__(self, attr):
+        '''get instance attribute'''
         return self.__dict__.get(attr, self.conf.__getitem__(attr))
 
     def __setattr__(self, key, value):
+        '''set instance attribute'''
         return self.__class__.conf.__setitem__(key, value)
 
     __getitem__ = __getattr__

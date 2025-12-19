@@ -106,23 +106,25 @@ class Dict(AttrDict):
     __setattr__ = __setitem__
 
 
-class ConfigType(type):
+class ContextType(type):
 
     _instance = None
     _instance_lock = threading.Lock()
 
     def __init__(self, *args, **kwargs):
-        super(ConfigType, self).__init__(*args, **kwargs)
+        super(ContextType, self).__init__(*args, **kwargs)
 
-    def __call__(self, *args, **kwargs):
+    # def __call__(self, *args, **kwargs): # for singleton
+    def __call(self, *args, **kwargs):
         if self._instance is None:
             with self._instance_lock:
                 self._instance = super(
-                    ConfigType, self).__call__(*args, **kwargs)
+                    ContextType, self).__call__(*args, **kwargs)
         return self._instance
 
-    def __getattr__(cls, attr):
-        return cls.__dict__.get(attr, cls.conf.__getitem__(attr))
+    def __getattr__(self, attr):
+        '''get class type attribute'''
+        return self.__dict__.get(attr, self.conf.__getitem__(attr))
 
     __getitem__ = __getattr__
 
