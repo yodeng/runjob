@@ -108,13 +108,14 @@ class Dict(AttrDict):
 
 class ConfigType(type):
 
+    _instance = None
     _instance_lock = threading.Lock()
 
     def __init__(self, *args, **kwargs):
         super(ConfigType, self).__init__(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        if not hasattr(self, "_instance"):
+        if self._instance is None:
             with self._instance_lock:
                 self._instance = super(
                     ConfigType, self).__call__(*args, **kwargs)

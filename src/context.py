@@ -102,6 +102,10 @@ class Context(metaclass=ConfigType):
 
     Initial = init_all
 
+    @classmethod
+    def init(cls,  *cf, init_bin=False, args=None, app=__package__, **kw):
+        cls(*cf, init_bin=init_bin, args=args, app=app, **kw)
+
     def __getattr__(self, attr):
         return self.__dict__.get(attr, self.conf.__getitem__(attr))
 
