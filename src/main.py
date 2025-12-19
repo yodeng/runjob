@@ -24,6 +24,7 @@ def execute(parser):
         jobfile = args.jobfile.readlines()
         args.jobfile.close()
         args.jobfile = jobfile
+        context.conf._command_line_options["jobfile"] = True
     else:
         args.jobfile.close()
         args.jobfile = args.jobfile.name

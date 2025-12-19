@@ -141,7 +141,7 @@ def default_parser():
     base = p.add_argument_group("base arguments")
     base.add_argument('-v', '--version',
                       action='version', version="v" + __version__)
-    base.add_argument("-j", "--jobfile", type=argparse.FileType('r'), nargs="?", default=sys.stdin,
+    base.add_argument("-j", "--jobfile", type=argparse.FileType('r'), default=sys.stdin,
                       help="input jobfile, if empty, stdin is used. " + REQUIRED, metavar="<jobfile>")
     base.add_argument("-n", "--num", type=int,
                       help="the max job number runing at the same time. (default: all of the jobfile, max 1000)", metavar="<int>")

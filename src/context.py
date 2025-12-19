@@ -4,13 +4,37 @@ import pdb
 import types
 import logging
 import argparse
+import threading
 
 from functools import wraps
 from os.path import isfile, isdir, join, dirname, abspath
 
 from .utils import mkdir
+from .config import load_config
 from .loger import getlog, Formatter
-from .config import ContextType, load_config
+
+
+class ContextType(type):
+
+    _instance = None
+    _instance_lock = threading.Lock()
+
+    def __init__(self, *args, **kwargs):
+        super(ContextType, self).__init__(*args, **kwargs)
+
+    # def __call__(self, *args, **kwargs): # for singleton
+    def __call(self, *args, **kwargs):
+        if self._instance is None:
+            with self._instance_lock:
+                self._instance = super(
+                    ContextType, self).__call__(*args, **kwargs)
+        return self._instance
+
+    def __getattr__(self, attr):
+        '''get class type attribute'''
+        return self.__dict__.get(attr, self.conf.__getitem__(attr))
+
+    __getitem__ = __getattr__
 
 
 class Context(metaclass=ContextType):

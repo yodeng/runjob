@@ -106,29 +106,6 @@ class Dict(AttrDict):
     __setattr__ = __setitem__
 
 
-class ContextType(type):
-
-    _instance = None
-    _instance_lock = threading.Lock()
-
-    def __init__(self, *args, **kwargs):
-        super(ContextType, self).__init__(*args, **kwargs)
-
-    # def __call__(self, *args, **kwargs): # for singleton
-    def __call(self, *args, **kwargs):
-        if self._instance is None:
-            with self._instance_lock:
-                self._instance = super(
-                    ContextType, self).__call__(*args, **kwargs)
-        return self._instance
-
-    def __getattr__(self, attr):
-        '''get class type attribute'''
-        return self.__dict__.get(attr, self.conf.__getitem__(attr))
-
-    __getitem__ = __getattr__
-
-
 class JsonEncoder(json.JSONEncoder):
 
     def default(self, field):
@@ -188,6 +165,8 @@ class Config(Dict):
         super(Config, self).__init__()
         self._cf = []
         self._command_line_options = {}
+        self._private_keys = ("_command_line_options",
+                              "_bin_dirs", "_cf", "_private_keys")
         self.bin = self.soft = self.software
         self.database = self.db
         self._bin_dirs = bin_dir and [bin_dir, ] or [join(sys.prefix, "bin"), ]
@@ -275,7 +254,6 @@ class Config(Dict):
         self.update_dict(args)
 
     def print_config(self):
-        private_items = ("_command_line_options", "_bin_dirs", "_cf")
         print("Configuration files to search (order by order):")
         for cf in self.search_order:
             print(f" - {abspath(cf)}")
@@ -291,7 +269,7 @@ class Config(Dict):
             args_map["args: command-line"] = args_cmd
             args_map["args: configuration files or default"] = args_default
         for k, info in sorted(args_map.items()):
-            if k in private_items:
+            if k in self._private_keys:
                 continue
             elif not isinstance(info, dict):
                 keyness_values.append((k, info))
@@ -383,6 +361,8 @@ class Config(Dict):
             return res
         values = Dict()
         for k, v in self.items():
+            if k in self._private_keys:
+                continue
             if name in v and (k == "args" or v.get(name) != ""):
                 values[k] = v.get(name)
         if not len(values):
