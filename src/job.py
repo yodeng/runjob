@@ -215,8 +215,8 @@ class Job(Jobutils):
         self.out_maping = None
         self.cmd = ""
         self.cmd0 = ""
-        self.run_time = now()   # runing time
-        self.submit_time = now()  # submit time
+        self.run_time = now(1)   # runing time
+        self.submit_time = now(1)  # submit time
         self.max_queue_sec = human2seconds(
             config and config.max_queue_time or sys.maxsize)
         self.max_run_sec = human2seconds(

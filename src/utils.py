@@ -49,6 +49,7 @@ from os.path import (
 )
 
 from .loger import *
+from .limiter import *
 
 BACKEND = ["local", "localhost", "sge", "slurm"]
 
@@ -178,9 +179,9 @@ class JobQueue(Queue):
             elif timeout < 0:
                 raise ValueError("'timeout' must be a non-negative number")
             else:
-                endtime = now() + timeout
+                endtime = now(1) + timeout
                 while not self._qsize():
-                    remaining = endtime - now()
+                    remaining = endtime - now(1)
                     if remaining <= 0.0:
                         raise Empty
                     self.not_empty.wait(remaining)
@@ -380,13 +381,6 @@ def get_job_state(state):
         return style(state, fore="white")
 
 
-def now(monotonic=False):
-    if hasattr(time, 'monotonic') and monotonic:
-        # from system start, interrupt by reboot
-        return time.monotonic()
-    return time.time()
-
-
 def human_size(num, deg=1024):
     deg = float(deg)
     for unit in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
@@ -473,17 +467,21 @@ def is_running(pid=None):
         return p.is_running()
 
 
-def call_cmd_without_exception(cmd, verbose=False, run=True, daemon=False):
-    if verbose:
-        print(cmd)
+def call_cmd(cmd, verbose=False, run=True, daemon=False, timeout=None, max_memory=-1, exception_ok=False):
     if not run:
+        print(cmd)
         return
     func_name = "Popen" if daemon else "call"
     try:
-        getattr(subprocess, func_name)(cmd, shell=isinstance(cmd, str),
-                                       stdout=not verbose and -3 or None, stderr=-2, timeout=3)
-    except:
-        pass
+        proc = getattr(subprocess, func_name)(cmd, shell=isinstance(cmd, str), timeout=timeout,
+                                              stdout=not verbose and -3 or None, stderr=-2, preexec_fn=partial(set_memory, max_memory))
+    except Exception as err:
+        if exception_ok:
+            return proc
+        else:
+            raise err
+    else:
+        return proc
 
 
 def which(program):
@@ -655,73 +653,6 @@ class AppDirs(object):
 def user_config_dir(app=__package__, version=""):
     app = AppDirs(app, version)
     return app.user_config_dir
-
-
-class RateLimiter(object):
-    """Provides rate limiting for an operation with a configurable number of
-    requests for a time period.
-    """
-
-    def __init__(self, max_calls, period=1.0, callback=None):
-        """Initialize a RateLimiter object which enforces as much as max_calls
-        operations on period (eventually floating) number of seconds.
-        """
-        if period <= 0:
-            raise ValueError('Rate limiting period should be > 0')
-        if max_calls <= 0:
-            raise ValueError('Rate limiting number of calls should be > 0')
-
-        # We're using a deque to store the last execution timestamps, not for
-        # its maxlen attribute, but to allow constant time front removal.
-        self.calls = deque()
-
-        self.period = period
-        self.max_calls = max_calls
-        self.callback = callback
-        self._lock = Lock()
-
-        # Lock to protect creation of self._alock
-        self._init_lock = Lock()
-
-    def __call__(self, f):
-        """The __call__ function allows the RateLimiter object to be used as a
-        regular function decorator.
-        """
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            with self:
-                return f(*args, **kwargs)
-        return wrapped
-
-    def __enter__(self):
-        with self._lock:
-            # We want to ensure that no more than max_calls were run in the allowed
-            # period. For this, we store the last timestamps of each call and run
-            # the rate verification upon each __enter__ call.
-            if len(self.calls) >= self.max_calls:
-                until = now() + self.period - self._timespan
-                if self.callback:
-                    t = Thread(target=self.callback, args=(until,))
-                    t.daemon = True
-                    t.start()
-                sleeptime = until - now()
-                if sleeptime > 0:
-                    time.sleep(sleeptime)
-            return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        with self._lock:
-            # Store the last operation timestamp.
-            self.calls.append(now())
-
-            # Pop the timestamp list front (ie: the older calls) until the sum goes
-            # back below the period. This is our 'sliding period' window.
-            while self._timespan >= self.period:
-                self.calls.popleft()
-
-    @property
-    def _timespan(self):
-        return self.calls[-1] - self.calls[0]
 
 
 class CmdTemplate(Template):

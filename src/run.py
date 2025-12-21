@@ -108,7 +108,7 @@ class RunJob(object):
             self.conf.max_submit or DEFAULT_MAX_SUBMIT_PER_SEC).limit_denominator()
         self.maxjob = int(self.maxjob or len(self.jobs))
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
-        self.init_time_stamp = now()
+        self.init_time_stamp = now(1)
 
     def reset(self):
         self.jfile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
@@ -342,7 +342,7 @@ class RunJob(object):
         self.logger.debug("job %s status %s", jobname, status)
         if status != job.status and self.is_run and self.submited and job.submited:
             if status == "run":
-                job.run_time = now()
+                job.run_time = now(1)
             job.set_status(status)
             if not self.signaled:
                 self.log_status(job)
@@ -356,7 +356,7 @@ class RunJob(object):
             jb = self.totaljobdict[name]
             if js != jb.status:
                 if status == "run":
-                    jb.run_time = now()
+                    jb.run_time = now(1)
                 jb.set_status(status)
                 if not self.signaled:
                     self.log_status(jb)
@@ -470,7 +470,7 @@ class RunJob(object):
             if self.strict:
                 self.throw("Error job: %s, exit" % jb.jobname)
         elif js in ["run", "submit", "resubmit"]:
-            _now = now()
+            _now = now(1)
             if _now - jb.submit_time > jb.max_wait_sec or \
                     js == "run" and _now - jb.run_time > jb.max_run_sec or \
                     js != "run" and _now - jb.submit_time > jb.max_queue_sec:
@@ -558,7 +558,7 @@ class RunJob(object):
         logfile = job.logfile
         self.jobqueue.put(job, block=True, timeout=1080000)
         job.timeout = False
-        job.submit_time = now()
+        job.submit_time = now(1)
         with open(logfile, "a") as logcmd:
             if job.subtimes == 0:
                 logcmd.write(textwrap.dedent(job.raw_cmd).strip() + "\n")
@@ -683,7 +683,7 @@ class RunJob(object):
         elif self.conf.rget("args", "dag"):
             print(self.jobsgraph.to_rulegraph(self._job2rule))
             sys.exit()
-        self.run_time_stamp = now()
+        self.run_time_stamp = now(1)
         self.times = max(0, self.retry)
         self.retry_sec = max(self.retry_sec, 0)
         self.logger.info("Total jobs to submit: %s" %
@@ -753,7 +753,7 @@ class RunJob(object):
 
     def writestates(self, outstat):
         summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
-        elaps = now() - self.run_time_stamp
+        elaps = now(1) - self.run_time_stamp
         with open(outstat, "w") as fo:
             fo.write(str(dict(Counter(summary.values()))) + "\n")
             fo.write("# Detail:\n")
