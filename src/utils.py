@@ -856,11 +856,11 @@ def get_common_suffpref(l, order=1):
         return l[0][-common_string:]
 
 
-def dumps_value(obj):
+def eval_value(obj):
     if isinstance(obj, dict):
-        return {k: dumps_value(v) for k, v in obj.items()}
+        return {k: eval_value(v) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [dumps_value(elem) for elem in obj]
+        return [eval_value(elem) for elem in obj]
     if isinstance(obj, str):
         if obj.upper() == 'NONE':
             return None
@@ -994,6 +994,28 @@ def flatten_json(nested_json, exclude=[''], sep='.'):
     return out
 
 
+def set_nested_value_loop(d, keys_str, value):
+    keys = keys_str.split('.')
+    current = d
+    for key in keys[:-1]:
+        if key not in current or not isinstance(current[key], dict):
+            current[key] = {}
+        current = current[key]
+    current[keys[-1]] = value
+
+
+def nested_json(flatten_json):
+    '''
+    nested_json({'a.b.c': 1, 'c.x': 1, 'c.y': {'m.n': 2}}) == {'a': {'b': {'c': 1}}, 'c': {'x': 1, 'y': {'m': {'n': 2}}}}
+    '''
+    out = {}
+    for k, v in flatten_json.items():
+        if isinstance(v, dict):
+            v = nested_json(v)
+        set_nested_value_loop(out, k, v)
+    return out
+
+
 def chunk(lst, size=80):
     return [lst[i:i+size] for i in range(0, len(lst), size)]
 
@@ -1100,13 +1122,3 @@ def do_test(test_case, test_func_name=None, verbosity=1):
     runner = unittest.TextTestRunner(verbosity=verbosity)
     _test = runner.run(suite)
     return _test.wasSuccessful()
-
-
-def set_nested_value_loop(d, keys_str, value):
-    keys = keys_str.split('.')
-    current = d
-    for key in keys[:-1]:
-        if key not in current or not isinstance(current[key], dict):
-            current[key] = {}
-        current = current[key]
-    current[keys[-1]] = value

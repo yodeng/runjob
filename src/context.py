@@ -22,8 +22,7 @@ class ContextType(type):
     def __init__(self, *args, **kwargs):
         super(ContextType, self).__init__(*args, **kwargs)
 
-    # def __call__(self, *args, **kwargs): # for singleton
-    def __call(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs):
         if self._instance is None:
             with self._instance_lock:
                 self._instance = super(
@@ -136,7 +135,7 @@ class Context(metaclass=ContextType):
 
     def __setattr__(self, key, value):
         '''set instance attribute'''
-        return self.__class__.conf.__setitem__(key, value)
+        self.__class__.conf.__setitem__(key, value)
 
     __getitem__ = __getattr__
 

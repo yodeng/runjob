@@ -16,7 +16,7 @@ from .utils import (
     user_config_dir,
     which,
     is_exe,
-    dumps_value,
+    eval_value,
     set_nested_value_loop,
     option_on_command_line,
     USER_CONF_FILE,
@@ -189,7 +189,7 @@ class Config(Dict):
         for s in self.__config.sections():
             d = {}
             for k, v in self.__config[s].items():
-                d[k] = dumps_value(v)
+                d[k] = eval_value(v)
             set_nested_value_loop(self, s, d)
 
     def rget(self, key, *keys, default=None):
@@ -223,7 +223,7 @@ class Config(Dict):
                 for k, v in parser[s].items():
                     if k not in d or v != "" and (override or d[k] == ""):
                         if v != "":
-                            d[k] = dumps_value(v)
+                            d[k] = eval_value(v)
                 if len(s.split(".")) > 1:
                     if s in self:
                         self.pop(s)
@@ -363,7 +363,7 @@ class Config(Dict):
         for k, v in self.items():
             if k in self._private_keys:
                 continue
-            if name in v and (k == "args" or v.get(name) != ""):
+            if isinstance(v, dict) and name in v and (k == "args" or v.get(name) != ""):
                 values[k] = v.get(name)
         if not len(values):
             return res
