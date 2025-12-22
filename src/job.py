@@ -212,7 +212,6 @@ class Job(Jobutils):
         self.queue = set()
         self.subtimes = 0
         self.workdir = os.getcwd()
-        self.out_maping = None
         self.cmd = ""
         self.cmd0 = ""
         self.run_time = now(1)   # runing time
@@ -410,7 +409,7 @@ class Job(Jobutils):
                 argstring = shlex.split(cmd.rsplit("//", 1)[1].strip())
                 args = shell_job_parser(argstring)
                 for i in ['force', 'local', 'sge', 'slurm', 'max_timeout_retry', 'workdir', 'jobname',
-                          'groups', 'mode', 'queue', 'memory', 'cpu', "node", 'out_maping']:
+                          'groups', 'mode', 'queue', 'memory', 'cpu', "node"]:
                     if getattr(args, i, False):
                         setattr(self, i, getattr(args, i))
                 for i in ['max_queue_time', 'max_run_time', 'max_wait_time']:

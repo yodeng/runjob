@@ -3,6 +3,7 @@
 
 import os
 import sys
+import json
 import time
 import signal
 import getpass
@@ -751,19 +752,16 @@ class RunJob(object):
         else:
             os.kill(os.getpid(), signal.SIGUSR1)  # threading exit
 
-    def writestates(self, outstat):
-        summary = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
-        elaps = now(1) - self.run_time_stamp
+    def writestates(self, outstat, **kw):
+        out = {}
+        state = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
+        state.update({j.name: "already success" for j in self.has_success})
+        out.update(kw)
+        out["elapsed time"] = seconds2human(now(1) - self.run_time_stamp)
+        out["counts"] = dict(Counter(state.values()).most_common())
+        out["states"] = dict(sorted(state.items()))
         with open(outstat, "w") as fo:
-            fo.write(str(dict(Counter(summary.values()))) + "\n")
-            fo.write("# Detail:\n")
-            sumout = {}
-            for k, v in summary.items():
-                sumout.setdefault(v, []).append(k)
-            for k, v in sorted(sumout.items()):
-                fo.write(
-                    k + " : " + ", ".join(sorted(v, key=lambda x: (len(x), x))) + "\n")
-            fo.write("\n# Time Elapse: %s\n" % seconds2human(elaps))
+            json.dump(out, fo, ensure_ascii=False, indent=4)
 
     def cleanup(self):
         ParseSingal(obj=self).start()
@@ -796,8 +794,8 @@ class RunJob(object):
             total_jobs, sub_jobs, suc_jobs, fail_jobs, wt_jobs)
         if hasattr(self, "jfile") and not self.jfile.temp:
             sum_info += "in file '%s' " % abspath(self.jpath)
-        self.writestates(join(
-            self.logdir, "job_%s.status.txt" % self.name))
+        self.writestates(join(self.logdir, "state.json"), **{"totals": total_jobs, "already success": len(
+            self.has_success), "submited": sub_jobs, "success": suc_jobs, "fail": fail_jobs, "wait": wt_jobs})
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
         self.finished = True
         if self.is_success:

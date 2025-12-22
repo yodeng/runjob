@@ -856,11 +856,11 @@ def get_common_suffpref(l, order=1):
         return l[0][-common_string:]
 
 
-def dumps_value(obj):
+def eval_value(obj):
     if isinstance(obj, dict):
-        return {k: dumps_value(v) for k, v in obj.items()}
+        return {k: eval_value(v) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [dumps_value(elem) for elem in obj]
+        return [eval_value(elem) for elem in obj]
     if isinstance(obj, str):
         if obj.upper() == 'NONE':
             return None
