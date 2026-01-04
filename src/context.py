@@ -142,7 +142,7 @@ class Context(metaclass=ContextType):
     __setitem__ = __setattr__
 
 
-context = Context
+context = Context()
 
 
 class debug(object):
