@@ -167,7 +167,7 @@ class Config(Dict):
         self._command_line_options = {}
         self._private_keys = ("_command_line_options",
                               "_bin_dirs", "_cf", "_private_keys")
-        self.bin = self.soft = self.software
+        self.bin = self.exe = self.soft = self.software
         self.database = self.db
         self._bin_dirs = bin_dir and [bin_dir, ] or [join(sys.prefix, "bin"), ]
         if init_bin or kw.get("init_envs") or kw.get("init_env"):
@@ -322,7 +322,7 @@ class Config(Dict):
                 if is_exe(exe_path):
                     bin_key = bin_path.replace("-", "").replace("_", "")
                     if not self.rget("software", bin_key):
-                        self["software"][bin_key] = exe_path
+                        self.bin[bin_key] = self.exe[bin_key] = self.soft[bin_key] = self.software[bin_key] = exe_path
 
     @property
     def search_order(self):

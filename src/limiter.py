@@ -55,55 +55,52 @@ class RateLimiter(object):
         return self.calls[-1] - self.calls[0]
 
 
-def runtime_exceeded(signum, frame):
-    raise RuntimeError
-
-
-class ResourceLimiter(object):
-
-    @staticmethod
-    def max_runtime(seconds=sys.maxsize):
-        def wrap(func):
-            @wraps(func)
-            def _run(*args, **kwargs):
-                # if wraped instance method, add self as first argument
-                signal.signal(signal.SIGALRM, runtime_exceeded)
-                signal.alarm(seconds)
-                res = func(*args, **kwargs)
-                signal.alarm(0)
-                return res
-            return _run
-        return wrap
-
-    @staticmethod
-    def max_memory(size=-1):
-        def wrap(func):
-            @wraps(func)
-            def _run(*args, **kwargs):
-                _, hard = resource.getrlimit(resource.RLIMIT_AS)
-                resource.setrlimit(resource.RLIMIT_AS, (int(size), hard))
-                return func(*args, **kwargs)
-            return _run
-        return wrap
-
-    @staticmethod
-    def max_nproc(nproc=4096):
-        def wrap(func):
-            @wraps(func)
-            def _run(*args, **kwargs):
-                _, hard = resource.getrlimit(resource.RLIMIT_NPROC)
-                resource.setrlimit(resource.RLIMIT_NPROC,
-                                   (min(nproc, 4096), hard))
-                return func(*args, **kwargs)
-            return _run
-        return wrap
-
-
 def now(monotonic=False):
     if hasattr(time, 'monotonic') and monotonic:
         # from system start, interrupt by reboot
         return time.monotonic()
     return time.time()
+
+
+def runtime_exceeded(signum, frame):
+    raise RuntimeError
+
+
+def max_runtime(seconds=sys.maxsize):
+    def wrap(func):
+        @wraps(func)
+        def _run(*args, **kwargs):
+            # if wraped instance method, add self as first argument
+            signal.signal(signal.SIGALRM, runtime_exceeded)
+            signal.alarm(seconds)
+            res = func(*args, **kwargs)
+            signal.alarm(0)
+            return res
+        return _run
+    return wrap
+
+
+def max_memory(size=-1):
+    def wrap(func):
+        @wraps(func)
+        def _run(*args, **kwargs):
+            _, hard = resource.getrlimit(resource.RLIMIT_AS)
+            resource.setrlimit(resource.RLIMIT_AS, (int(size), hard))
+            return func(*args, **kwargs)
+        return _run
+    return wrap
+
+
+def max_nproc(nproc=128):
+    def wrap(func):
+        @wraps(func)
+        def _run(*args, **kwargs):
+            _, hard = resource.getrlimit(resource.RLIMIT_NPROC)
+            resource.setrlimit(resource.RLIMIT_NPROC,
+                               (min(nproc, 4096), hard))
+            return func(*args, **kwargs)
+        return _run
+    return wrap
 
 
 def set_nproc(nproc=4096):

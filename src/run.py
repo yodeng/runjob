@@ -794,7 +794,7 @@ class RunJob(object):
             total_jobs, sub_jobs, suc_jobs, fail_jobs, wt_jobs)
         if hasattr(self, "jfile") and not self.jfile.temp:
             sum_info += "in file '%s' " % abspath(self.jpath)
-        self.writestates(join(self.logdir, "state.json"), **{"totals": total_jobs, "already success": len(
+        self.writestates(join(self.logdir, "run_log.json"), **{"totals": total_jobs, "already success": len(
             self.has_success), "submited": sub_jobs, "success": suc_jobs, "fail": fail_jobs, "wait": wt_jobs})
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
         self.finished = True

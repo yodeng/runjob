@@ -29,31 +29,25 @@ class ContextType(type):
                     ContextType, self).__call__(*args, **kwargs)
         return self._instance
 
-    def __getattr__(self, attr):
-        '''get class type attribute'''
-        return self.__dict__.get(attr, self.conf.__getitem__(attr))
-
-    __getitem__ = __getattr__
-
 
 class Context(metaclass=ContextType):
 
     conf = load_config()
     db = database = conf.database
-    soft = bin = software = conf.software
+    soft = exe = bin = software = conf.software
     args = conf.args
     _args = None
     log = getlog()
 
     def __init__(self, *cf, init_bin=False, args=None, app=__package__, **kw):
-        self.__class__.conf = load_config(
+        self.conf = load_config(
             *cf, init_bin=init_bin or kw.get("init_envs"), app=app)
         if cf or init_bin or kw.get("init_envs"):
-            self.__class__.args = self.__class__.conf.args
-            self.__class__.db = self.__class__.database = self.__class__.conf.database
-            self.__class__.soft = self.__class__.bin = self.__class__.software = self.__class__.conf.software
-        self.__class__.init_arg(args)
-        self.__class__.init_log(name=app)
+            self.args = self.conf.args
+            self.db = self.database = self.conf.database
+            self.soft = self.exe = self.bin = self.software = self.conf.software
+        self.init_arg(args)
+        self.init_log(name=app)
 
     @classmethod
     def add_config(cls, config=None):
@@ -135,14 +129,14 @@ class Context(metaclass=ContextType):
 
     def __setattr__(self, key, value):
         '''set instance attribute'''
-        self.__class__.conf.__setitem__(key, value)
+        self.conf.__setitem__(key, value)
 
     __getitem__ = __getattr__
 
     __setitem__ = __setattr__
 
 
-context = Context
+context = Context()
 
 
 class debug(object):
