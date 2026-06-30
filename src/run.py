@@ -45,7 +45,7 @@ class RunJob(object):
     # ── init ──────────────────────────────────────────────────────
 
     def __init__(self, config=None, **kwargs):
-        '''
+        f'''
         all attribute of config or kwargs:
             @jobfile <file, list>: required
             @jobname <str>: default: basename(jobfile)
@@ -59,16 +59,16 @@ class RunJob(object):
             @groups <int>: default: 1
             @abort_on_error <bool>: default: False
             @force <bool>: default: False
-            @logdir <dir>: defalut: "{0}/run*_*_log_dir"
-            @workdir <dir>: default: {0}
-            @max_check <int>: default: {1}
-            @max_submit <int>: default: {2}
+            @logdir <dir>: defalut: "{os.getcwd()}/run*_*_log_dir"
+            @workdir <dir>: default: {os.getcwd()}
+            @max_check <int>: default: {DEFAULT_MAX_CHECK_PER_SEC}
+            @max_submit <int>: default: {DEFAULT_MAX_SUBMIT_PER_SEC}
             @loglevel <int>: default: None
             @quiet <bool>: default False
             @retry <int>: retry times, default: 0
             @retry_sec <int>: retryivs sec, default: 2
             @sec <int>: submit epoch ivs, default: 2
-        '''.format(os.getcwd(), DEFAULT_MAX_CHECK_PER_SEC, DEFAULT_MAX_SUBMIT_PER_SEC)
+        '''
         self.conf = config = config or context.conf
         for k, v in kwargs.items():
             setattr(self.conf.info.args, k, v)
@@ -604,7 +604,7 @@ class RunJob(object):
                 logcmd.write(style("\n-------- retry --------\n",
                              fore="red", mode="bold") + job.raw_cmd + "\n")
                 job.set_status("resubmit")
-            logcmd.write("[%s] " % datetime.today().strftime("%F %X"))
+            logcmd.write(f"[{datetime.today().strftime('%F %X')}] ")
             logcmd.flush()
             if job.host is not None and job.host in ["localhost", "local"]:
                 job.raw2cmd(job.subtimes and abs(
@@ -723,8 +723,7 @@ class RunJob(object):
         self.run_time_stamp = now(1)
         self.times = max(0, self.retry)
         self.retry_sec = max(self.retry_sec, 0)
-        names = ", ".join([j.name for j in sorted(self.jobs)])
-        self.logger.info(f"Total jobs to submit: {names}")
+        self.logger.info(f'Total jobs to submit: {", ".join([j.name for j in sorted(self.jobs)])}')
         mkdir(self.logdir, self.workdir)
         self.logger.info(f"All logs can be found in {self.logdir} directory")
         self.check_already_success()
@@ -927,5 +926,4 @@ class RunFlow(RunJob):
         if len(self.jfile.alljobnames) != len(set(self.jfile.alljobnames)):
             names = [i for i, j in Counter(
                 self.jfile.alljobnames).items() if j > 1]
-            joined = " ".join(names)
-            self.throw(f"duplicate job name: {joined}")
+            self.throw(f'duplicate job name: {" ".join(names)}')
