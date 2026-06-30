@@ -76,6 +76,8 @@ class RunJob(object):
         if not self.jobfile:
             raise RunJobError("Empty jobs input")
         self.quiet = config.quiet
+        if self.quiet:
+            logging.disable()
         self.queue = config.queue
         self.maxjob = config.num
         self.cpu = config.cpu or 1
@@ -728,7 +730,7 @@ class RunJob(object):
         if len(self.jobsgraph.graph) == 0:
             return self.logger.warning("no jobs need to submit")
         if not self.reseted:
-            self.cleanup()
+            self._setup_signal_handlers()
         sub_rate_limiter = RateLimiter(
             max_calls=self.sub_rate.numerator, period=self.sub_rate.denominator)
         self.jobcheck()
@@ -755,15 +757,13 @@ class RunJob(object):
 
     @property
     def logger(self):
-        if self.quiet:
-            logging.disable()
         return context.log
 
     def _clean_jobs(self):
         if self.mode in ["sge", "slurm"]:
             try:
                 self.deletejob()
-            except:
+            except Exception:
                 self.qdel()
             for jb in self.jobqueue.queue:
                 jb.remove_all_stat_files()
@@ -793,7 +793,7 @@ class RunJob(object):
         with open(outstat, "w") as fo:
             json.dump(out, fo, ensure_ascii=False, indent=4)
 
-    def cleanup(self):
+    def _setup_signal_handlers(self):
         ParseSingal(obj=self).start()
 
     def safe_exit(self):
