@@ -376,7 +376,7 @@ class RunJob(object):
         rate_limiter = RateLimiter(max_calls=1, period=period)
         time.sleep(sleep)
 
-        def _deal_check(self, jb):
+        def _deal_check(jb):
             if self.is_run and not jb.is_end and isfile(jb.stat_file + ".run"):
                 time.sleep(1)
                 _ = self.jobstatus(jb)
@@ -392,7 +392,7 @@ class RunJob(object):
                     if jobname in self.localprocess:
                         ps = self.localprocess[jobname].poll()
                         if ps and ps < 0:
-                            _deal_check(self, jb)
+                            _deal_check(jb)
                     elif jobname in self.batch_jobid:
                         jobid = self.batch_jobid.get(jobname)
                         if jobid and jobid.isdigit():
@@ -402,7 +402,7 @@ class RunJob(object):
                                         ["qstat", "-j", jobid], stderr=-3)
                                 except Exception as err:
                                     self.logger.debug(err)
-                                    _deal_check(self, jb)
+                                    _deal_check(jb)
                             elif jb.host == "slurm":
                                 pass
             time.sleep(sleep)
