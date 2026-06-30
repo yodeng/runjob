@@ -14,6 +14,7 @@ except ImportError:
 
 
 class CustomHelpFormatter(HelpFormatter):
+    """HelpFormatter that auto-appends default values and shows required markers."""
 
     def _get_help_string(self, action):
         """Place default and required value in help string."""
@@ -65,7 +66,7 @@ class CustomHelpFormatter(HelpFormatter):
                 for option_string in action.option_strings:
                     parts.append(option_string)
 
-                return '%s %s' % (', '.join(parts), args_string)
+                return f"{', '.join(parts)} {args_string}"
 
             return ', '.join(parts)
 
@@ -107,6 +108,22 @@ class ShowConfigAction(argparse.Action):
         for opt in action.option_strings:
             if opt in sys.argv[1:]:
                 sys.argv.remove(opt)
+
+
+def _patch_parser_help(parser):
+    """Ensure epilog line breaks are preserved (rich_argparse merges them)."""
+    base_format_help = parser.format_help
+
+    def format_help():
+        epilog = parser.epilog
+        parser.epilog = None
+        help_text = base_format_help()
+        parser.epilog = epilog
+        if epilog:
+            help_text += '\n' + epilog.replace('%(prog)s', parser.prog) + '\n'
+        return help_text
+
+    parser.format_help = format_help
 
 
 def show_help_on_empty_command():
@@ -162,9 +179,9 @@ def default_parser():
     base.add_argument('--config', metavar="<configfile>",
                       help="path to configuration file")
     base.add_argument("--dag", action="store_true", default=False,
-                      help="print job DAG in DOT format and exit")
+                      help="print job DAG in DOT format and exit (no jobs run)")
     base.add_argument("--dag-extend", action="store_true", default=False,
-                      help="print extended job DAG in DOT format and exit")
+                      help="print extended job DAG in DOT format and exit (no jobs run)")
     base.add_argument("--abort-on-error", action="store_true", default=False,
                       help="stop all jobs and exit on first error")
     base.add_argument("--quiet", action="store_true", default=False,
@@ -191,7 +208,7 @@ def timeout_parser(parser):
 def backend_parser(parser):
     backend_args = parser.add_mutually_exclusive_group(required=False)
     for backend in BACKEND:
-        backend_args.add_argument("--{}".format(backend), default=False, action="store_true",
+        backend_args.add_argument(f"--{backend}", default=False, action="store_true",
                                   help="submit jobs to {0} backend".format(backend))
 
 
@@ -213,10 +230,11 @@ def job_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — run parallel tasks from a shell file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
-        epilog="examples:\n"
-               "  %(prog)s -j cmds.sh                    # submit every line as a job\n"
-               "  %(prog)s -j cmds.sh -g 5               # group every 5 lines into one job\n"
-               "  %(prog)s -j cmds.sh -n 10 -c 4 -m 8G   # at most 10 parallel, 4 CPUs, 8G memory each",
+        epilog=textwrap.dedent("""\
+            examples:
+              %(prog)s -j cmds.sh                    # submit every line as a job
+              %(prog)s -j cmds.sh -g 5               # group every 5 lines into one job
+              %(prog)s -j cmds.sh -n 10 -c 4 -m 8G   # at most 10 parallel, 4 CPUs, 8G memory each"""),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -233,6 +251,7 @@ def job_parser():
     batch_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunJob")
+    _patch_parser_help(parser)
     return parser
 
 
@@ -240,10 +259,11 @@ def flow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — run parallel tasks from a job/flow file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
-        epilog="examples:\n"
-               "  %(prog)s -j jobs.flow                  # submit all jobs respecting dependencies\n"
-               "  %(prog)s -j jobs.flow -i step1 step2   # run only the named jobs\n"
-               "  %(prog)s -j jobs.flow --dag            # print the dependency graph and exit",
+        epilog=textwrap.dedent("""\
+            examples:
+              %(prog)s -j jobs.flow                  # submit all jobs respecting dependencies
+              %(prog)s -j jobs.flow -i step1 step2   # run only the named jobs
+              %(prog)s -j jobs.flow --dag            # print the dependency graph and exit"""),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -254,6 +274,7 @@ def flow_parser():
     batch_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunFlow")
+    _patch_parser_help(parser)
     return parser
 
 
@@ -265,9 +286,10 @@ def shell_job_parser(arglist):
 def server_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — start a job status server that listens on a Unix or TCP socket.",
-        epilog="examples:\n"
-               "  %(prog)s -f /tmp/runjob.sock           # listen on a Unix socket\n"
-               "  %(prog)s -H 0.0.0.0 -P 9999            # listen on a TCP port",
+        epilog=textwrap.dedent("""\
+            examples:
+              %(prog)s -f /tmp/runjob.sock           # listen on a Unix socket
+              %(prog)s -H 0.0.0.0 -P 9999            # listen on a TCP port"""),
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
@@ -277,15 +299,17 @@ def server_parser():
                         metavar="<int>")
     color_description(parser)
     show_help_on_empty_command()
+    _patch_parser_help(parser)
     return parser
 
 
 def client_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — send a job status update to a running runjob-server.",
-        epilog="examples:\n"
-               "  %(prog)s -f /tmp/runjob.sock -n myjob -s success\n"
-               "  %(prog)s -H localhost -P 9999 -n myjob -s error",
+        epilog=textwrap.dedent("""\
+            examples:
+              %(prog)s -f /tmp/runjob.sock -n myjob -s success
+              %(prog)s -H localhost -P 9999 -n myjob -s error"""),
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
@@ -299,6 +323,7 @@ def client_parser():
                         required=True, metavar="<str>")
     color_description(parser)
     show_help_on_empty_command()
+    _patch_parser_help(parser)
     return parser
 
 
