@@ -298,6 +298,41 @@ class Job(Jobutils):
         self.jobpidname = self.jobname + "_%d" % os.getpid()
         return self
 
+    def _parse_sched_options(self, value):
+        """Parse -c/-m/-q/-l flags from sched_options value."""
+        self.sched_options = value
+        self.cpu, self.mem = 1, 1
+        args = self.sched_options.split()
+        for n, i in enumerate(args[:]):
+            if n + 1 >= len(args):
+                continue
+            if i in ["-c", "--cpu"]:
+                self.cpu = max(int(args[n+1]), 1)
+            elif i in ["-m", "--memory"]:
+                self.mem = str(args[n+1])
+            elif i in ["-q", "--queue"]:
+                self.queue.add(args[n+1])
+            elif i == "-l":
+                res = args[n+1].split(",")
+                for r in res:
+                    k = r.split("=")[0].strip()
+                    v = r.split("=")[1].strip()
+                    if k == "vf":
+                        self.mem = str(v)
+                    elif k in ["p", "np", "nprc"]:
+                        self.cpu = int(v)
+
+    def _parse_timeout_config(self, key, value):
+        """Apply a timeout-related config directive."""
+        if "queue" in key:
+            self.max_queue_sec = human2seconds(value)
+        elif "run" in key or key == "time":
+            self.max_run_sec = human2seconds(value)
+        elif "wait" in key:
+            self.max_wait_sec = human2seconds(value)
+        elif "retry" in key:
+            self.max_timeout_retry = int(value)
+
     def _parse_jobs(self, lines=None, no_begin=False):
         cmds = []
         for line in lines:
@@ -308,8 +343,7 @@ class Job(Jobutils):
             if j in ["job_begin", "job_end"]:
                 continue
             elif re.match(r"names?[\s:]", j):
-                name = value
-                name = re.sub(r"\s+", "_", name)
+                name = re.sub(r"\s+", "_", value)
                 if name.lower() == "none":
                     raise JobError("None name in %s" % j)
                 self.name = name
@@ -319,27 +353,7 @@ class Job(Jobutils):
                     re.match(r"options?[\s:]", j) or \
                     re.match(r"args?[\s:]", j) or \
                     re.match(r"qsub_args?[\s:]", j):
-                self.sched_options = value
-                self.cpu, self.mem = 1, 1
-                args = self.sched_options.split()
-                for n, i in enumerate(args[:]):
-                    if n + 1 >= len(args):
-                        continue
-                    if i in ["-c", "--cpu"]:
-                        self.cpu = max(int(args[n+1]), 1)
-                    elif i in ["-m", "--memory"]:
-                        self.mem = str(args[n+1])
-                    elif i in ["-q", "--queue"]:
-                        self.queue.add(args[n+1])
-                    elif i == "-l":
-                        res = args[n+1].split(",")
-                        for r in res:
-                            k = r.split("=")[0].strip()
-                            v = r.split("=")[1].strip()
-                            if k == "vf":
-                                self.mem = str(v)
-                            elif k in ["p", "np", "nprc"]:
-                                self.cpu = int(v)
+                self._parse_sched_options(value)
             elif re.match(r"depends?[\s:]", j):
                 self.depends = set(self.jobfile._get_value_list(value))
             elif re.match(r"host[\s:]", j):
@@ -365,16 +379,10 @@ class Job(Jobutils):
                 self.cpu = int(value)
             elif re.match(r"queues?[\s:]", j):
                 self.queue = self.jobfile._get_value_list(value)
-            elif re.match(r"max[_-]queue[_-]time[\s:]", j):
-                self.max_queue_sec = human2seconds(value)
-            elif re.match(r"max[_-]run[_-]time[\s:]", j):
-                self.max_run_sec = human2seconds(value)
-            elif re.match(r"max[_-]wait[_-]time[\s:]", j):
-                self.max_wait_sec = human2seconds(value)
-            elif re.match(r"max[_-]timeout[_-]retry[\s:]", j):
-                self.max_timeout_retry = int(value)
+            elif re.match(r"max[_-](queue|run|wait|timeout)[_-]?(time|retry)?[\s:]", j):
+                self._parse_timeout_config(j, value)
             elif re.match(r"time[\s:]", j):
-                self.max_run_sec = human2seconds(value)
+                self._parse_timeout_config(j, value)
             elif no_begin and not j.strip().endswith(":"):
                 if ":" in j and len(list(filter(None, re.split(r"[\s:]", j)))) == 2:
                     raise JobError("unrecognized job define: '{}'".format(j))
