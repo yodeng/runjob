@@ -323,10 +323,12 @@ class Job(Jobutils):
                 self.cpu, self.mem = 1, 1
                 args = self.sched_options.split()
                 for n, i in enumerate(args[:]):
+                    if n + 1 >= len(args):
+                        continue
                     if i in ["-c", "--cpu"]:
                         self.cpu = max(int(args[n+1]), 1)
                     elif i in ["-m", "--memory"]:
-                        self.mem = str(args[i+1])
+                        self.mem = str(args[n+1])
                     elif i in ["-q", "--queue"]:
                         self.queue.add(args[n+1])
                     elif i == "-l":

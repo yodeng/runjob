@@ -472,6 +472,7 @@ def call_cmd(cmd, verbose=False, run=True, daemon=False, timeout=None, max_memor
         print(cmd)
         return
     func_name = "Popen" if daemon else "call"
+    proc = None
     try:
         proc = getattr(subprocess, func_name)(cmd, shell=isinstance(cmd, str), timeout=timeout,
                                               stdout=not verbose and -3 or None, stderr=-2, preexec_fn=partial(set_memory, max_memory))
