@@ -802,7 +802,13 @@ class RunJob(object):
             if self.err_msg:
                 self.logger.error(self.err_msg)
             self.sumstatus()
-        self.__del__()
+        self._remove_socket_file()
+
+    def _remove_socket_file(self):
+        try:
+            os.remove(self._status_socket_file)
+        except Exception:
+            pass
 
     @property
     def is_success(self):
@@ -845,10 +851,7 @@ class RunJob(object):
             raise exc_type(exc_val)
 
     def __del__(self):
-        try:
-            os.remove(self._status_socket_file)
-        except:
-            pass
+        self._remove_socket_file()
 
 
 class RunFlow(RunJob):
