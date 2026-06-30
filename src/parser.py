@@ -144,17 +144,17 @@ def default_parser():
     base.add_argument("-j", "--jobfile", type=argparse.FileType('r'), default=sys.stdin,
                       help="job file to read; reads from stdin if not specified " + REQUIRED, metavar="<jobfile>")
     base.add_argument("-n", "--num", type=int,
-                      help="max concurrent jobs (default: all)", metavar="<int>")
+                      help="max concurrent jobs (default: all, max 1000)", metavar="<int>")
     base.add_argument("-s", "--start", type=int,
                       help="process starting from this line number (1-based)", metavar="<int>", default=1)
     base.add_argument("-e", "--end", type=int,
-                      help="process up to this line number (inclusive)", metavar="<int>")
+                      help="process up to this line number, inclusive (default: last line)", metavar="<int>")
     base.add_argument("-w", "--workdir", type=str, help="working directory",
                       default=abspath(os.getcwd()), metavar="<workdir>")
     base.add_argument('-d', '--debug', action='store_true',
                       help='enable debug logging', default=False)
     base.add_argument("-l", "--log", type=str,
-                      help='write log output to file', metavar="<file>")
+                      help='write log output to file (default: stdout)', metavar="<file>")
     base.add_argument("-f", "--force", default=False, action="store_true",
                       help="force re-submit even if jobs already succeeded")
     base.add_argument('-M', '--mode', type=str, default="auto", choices=BACKEND,
@@ -178,11 +178,11 @@ def default_parser():
 
 def timeout_parser(parser):
     time_args = parser.add_argument_group("time arguments")
-    time_args.add_argument('--max-queue-time', help="max time in queue before timeout (e.g. 2h, 30m)",
+    time_args.add_argument('--max-queue-time', help="max time in queue before timeout, e.g. 2h (default: no limit)",
                            type=str, metavar="<float/str>")
-    time_args.add_argument('--max-run-time', help="max running time before timeout (e.g. 8h, 1d)",
+    time_args.add_argument('--max-run-time', help="max running time before timeout, e.g. 8h (default: no limit)",
                            type=str, metavar="<float/str>")
-    time_args.add_argument('--max-wait-time', help="max total wait time before timeout (e.g. 4h)",
+    time_args.add_argument('--max-wait-time', help="max total wait time before timeout, e.g. 4h (default: no limit)",
                            type=str, metavar="<float/str>")
     time_args.add_argument('--max-timeout-retry', help="retry timed-out jobs N times (0 to disable)",
                            type=int, default=0, metavar="<int>")
@@ -197,13 +197,13 @@ def backend_parser(parser):
 
 def batch_parser(parser):
     batch = parser.add_argument_group("resource arguments")
-    batch.add_argument("-q", "--queue", type=str, help="target queue or partition (space-separated)",
+    batch.add_argument("-q", "--queue", type=str, help="target queue or partition, space-separated (default: all)",
                        nargs="*", metavar="<queue>")
     batch.add_argument("-c", "--cpu", type=int,
                        help="CPUs per job", default=1, metavar="<int>")
     batch.add_argument("-m", "--memory", type=str,
                        help="memory per job (e.g. 4G, 8192M)", default="1G", metavar="<int/str>")
-    batch.add_argument("--node", type=str, help="target node(s), space-separated",
+    batch.add_argument("--node", type=str, help="target node(s), space-separated (default: all)",
                        nargs="*", metavar="<node>")
     batch.add_argument("--round-node", action="store_true", help="round-robin nodes across jobs for load balancing",
                        default=False)
@@ -217,9 +217,9 @@ def job_parser():
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
     parser.add_argument("-N", "--jobname", type=str,
-                        help="base name for generated jobs", metavar="<jobname>")
+                        help="base name for generated jobs (default: basename of jobfile)", metavar="<jobname>")
     parser.add_argument("-L", "--logdir", type=str,
-                        help="log output directory", metavar="<logdir>")
+                        help="log output directory (default: <workdir>/runjob_*_log_dir)", metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
                         help="group every N lines into a single job", metavar="<int>")
     parser.add_argument('--init', help="command to run before all jobs (localhost)",
@@ -239,10 +239,10 @@ def flow_parser():
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
-    parser.add_argument('-i', '--injname', help="run only these job names (glob patterns supported)",
+    parser.add_argument('-i', '--injname', help="run only these job names, glob patterns supported (default: all)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-L", "--logdir", type=str,
-                        help="log output directory", metavar="<logdir>")
+                        help="log output directory (default: <workdir>/logs)", metavar="<logdir>")
     batch_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunFlow")
