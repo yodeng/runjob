@@ -413,6 +413,7 @@ class RunJob(object):
                 _ = self.jobstatus(jb)
                 jb.set_kill()
                 self.log_status(jb)
+                self._on_job_status_change(jb, "kill")
 
         while not self.finished:
             for jb in self.jobqueue.queue:
@@ -471,6 +472,8 @@ class RunJob(object):
                     self._on_job_status_change(jb, js)
 
     def _on_job_status_change(self, jb, js):
+        if jb not in self.jobqueue:
+            return  # already processed by another thread
         if js == "success":
             self.deletejob(jb)
             self.jobqueue.get(jb)
