@@ -436,7 +436,12 @@ class RunJob(object):
                                     self.logger.debug(err)
                                     _deal_check(jb)
                             elif jb.host == "slurm":
-                                pass
+                                try:
+                                    check_output(
+                                        ["scontrol", "show", "job", jobid], stderr=-3)
+                                except Exception as err:
+                                    self.logger.debug(err)
+                                    _deal_check(jb)
             time.sleep(sleep)
 
     def jobcheck(self):
