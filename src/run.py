@@ -57,7 +57,7 @@ class RunJob(object):
             @cpu <int>: default: 1
             @memory <int>: default: 1
             @groups <int>: default: 1
-            @strict <bool>: default: False
+            @abort_on_error <bool>: default: False
             @force <bool>: default: False
             @logdir <dir>: defalut: "{0}/run*_*_log_dir"
             @workdir <dir>: default: {0}
@@ -86,7 +86,7 @@ class RunJob(object):
             self.node) if self.node and config.round_node else None
         self.mem = config.memory or 1
         self.groups = config.groups or 1
-        self.strict = config.strict or False
+        self.abort_on_error = config.abort_on_error or False
         self.workdir = abspath(config.workdir or os.getcwd())
         self.jfile = self._create_jobfile(config)
         self.logdir = self.jfile.logdir
@@ -482,7 +482,7 @@ class RunJob(object):
             self.deletejob(jb)
             if not jb.timeout:
                 if jb.subtimes >= self.times + 1:
-                    if self.strict:
+                    if self.abort_on_error:
                         self.throw("Error jobs return (submit %d times), %s" % (
                             jb.subtimes, jb.logfile))
                     self.jobqueue.get(jb)
@@ -497,7 +497,7 @@ class RunJob(object):
                     self.submit(jb)
                     jb.max_timeout_retry -= 1
                 else:
-                    if self.strict:
+                    if self.abort_on_error:
                         self.throw("Error jobs return (submit %d times), %s" % (
                             jb.subtimes, jb.logfile))
                     self.jobqueue.get(jb)
@@ -507,7 +507,7 @@ class RunJob(object):
             self.deletejob(jb)
             self.jobqueue.get(jb)
             self.jobsgraph.delete_node_if_exists(jb.jobname)
-            if self.strict:
+            if self.abort_on_error:
                 self.throw("Error job: %s, exit" % jb.jobname)
         elif js in ["run", "submit", "resubmit"]:
             _now = now(1)

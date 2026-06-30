@@ -180,7 +180,7 @@ runflow -j example2.flow
 ```
 runflow [-h] [-v] [-j <jobfile>] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>]
         [-d] [-l <file>] [-f] [-M {local,localhost,sge,slurm}]
-        [--config <configfile>] [--dag] [--dag-extend] [--strict] [--quiet]
+        [--config <configfile>] [--dag] [--dag-extend] [--abort-on-error] [--quiet]
         [--show-config] [-r <int>] [-R <int>]
         [--max-check <float>] [--max-submit <float>]
         [--max-queue-time <float/str>] [--max-run-time <float/str>]
@@ -208,7 +208,7 @@ runflow [-h] [-v] [-j <jobfile>] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>]
 | `--config` | Configuration file path | — |
 | `--dag` | Output DOT format DAG only, do not execute | `False` |
 | `--dag-extend` | Output expanded DAG only, do not execute | `False` |
-| `--strict` | Strict mode: terminate all jobs on any error | `False` |
+| `--abort-on-error` | Strict mode: terminate all jobs on any error | `False` |
 | `--quiet` | Suppress all output and logging | `False` |
 | `--show-config` | Show current configuration and exit | — |
 
@@ -537,7 +537,7 @@ runflow -j jobs.flow --node node01 node02 node03 --round-node
 ### 4. Strict Mode
 
 ```bash
-runflow -j jobs.flow --strict
+runflow -j jobs.flow --abort-on-error
 ```
 
 Any job failure immediately terminates all running jobs and exits. Useful for workflows requiring atomic execution.

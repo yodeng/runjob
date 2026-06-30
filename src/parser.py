@@ -165,8 +165,8 @@ def default_parser():
                       help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
     base.add_argument("--dag-extend", action="store_true", default=False,
                       help="do not execute anything and print the extend directed acyclic graph of jobs in the dot language.")
-    base.add_argument("--strict", action="store_true", default=False,
-                      help="use strict to run, means if any errors, clean all jobs and exit.")
+    base.add_argument("--abort-on-error", action="store_true", default=False,
+                      help="if any job fails, clean all jobs and exit.")
     base.add_argument("--quiet", action="store_true", default=False,
                       help="suppress all output and logging.")
     show_config(base)

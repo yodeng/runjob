@@ -180,7 +180,7 @@ runflow -j example2.flow
 ```
 runflow [-h] [-v] [-j <jobfile>] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>]
         [-d] [-l <file>] [-f] [-M {local,localhost,sge,slurm}]
-        [--config <configfile>] [--dag] [--dag-extend] [--strict] [--quiet]
+        [--config <configfile>] [--dag] [--dag-extend] [--abort-on-error] [--quiet]
         [--show-config] [-r <int>] [-R <int>]
         [--max-check <float>] [--max-submit <float>]
         [--max-queue-time <float/str>] [--max-run-time <float/str>]
@@ -208,7 +208,7 @@ runflow [-h] [-v] [-j <jobfile>] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>]
 | `--config` | 指定配置文件 | — |
 | `--dag` | 仅输出 DOT 格式的 DAG 图，不执行 | `False` |
 | `--dag-extend` | 输出变量展开后的 DAG 图，不执行 | `False` |
-| `--strict` | 严格模式：任一任务失败则清理所有任务并退出 | `False` |
+| `--abort-on-error` | 严格模式：任一任务失败则清理所有任务并退出 | `False` |
 | `--quiet` | 静默模式，抑制所有输出 | `False` |
 | `--show-config` | 显示当前配置并退出 | — |
 
@@ -537,7 +537,7 @@ runflow -j jobs.flow --node node01 node02 node03 --round-node
 ### 4. 严格模式
 
 ```bash
-runflow -j jobs.flow --strict
+runflow -j jobs.flow --abort-on-error
 ```
 
 任一任务失败立即终止所有运行中的任务并退出，适用于需要原子性执行的场景。
