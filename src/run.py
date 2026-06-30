@@ -24,6 +24,26 @@ MAX_JOB_QUEUE_SIZE = 1000
 
 class RunJob(object):
 
+    # ── hooks for subclass overrides ──────────────────────────────
+
+    def _create_jobfile(self, config):
+        return Shellfile(self.jobfile, mode=config.mode or "sge",
+                         name=config.jobname, logdir=config.logdir,
+                         workdir=self.workdir, config=config)
+
+    def _parse_jobfile(self, config):
+        self.jfile.parse_jobs(start=config.start or 1, end=config.end)
+
+    def _init_name(self):
+        return self.jfile.name
+
+    def _build_graph(self):
+        self.__add_depency_for_wait()
+        self.__group_jobs()
+        self.init_callback()
+
+    # ── init ──────────────────────────────────────────────────────
+
     def __init__(self, config=None, **kwargs):
         '''
         all attribute of config or kwargs:
@@ -66,15 +86,13 @@ class RunJob(object):
         self.groups = config.groups or 1
         self.strict = config.strict or False
         self.workdir = abspath(config.workdir or os.getcwd())
-        self.jfile = Shellfile(self.jobfile, mode=config.mode or "sge", name=config.jobname,
-                               logdir=config.logdir, workdir=self.workdir, config=config)
+        self.jfile = self._create_jobfile(config)
         self.logdir = self.jfile.logdir
         self.jpath = self.jfile._path
-        self.jfile.parse_jobs(
-            start=config.start or 1, end=config.end)
+        self._parse_jobfile(config)
         self.jobs = self.jfile.jobs
         self.mode = self.jfile.mode
-        self.name = self.jfile.name
+        self.name = self._init_name()
         self.retry = config.retry or 0
         self.retry_sec = config.retry_sec or 2
         self.sec = config.sec or 2
@@ -101,9 +119,7 @@ class RunJob(object):
         self.batch_jobid = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
-        self.__add_depency_for_wait()
-        self.__group_jobs()
-        self.init_callback()
+        self._build_graph()
         if self.conf.loglevel:
             self.logger.setLevel(self.conf.loglevel)
         self.conf.logger = self.logger
@@ -827,66 +843,32 @@ class RunJob(object):
 
 class RunFlow(RunJob):
 
+    # ── hooks ─────────────────────────────────────────────────────
+
+    def _create_jobfile(self, config):
+        return Jobfile(self.jobfile, mode=config.mode or default_backend(),
+                       config=config)
+
+    def _parse_jobfile(self, config):
+        self.jfile.parse_jobs(config.injname, config.start or 1, config.end)
+
+    def _init_name(self):
+        return os.getpid()
+
+    def _build_graph(self):
+        self.jfile.parse_orders()
+        self.orders = self.jfile.orders
+        self.__create_graph()
+
+    # ── init ──────────────────────────────────────────────────────
+
     def __init__(self, config=None, **kwargs):
-        '''
-        all attribute of config or kwargs:
-            @jobfile <file, list>: required
-            @mode <str>: default: sge
-            @queue <list>: default: all access queue
-            @cpu <int>: default: 1
-            @memory <int>: default: 1
-            @num <int>: default: number of jobs in parallel
-            @start <int>: default: 1
-            @end <int>: default: None
-            @strict <bool>: default: False
-            @force <bool>: default: False
-            @max_check <int>: default: {0}
-            @max_submit <int>: default: {1}
-            @loglevel <int>: default: None
-            @quiet <bool>: default False
-            @retry <int>: retry times, default: 0
-            @retry_sec <int>: retryivs sec, default: 2
-            @sec <int>: submit epoch ivs, default: 2
-        '''.format(DEFAULT_MAX_CHECK_PER_SEC, DEFAULT_MAX_SUBMIT_PER_SEC)
-        self.conf = config = config or context.conf
-        for k, v in kwargs.items():
-            setattr(self.conf.info.args, k, v)
-        self.quiet = config.quiet
-        self.jobfile = config.jobfile
-        self.queue = config.queue
-        self.cpu = config.cpu or 1
-        self.node = config.node or None
-        self.round_node = safe_cycle(
-            self.node) if self.node and config.round_node else None
-        self.mem = config.memory or 1
-        self.maxjob = config.num
-        self.strict = config.strict or False
-        self.workdir = config.workdir or os.getcwd()
-        self.jfile = jfile = Jobfile(
-            self.jobfile, mode=config.mode or default_backend(), config=config)
-        self.jpath = self.jfile._path
-        self.mode = jfile.mode
-        self.name = os.getpid()
-        self.jfile.parse_jobs(
-            config.injname, config.start or 1, config.end)
-        self.jobs = self.jfile.jobs
-        self.logdir = jfile.logdir
-        self.retry = config.retry or 0
-        self.retry_sec = config.retry_sec or 2
-        self.sec = config.sec or 2
-        self._init()
-        self.lock = Lock()
-        context.default_slurm_queue = default_slurm_queue()
-        context.default_slurm_node = default_slurm_node()
-        self._default_slurm_node = context.default_slurm_node and safe_cycle(
-            context.default_slurm_node) or None
+        super().__init__(config, **kwargs)
 
     def _init(self):
         self.jobnames = [j.name for j in self.jobs]
         self.totaljobdict = {name: jf for name,
                              jf in self.jfile.totaljobs.items()}
-        self.jfile.parse_orders()
-        self.orders = self.jfile.orders
         self.is_run = False
         self.submited = False
         self.finished = False
@@ -896,7 +878,7 @@ class RunFlow(RunJob):
         self.localprocess = {}
         self.jobsgraph = dag.DAG()
         self.has_success = []
-        self.__create_graph()
+        self._build_graph()
         if self.conf.loglevel:
             self.logger.setLevel(self.conf.loglevel)
         self.check_rate = Fraction(
