@@ -1,9 +1,7 @@
 import os
 import sys
-import pdb
 import types
 import logging
-import argparse
 import threading
 
 from functools import wraps
@@ -15,49 +13,115 @@ from .logger import getlog, Formatter
 
 
 class ContextType(type):
+    """Metaclass singleton — one ``Context`` instance per process."""
 
     _instance = None
     _instance_lock = threading.Lock()
 
-    def __init__(self, *args, **kwargs):
-        super(ContextType, self).__init__(*args, **kwargs)
-
     def __call__(self, *args, **kwargs):
         if self._instance is None:
             with self._instance_lock:
-                self._instance = super(
-                    ContextType, self).__call__(*args, **kwargs)
+                if self._instance is None:          # double-checked locking
+                    self._instance = super().__call__(*args, **kwargs)
         return self._instance
 
 
 class Context(metaclass=ContextType):
+    """Application-wide context (singleton)."""
 
-    conf = load_config()
-    db = database = conf.database
-    soft = exe = bin = software = conf.software
-    args = conf.args
-    _args = None
-    log = getlog()
+    # class-level defaults — lazy-initialised so that module import is cheap
+    _conf = None
+    _log = None
 
     def __init__(self, *cf, init_bin=False, args=None, app=__package__, **kw):
         self.conf = load_config(
             *cf, init_bin=init_bin or kw.get("init_envs"), app=app)
         if cf or init_bin or kw.get("init_envs"):
             self.args = self.conf.args
-            self.db = self.database = self.conf.database
-            self.soft = self.exe = self.bin = self.software = self.conf.software
         self.init_arg(args)
         self.init_log(name=app)
+
+    # ── lazy class-level accessors ──────────────────────────────────
+
+    @property
+    def conf(self):
+        if Context._conf is None:
+            Context._conf = load_config()
+        return Context._conf
+
+    @conf.setter
+    def conf(self, value):
+        Context._conf = value
+
+    @property
+    def log(self):
+        if Context._log is None:
+            Context._log = getlog()
+        return Context._log
+
+    @log.setter
+    def log(self, value):
+        Context._log = value
+
+    # ── convenience aliases (delegate through the instance ``conf``) ──
+
+    @property
+    def db(self):
+        return self.conf.database
+
+    @property
+    def database(self):
+        return self.conf.database
+
+    @property
+    def soft(self):
+        return self.conf.software
+
+    @property
+    def exe(self):
+        return self.conf.software
+
+    @property
+    def bin(self):
+        return self.conf.software
+
+    @property
+    def software(self):
+        return self.conf.software
+
+    @property
+    def args(self):
+        return self.conf.args
+
+    @args.setter
+    def args(self, value):
+        self.conf.args = value
+
+    # ── internal helpers ────────────────────────────────────────────
+
+    @classmethod
+    def _ensure_conf(cls):
+        if cls._conf is None:
+            cls._conf = load_config()
+        return cls._conf
+
+    @classmethod
+    def _ensure_log(cls):
+        if cls._log is None:
+            cls._log = getlog()
+        return cls._log
+
+    # ── class methods (operate on the singleton state) ─────────────
 
     @classmethod
     def add_config(cls, config=None):
         if config:
-            cls.conf.update_config(config)
+            cls._ensure_conf().update_config(config)
 
     @classmethod
     def add_bin(cls, bin_dir=None):
         if bin_dir:
-            cls.conf.bin_dirs.append(bin_dir)
+            cls._ensure_conf()._bin_dirs.append(bin_dir)
         cls.init_bin()
 
     @classmethod
@@ -80,36 +144,39 @@ class Context(metaclass=ContextType):
             if isdir(dirname(logfile)):
                 handler = logging.FileHandler(logfile, mode='a')
                 handler.setFormatter(Formatter())
-                cls.log.addHandler(handler)
+                cls._ensure_log().addHandler(handler)
 
     @classmethod
     def init_arg(cls, args=None):
         if not args:
             return
-        if isinstance(args, argparse.ArgumentParser):  # parser
+        # detect ArgumentParser without importing argparse eagerly
+        from argparse import ArgumentParser
+        if isinstance(args, ArgumentParser):
             _args, _ = args.parse_known_args()
             if hasattr(_args, "config") and _args.config and isfile(_args.config):
                 cls.add_config(_args.config)
         elif hasattr(args, "config") and args.config and isfile(args.config):
             cls.add_config(args.config)
         cls._args = args
-        cls.conf.update_args(args)
+        cls._ensure_conf().update_args(args)
 
     @classmethod
     def init_log(cls, logfile=None, name=__package__, level="info"):
-        cls.log = getlog(logfile=logfile, level=level, name=name)
-        if cls.conf.args.get("debug"):
-            cls.log.setLevel(logging.DEBUG)
-        if cls.conf.args.get("quiet"):
-            logging.disable()
+        cls._log = getlog(logfile=logfile, level=level, name=name)
+        conf = cls._ensure_conf()
+        if conf.args.get("debug"):
+            cls._log.setLevel(logging.DEBUG)
+        if conf.args.get("quiet"):
+            cls._log.setLevel(logging.CRITICAL)
 
     @classmethod
     def init_bin(cls):
-        cls.conf.update_executable_bin()
+        cls._ensure_conf().update_executable_bin()
 
     @classmethod
     def init_all(cls, args=None, conf=None, init_bin=False, app=__package__):
-        cls.conf = load_config(app=app)
+        cls._conf = load_config(app=app)
         cls.init_arg(args)
         cls.init_log(name=app)
         cls.add_path()
@@ -120,39 +187,52 @@ class Context(metaclass=ContextType):
     Initial = init_all
 
     @classmethod
-    def init(cls,  *cf, init_bin=False, args=None, app=__package__, **kw):
+    def init(cls, *cf, init_bin=False, args=None, app=__package__, **kw):
         cls(*cf, init_bin=init_bin, args=args, app=app, **kw)
 
+    # ── attribute delegation ────────────────────────────────────────
+
     def __getattr__(self, attr):
-        '''get instance attribute'''
-        return self.__dict__.get(attr, self.conf.__getitem__(attr))
+        """Delegate unknown attributes to conf.
+
+        Private / dunder attrs (``_*``, ``__*__``) are resolved via
+        ``__dict__`` only — they never fall through to config lookup.
+        """
+        try:
+            return self.__dict__[attr]
+        except KeyError:
+            if attr.startswith('_'):
+                raise AttributeError(attr)
+            return self.conf[attr]
 
     def __setattr__(self, key, value):
-        '''set instance attribute'''
         self.conf.__setitem__(key, value)
 
     __getitem__ = __getattr__
-
     __setitem__ = __setattr__
 
 
+# singleton convenience instance
 context = Context()
 
 
 class debug(object):
+    """Decorator / descriptor that temporarily elevates the context logger
+    to DEBUG level for the duration of the wrapped call."""
 
     def __init__(self, func):
         wraps(func)(self)
 
-    def __call__(self, *args, **kwargs):  # wrapper function
-        level = context.log.level
+    def __call__(self, *args, **kwargs):
+        logger = context.log
+        prev_level = logger.level
         try:
-            context.log.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
             return self.__wrapped__(*args, **kwargs)
         finally:
-            context.log.setLevel(level)
+            logger.setLevel(prev_level)
 
-    def __get__(self, instance, cls):  # wrapper instance method
+    def __get__(self, instance, cls):
         if instance is None:
             return self
         return types.MethodType(self, instance)
