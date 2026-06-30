@@ -302,6 +302,8 @@ class Job(Jobutils):
         """Parse -c/-m/-q/-l flags from sched_options value."""
         self.sched_options = value
         self.cpu, self.mem = 1, 1
+        if not value:
+            return
         args = self.sched_options.split()
         for n, i in enumerate(args[:]):
             if n + 1 >= len(args):
@@ -656,6 +658,8 @@ class Jobfile(object):
                     for ef in extra_flag:
                         if ef.endswith(".value"):
                             ef_ = ef[:-6]
+                            if ef_ not in self.envs:
+                                continue
                             ef_v = self.envs[ef_][extend_detail[ef_]]
                         else:
                             try:
