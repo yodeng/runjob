@@ -84,9 +84,7 @@ class Dict(AttrDict):
             df = self.__dict__["_default"](name)
             if df is not None:
                 return df
-            d = Dict()
-            super(Dict, self).__setitem__(name, d)
-            return d
+            return _LazyDict(self, name)
 
     __getattr__ = __getitem__
 
@@ -102,6 +100,29 @@ class Dict(AttrDict):
         if isinstance(value, dict):
             value = Dict(value)
         return super(Dict, self).__setitem__(key, value)
+
+    __setattr__ = __setitem__
+
+
+class _LazyDict(Dict):
+    """Dict that defers insertion into its parent until the first write."""
+
+    __slots__ = ('_parent', '_key', '_attached')
+
+    def __init__(self, parent, key):
+        super().__init__()
+        object.__setattr__(self, '_parent', parent)
+        object.__setattr__(self, '_key', key)
+        object.__setattr__(self, '_attached', False)
+
+    def _attach(self):
+        if not self._attached:
+            super(Dict, self._parent).__setitem__(self._key, self)
+            object.__setattr__(self, '_attached', True)
+
+    def __setitem__(self, key, value):
+        self._attach()
+        super().__setitem__(key, value)
 
     __setattr__ = __setitem__
 
