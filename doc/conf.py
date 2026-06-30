@@ -16,29 +16,24 @@
 
 
 # -- Project information -----------------------------------------------------
-import runjob
-import recommonmark
 
 project = 'runjob'
-copyright = '2021-2022, yodeng'
+copyright = '2021-2026, yodeng'
 author = 'yodeng'
 
 # The full version, including alpha/beta/rc tags
-release = 'v%s' % runjob.__version__
+release = 'v2.12.0'
 
 
 # -- General configuration ---------------------------------------------------
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-# ones.
 extensions = [
-    'recommonmark',
-    'sphinx_markdown_tables',
+    'myst_parser',
 ]
 
-source_parsers = {
-    '.md': 'recommonmark.parser.CommonMarkParser',
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
 }
 
 # Add any paths that contain templates here, relative to this directory.
