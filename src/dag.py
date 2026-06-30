@@ -219,16 +219,15 @@ class DAG(object):
         ]
         edges = [edge_markup(*i) for i in sorted([(ids[node], ids[dep]) for node, deps in self.graph.items()
                                                   for dep in deps if deps], key=lambda x: (x[1], x[0]))]
-        return dedent(
-            """\
-            digraph {name} {{
+        items = "\n".join(nodes + edges)
+        return dedent(f"""\
+            digraph {__package__}_dag {{
                 graph[bgcolor=white, margin=0];
                 node[shape=box, style=rounded, fontname=sans, fontsize=10, penwidth=1];
                 edge[penwidth=1, color=grey];
             {items}
             }}\
-            """
-        ).format(name=f"{__package__}_dag", items="\n".join(nodes + edges))
+            """)
 
     def copy(self):
         dag = self.__class__()

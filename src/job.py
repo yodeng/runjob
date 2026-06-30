@@ -65,47 +65,34 @@ class Jobutils(object):
                 raw_cmd = "/bin/bash -euo pipefail " + runfile
         if sleep_sec > 0:
             raw_cmd = f"sleep {sleep_sec} && " + raw_cmd
-        self.cmd = "(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
-                   "({1}) && " \
-                   "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
-                   "(echo [`date +'%F %T'`] ERROR && rm -fr {0}.run && touch {0}.error && exit 1)".format(
-                       self.stat_file, raw_cmd.strip())
+        sf = self.stat_file
+        rc = raw_cmd.strip()
+        self.cmd = (f"(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING... && rm -fr {sf}.submit && touch {sf}.run || true) && "
+                    f"({rc}) && "
+                    f"(echo [`date +'%F %T'`] SUCCESS && rm -fr {sf}.run && touch {sf}.success || true) || "
+                    f"(echo [`date +'%F %T'`] ERROR && rm -fr {sf}.run && touch {sf}.error && exit 1)")
         if self.subtimes > 0:
             self.cmd = self.cmd.replace("RUNNING", r"RUNNING \(re-submit\)")
 
     def qsub_cmd(self, mem=1, cpu=1):
-        cmd = 'echo "{cmd}" | qsub -V -wd {workdir} -N {name} -o {logfile} -j y -l vf={mem},p={cpu} -S /bin/bash'
         if str(mem).isdigit():
             mem = str(mem) + "g"
-        cmd = cmd.format(
-            cmd=self.cmd,
-            workdir=self.workdir,
-            name=self.jobpidname,
-            logfile=self.logfile,
-            mem=mem.lower(),
-            cpu=cpu,
-        )
-        return cmd
+        return (f'echo "{self.cmd}" | qsub -V -wd {self.workdir} -N {self.jobpidname} '
+                f'-o {self.logfile} -j y -l vf={mem.lower()},p={cpu} -S /bin/bash')
 
     def sbatch_header(self, mem=1, cpu=1):
-        headers = textwrap.dedent('''
-            #!/bin/bash
-
-            #SBATCH --job-name={name}
-            #SBATCH --ntasks-per-node={cpu}
-            #SBATCH --mem={mem}
-            #SBATCH --open-mode=append
-            #SBATCH --output={logfile}
-            #SBATCH --error={logfile}
-            ''').lstrip()
         if str(mem).isdigit():
             mem = str(mem) + "G"
-        return headers.format(
-            name=self.jobpidname,
-            logfile=self.logfile,
-            mem=mem.upper(),
-            cpu=cpu,
-        )
+        return textwrap.dedent(f'''
+            #!/bin/bash
+
+            #SBATCH --job-name={self.jobpidname}
+            #SBATCH --ntasks-per-node={cpu}
+            #SBATCH --mem={mem.upper()}
+            #SBATCH --open-mode=append
+            #SBATCH --output={self.logfile}
+            #SBATCH --error={self.logfile}
+            ''').lstrip()
 
     def update_queue(self, queue=None):
         if queue:
@@ -162,16 +149,6 @@ class Jobutils(object):
         '''
         if str(mem).isdigit():
             mem = str(mem) + "g"
-        job = textwrap.dedent('''
-        job_begin
-            name {name}
-            host {host}
-            sched_options{queue} -l vf={mem},p={cpu}
-            cmd_begin
-                {cmd}
-            cmd_end
-        job_end
-        ''').strip()
         if not cmd or not name:
             raise JobError("cmd and name required")
         if queue:
@@ -180,8 +157,16 @@ class Jobutils(object):
             queue = ""
         if isinstance(cmd, (list, tuple)):
             cmd = ("\n" + " "*8).join(cmd)
-        job = job.format(cmd=cmd.strip(), name=name, host=host,
-                         mem=mem.upper(), cpu=cpu, queue=queue)
+        job = textwrap.dedent(f'''
+        job_begin
+            name {name}
+            host {host}
+            sched_options{queue} -l vf={mem.upper()},p={cpu}
+            cmd_begin
+                {cmd.strip()}
+            cmd_end
+        job_end
+        ''').strip()
         return job+"\n"
 
     def log_to_file(self, info=None):
@@ -256,10 +241,10 @@ class Job(Jobutils):
         self._path = self.jobfile._path
         name = self.jobfile.name
         self.linenum = linenum + 1
-        self.jobname = self.name = name + "_%05d" % self.linenum
+        self.jobname = self.name = f"{name}_{self.linenum:05d}"
         prefix = self.jobfile.temp and name or basename(self._path)
         self.logfile = join(
-            self.logdir, prefix + "_%05d.log" % self.linenum)
+            self.logdir, f"{prefix}_{self.linenum:05d}.log")
         self.host = self.jobfile.mode
         self.cmd0 = cmd
         self.workdir = abspath(self.jobfile.workdir)
