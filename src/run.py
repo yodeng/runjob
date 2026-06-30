@@ -392,7 +392,7 @@ class RunJob(object):
                 jb.set_status(js)
                 if not self.signaled:
                     self.log_status(jb)
-            self.adjust_jobsgraph(jb, js)
+            self._on_job_status_change(jb, js)
 
     def send_status(self, name, status):
         self._status_queue.put((name, status))
@@ -468,9 +468,9 @@ class RunJob(object):
                             "check job status error: %s", jb.name)
                         self.logger.exception(e)
                         continue
-                    self.adjust_jobsgraph(jb, js)
+                    self._on_job_status_change(jb, js)
 
-    def adjust_jobsgraph(self, jb, js):
+    def _on_job_status_change(self, jb, js):
         if js == "success":
             self.deletejob(jb)
             self.jobqueue.get(jb)
