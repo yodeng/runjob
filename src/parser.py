@@ -209,7 +209,7 @@ def backend_parser(parser):
     backend_args = parser.add_mutually_exclusive_group(required=False)
     for backend in BACKEND:
         backend_args.add_argument(f"--{backend}", default=False, action="store_true",
-                                  help="submit jobs to {0} backend".format(backend))
+                                  help=f"submit jobs to {backend} backend")
 
 
 def batch_parser(parser):

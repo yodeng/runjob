@@ -96,8 +96,7 @@ class JobFailedError(Exception):
         fj = self.failed_jobs
         fj_names = [j.jobname for j in fj]
         fj_logs = [j.logfile for j in fj]
-        s = "{} jobs {} failed, please check in logs: {}".format(
-            len(fj), fj_names, fj_logs)
+        s = f"{len(fj)} jobs {fj_names} failed, please check in logs: {fj_logs}"
         return style(s, fore="red", mode="bold")
 
 
@@ -152,7 +151,8 @@ class JobQueue(Queue):
         return item in self._queue
 
     def __str__(self):
-        return '%s([%s])' % (self.__class__.__name__, ', '.join(map(repr, self._queue)))
+        items = ', '.join(map(repr, self._queue))
+        return f'{self.__class__.__name__}([{items}])'
 
     __repr__ = __str__
 
@@ -264,13 +264,13 @@ class DummyFile(object):
 
 
 def style(string, mode='', fore='', back=''):
-    mode = '%s' % STYLE["mode"].get(mode, "")
-    fore = '%s' % STYLE['fore'].get(fore, "")
-    back = '%s' % STYLE['back'].get(back, "")
+    mode = f'{STYLE["mode"].get(mode, "")}'
+    fore = f'{STYLE["fore"].get(fore, "")}'
+    back = f'{STYLE["back"].get(back, "")}'
     style = ';'.join([s for s in [mode, fore, back] if s])
-    style = '\033[%sm' % style if style else ''
-    end = '\033[%sm' % STYLE['default']['end'] if style else ''
-    return '%s%s%s' % (style, string, end)
+    style = f'\033[{style}m' if style else ''
+    end = f'\033[{STYLE["default"]["end"]}m' if style else ''
+    return f'{style}{string}{end}'
 
 
 REQUIRED = style("(required)", fore="green", mode="bold")
@@ -313,11 +313,11 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
             try_num += 1
             try:
                 if try_num > 1:
-                    log.warning("retry %s", try_num-1)
+                    log.warning(f"retry {try_num-1}")
                 res = func(*args, **kwargs)
             except Exception as e:
                 if try_num > 1:
-                    log.error("retry %s error, %s", try_num-1, e)
+                    log.error(f"retry {try_num-1} error, {e}")
                 else:
                     log.error(e)
                 if try_num <= max_num:
@@ -385,9 +385,9 @@ def human_size(num, deg=1024):
     deg = float(deg)
     for unit in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
         if abs(num) < deg:
-            return "%3.1f%s" % (num, unit)
+            return f"{num:3.1f}{unit}"
         num /= deg
-    return "%.1f%s" % (num, 'Y')
+    return f'{num:.1f}Y'
 
 
 def human_size_parse(size):
@@ -407,7 +407,7 @@ def human_size_parse(size):
 def seconds2human(s):
     m, s = divmod(s, 60)
     h, m = divmod(int(m), 60)
-    return "{:d}:{:02d}:{:04.2f}".format(h, m, s)
+    return f"{h:d}:{m:02d}:{s:04.2f}"
 
 
 def human2seconds(time_str):
@@ -731,13 +731,14 @@ class OrderedSet(OrderedDict, MutableSet):
         return all(i == j for i, j in zip(self, other))
 
     def __repr__(self):
-        return '%s([%s])' % (self.__class__.__name__, ', '.join(map(repr, self.keys())))
+        items = ', '.join(map(repr, self.keys()))
+        return f'{self.__class__.__name__}([{items}])'
 
     __str__ = __repr__
 
 
 def exception_hook(et, ev, eb):
-    err = '{0}: {1}'.format(et.__name__, ev)
+    err = f'{et.__name__}: {ev}'
     print(style(err, fore="red", mode="bold"))
 
 

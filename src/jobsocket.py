@@ -34,16 +34,14 @@ class JobSocket(object):
         else:
             self.socket.bind((self._host or "", self._port))
             self._host, self._port = self.socket.getsockname()
-            self.logger.debug("start runjob server %s:%s",
-                              self._host, self._port)
+            self.logger.debug(f"start runjob server {self._host}:{self._port}")
         self.socket.listen(5)
         while True:
             conn, _ = self.socket.accept()
             data = conn.recv(chunk)
             if data and "-" in data.decode():
                 name, status = data.decode().split("-")
-                self.logger.debug(
-                    "Recived data <- name: %s, status: %s", name, status)
+                self.logger.debug(f"Recived data <- name: {name}, status: {status}")
                 if self.queue:
                     self.queue.put((name, status))
             conn.close()
@@ -56,12 +54,12 @@ class JobSocket(object):
         try:
             self.socket.connect(addr)
         except (ConnectionRefusedError, TypeError) as e:
-            self.logger.error("connect %s refused", addr)
+            self.logger.error(f"connect {addr} refused")
             return
         else:
-            self.logger.debug("connect %s success", addr)
+            self.logger.debug(f"connect {addr} success")
         self.socket.send(data.encode())
-        self.logger.debug("Send data -> '%s' success", data)
+        self.logger.debug(f"Send data -> '{data}' success")
 
     def close(self):
         self.socket.close()
@@ -97,7 +95,7 @@ def listen_job_status(sfile=None, queue=None, host=None, port=None):
 
 def send_job_status(sfile, name, status, **kwargs):
     js = JobSocket(socket_file=sfile, **kwargs)
-    data = "{}-{}".format(name, status)
+    data = f"{name}-{status}"
     js.send(data)
     js.socket.close()
 

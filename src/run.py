@@ -106,7 +106,7 @@ class RunJob(object):
         self._default_slurm_node = context.default_slurm_node and safe_cycle(
             context.default_slurm_node) or None
         self._status_socket_file = join(
-            self.logdir, ".{}.{}.socket".format(os.getpid(), __package__))
+            self.logdir, f".{os.getpid()}.{__package__}.socket")
 
     def _init(self):
         self.totaljobdict = {j.jobname: j for j in self.jobs}
@@ -176,8 +176,7 @@ class RunJob(object):
                         self.__make_groups(wait_groups[n:n + jb.groups])
                         i = jb.groups + n
                     else:
-                        self.throw('groups conflict in "%s" line number %d: "%s"' % (self.jpath,
-                                                                                     jb.linenum, jb.cmd0))
+                        self.throw(f'groups conflict in "{self.jpath}" line number {jb.linenum}: "{jb.cmd0}"')
                 elif n >= i and (n - i) % self.groups == 0:
                     gs = []
                     for j in wait_groups[n:n + self.groups]:
@@ -218,13 +217,13 @@ class RunJob(object):
                     job.status = "wait"
                 elif hasattr(job, "logcmd") and job.logcmd.strip() != job.raw_cmd.strip():
                     self.logger.info(
-                        "job %s status already success, but raw command changed, will re-running", job.jobname)
+                        f"job {job.jobname} status already success, but raw command changed, will re-running")
                     os.remove(lf)
                     job.status = "wait"
                 else:
                     if self.conf.force or getattr(job, "force", False):
                         self.logger.info(
-                            "job %s status already success, but force to re-running", job.jobname)
+                            f"job {job.jobname} status already success, but force to re-running")
                         os.remove(lf)
                         job.status = "wait"
                     else:
@@ -246,7 +245,7 @@ class RunJob(object):
         if cmd:
             if name in self.totaljobdict:
                 job = self.totaljobdict[name]
-                return self.logger.error("job name '%s': ('%s') exists", name, job.cmd0)
+                return self.logger.error(f"job name '{name}': ('{job.cmd0}') exists")
             job = Job(self.conf)
             job = job.from_cmd(self.jfile, linenum=-1, cmd=cmd)
             job.to_local(jobname=name, removelog=False)
@@ -258,7 +257,7 @@ class RunJob(object):
                 self.jobs.append(job)
                 edge = (lambda j: (j, name))
             else:
-                return self.logger.error("init or callback flag error: %s", flag)
+                return self.logger.error(f"init or callback flag error: {flag}")
             nodes = self.jobsgraph.ind_nodes()
             self.jobsgraph.add_node_if_not_exists(job.jobname)
             for j in nodes:
@@ -267,9 +266,9 @@ class RunJob(object):
     def log_status(self, job):
         name = job.jobname
         if name in self.batch_jobid:
-            name += " (job-id: {})".format(self.batch_jobid[name])
+            name += f" (job-id: {self.batch_jobid[name]})"
         elif name in self.localprocess:
-            name += " (pid: {})".format(self.localprocess[name].pid)
+            name += f" (pid: {self.localprocess[name].pid})"
         if job.is_fail:
             level = "error"
         elif job.status == "resubmit":
@@ -277,7 +276,7 @@ class RunJob(object):
         else:
             level = "info"
         if not job.is_wait:
-            getattr(self.logger, level)("job %s status %s", name, job.status)
+            getattr(self.logger, level)(f"job {name} status {job.status}")
 
     def jobstatus(self, job):
         jobname = job.jobname
@@ -320,11 +319,11 @@ class RunJob(object):
                     jobid = self.batch_jobid.get(jobname, jobname)
                     try:
                         info = check_output(
-                            "qstat -j %s" % jobid, stderr=PIPE, shell=True)
+                            f"qstat -j {jobid}", stderr=PIPE, shell=True)
                         info = info.decode().strip().split("\n")[-1]
                         if info.startswith("error") or ("error" in info and "Job is in error" in info):
                             self.logger.debug(
-                                "batch job {} (job-id: {}) schedule error".format(jobname, jobid))
+                                f"batch job {jobname} (job-id: {jobid}) schedule error")
                             status = "error"
                     except BlockingIOError as e:
                         raise e
@@ -338,10 +337,10 @@ class RunJob(object):
                     jobid = self.batch_jobid.get(jobname, jobname)
                     try:
                         info = check_output(
-                            "scontrol show job %s" % jobid, stderr=PIPE, shell=True)
+                            f"scontrol show job {jobid}", stderr=PIPE, shell=True)
                         if "Command=(null)" in info.decode():
                             self.logger.debug(
-                                "batch job {} (job-id: {}) schedule error".format(jobname, jobid))
+                                f"batch job {jobname} (job-id: {jobid}) schedule error")
                             status = "error"
                     except BlockingIOError as e:
                         raise e
@@ -371,7 +370,7 @@ class RunJob(object):
                 job.logcmd = job.logcmd.strip()
         if status == "run" and job.is_end and self.is_run and self.submited:
             status = job.status
-        self.logger.debug("job %s status %s", jobname, status)
+        self.logger.debug(f"job {jobname} status {status}")
         if status != job.status and self.is_run and self.submited and job.submited:
             if status == "run":
                 job.run_time = now(1)
@@ -462,11 +461,11 @@ class RunJob(object):
                         js = self.jobstatus(jb)
                     except BlockingIOError as e:
                         self.logger.warning(
-                            "check job status blocking: %s, %s", jb.name, e)
+                            f"check job status blocking: {jb.name}, {e}")
                         continue
                     except Exception as e:
                         self.logger.error(
-                            "check job status error: %s", jb.name)
+                            f"check job status error: {jb.name}")
                         self.logger.exception(e)
                         continue
                     self._on_job_status_change(jb, js)
@@ -483,8 +482,7 @@ class RunJob(object):
             if not jb.timeout:
                 if jb.subtimes >= self.times + 1:
                     if self.abort_on_error:
-                        self.throw("Error jobs return (submit %d times), %s" % (
-                            jb.subtimes, jb.logfile))
+                        self.throw(f"Error jobs return (submit {jb.subtimes} times), {jb.logfile}")
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(
                         jb.jobname)
@@ -498,8 +496,7 @@ class RunJob(object):
                     jb.max_timeout_retry -= 1
                 else:
                     if self.abort_on_error:
-                        self.throw("Error jobs return (submit %d times), %s" % (
-                            jb.subtimes, jb.logfile))
+                        self.throw(f"Error jobs return (submit {jb.subtimes} times), {jb.logfile}")
                     self.jobqueue.get(jb)
                     self.jobsgraph.delete_node_if_exists(
                         jb.jobname)
@@ -508,7 +505,7 @@ class RunJob(object):
             self.jobqueue.get(jb)
             self.jobsgraph.delete_node_if_exists(jb.jobname)
             if self.abort_on_error:
-                self.throw("Error job: %s, exit" % jb.jobname)
+                self.throw(f"Error job: {jb.jobname}, exit")
         elif js in ["run", "submit", "resubmit"]:
             _now = now(1)
             if _now - jb.submit_time > jb.max_wait_sec or \
@@ -519,7 +516,7 @@ class RunJob(object):
                 jb.status = "error"
                 jb.log_to_file("Timeout ERROR")
                 self.logger.error(
-                    "job %s status timeout %s", jb.jobname, jb.status)
+                    f"job {jb.jobname} status timeout {jb.status}")
 
     def qdel(self, jobname=""):
         self._qdel(jobname)
@@ -646,8 +643,8 @@ class RunJob(object):
                 headers = job.sbatch_header(jobmem, jobcpu)
                 job.update_queue(self.queue)
                 job.queue = job.queue or context.default_slurm_queue
-                headers += "#SBATCH --partition={0}\n".format(
-                    ",".join(sorted(job.queue)))
+                partition = ",".join(sorted(job.queue))
+                headers += f"#SBATCH --partition={partition}\n"
                 headers += self.node_select(job)
                 cmd = headers+"\n"+job.cmd
                 job.batch_sub_cmd = cmd
@@ -659,7 +656,7 @@ class RunJob(object):
                 logcmd.write(output)
             self.log_status(job)
             job.subtimes += 1
-            self.logger.debug("%s job submit %s times", job.name, job.subtimes)
+            self.logger.debug(f"{job.name} job submit {job.subtimes} times")
         job.submited = True
         self.submited = True
 
@@ -675,7 +672,7 @@ class RunJob(object):
                 nodelist = sorted(set(self.node))
             if nodelist:
                 cmd_or_header += " " + \
-                    " ".join(["-l hostname={}".format(node)
+                    " ".join([f"-l hostname={node}"
                              for node in nodelist])
         elif job.host == "slurm":
             if job.node:
@@ -687,9 +684,9 @@ class RunJob(object):
             elif not self.node and self._default_slurm_node and context.conf.round_node:
                 nodelist = [next(self._default_slurm_node), ]
             if nodelist:
-                cmd_or_header += "#SBATCH --nodelist={0}\n".format(
-                    ",".join(nodelist))
-                cmd_or_header += "#SBATCH --nodes={}\n".format(len(nodelist))
+                nodelist_str = ",".join(nodelist)
+                cmd_or_header += f"#SBATCH --nodelist={nodelist_str}\n"
+                cmd_or_header += f"#SBATCH --nodes={len(nodelist)}\n"
             else:
                 cmd_or_header += "#SBATCH --nodes=1\n"
         return cmd_or_header
@@ -716,7 +713,7 @@ class RunJob(object):
         if self.is_run:
             return self.logger.warning("not allowed for job has run")
         elif len(self.jobsgraph.graph) == 0:
-            return self.logger.warning("no jobs produced in '%s'", self.jobfile)
+            return self.logger.warning(f"no jobs produced in '{self.jobfile}'")
         elif self.conf.rget("args", "dag_extend"):
             print(self.jobsgraph.dot(self._job2rule))
             sys.exit()
@@ -726,13 +723,13 @@ class RunJob(object):
         self.run_time_stamp = now(1)
         self.times = max(0, self.retry)
         self.retry_sec = max(self.retry_sec, 0)
-        self.logger.info("Total jobs to submit: %s" %
-                         ", ".join([j.name for j in sorted(self.jobs)]))
+        names = ", ".join([j.name for j in sorted(self.jobs)])
+        self.logger.info(f"Total jobs to submit: {names}")
         mkdir(self.logdir, self.workdir)
-        self.logger.info("All logs can be found in %s directory", self.logdir)
+        self.logger.info(f"All logs can be found in {self.logdir} directory")
         self.check_already_success()
         for jn in self.has_success:
-            self.logger.info("job %s status already success", jn.name)
+            self.logger.info(f"job {jn.name} status already success")
         self.is_run = True
         if len(self.jobsgraph.graph) == 0:
             return self.logger.warning("no jobs need to submit")
@@ -833,10 +830,9 @@ class RunJob(object):
         wt_jobs = sum(j.is_wait for j in self.jobs)
         total_jobs = len(self.jobs) + len(self.has_success)
         sub_jobs = len(self.jobs) - wt_jobs
-        sum_info = "All jobs (total: %d, submited: %d, success: %d, fail: %d, wait: %d) " % (
-            total_jobs, sub_jobs, suc_jobs, fail_jobs, wt_jobs)
+        sum_info = f"All jobs (total: {total_jobs}, submited: {sub_jobs}, success: {suc_jobs}, fail: {fail_jobs}, wait: {wt_jobs}) "
         if hasattr(self, "jfile") and not self.jfile.temp:
-            sum_info += "in file '%s' " % abspath(self.jpath)
+            sum_info += f"in file '{abspath(self.jpath)}' "
         self.writestates(join(self.logdir, "run_log.json"), **{"totals": total_jobs, "already success": len(
             self.has_success), "submited": sub_jobs, "success": suc_jobs, "fail": fail_jobs, "wait": wt_jobs})
         job_counter = str(dict(Counter([j.status for j in self.jobs])))
@@ -931,4 +927,5 @@ class RunFlow(RunJob):
         if len(self.jfile.alljobnames) != len(set(self.jfile.alljobnames)):
             names = [i for i, j in Counter(
                 self.jfile.alljobnames).items() if j > 1]
-            self.throw("duplicate job name: %s" % " ".join(names))
+            joined = " ".join(names)
+            self.throw(f"duplicate job name: {joined}")

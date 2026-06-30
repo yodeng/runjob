@@ -34,7 +34,7 @@ class Conf(configparser.ConfigParser):
 class AttrDict(dict):
 
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, dict.__repr__(self))
+        return f"{self.__class__.__name__}({dict.__repr__(self)})"
 
     def __setitem__(self, key, value):
         return super(AttrDict, self).__setitem__(key, value)
@@ -74,8 +74,7 @@ class Dict(AttrDict):
         self.__dict__["_default"] = which
 
     def __repr__(self):
-        return "%s(%s, %r)" % (self.__class__.__name__, dict.__repr__(self),
-                               self.__dict__["_default"])
+        return f"{self.__class__.__name__}({dict.__repr__(self)}, {self.__dict__['_default']!r})"
 
     def __getitem__(self, name):
         try:
@@ -147,7 +146,7 @@ class configValue(object):
         self._src = src
 
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, self._value.__repr__())
+        return f"{self.__class__.__name__}({self._value.__repr__()})"
 
     __str__ = __repr__
 
@@ -431,7 +430,7 @@ class Config(Dict):
     __delattr__ = __delitem__
 
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, self.to_dict())
+        return f"{self.__class__.__name__}({self.to_dict()})"
 
     __str__ = __repr__
 
@@ -444,8 +443,8 @@ load_config = Config.load
 
 def hide_key(s):
     if len(s) > 6:
-        return "%s******%s" % (s[:3], s[-3:])
+        return f"{s[:3]}******{s[-3:]}"
     elif len(s) > 1:
-        return "%s*****" % s[:1]
+        return f"{s[:1]}*****"
     else:
         return "******"

@@ -19,7 +19,7 @@ class DAG(object):
         if not graph:
             graph = self.graph
         if node_name in graph:
-            raise KeyError('node %s already exists' % node_name)
+            raise KeyError(f'node {node_name} already exists')
         self.all_nodes.add(node_name)
         graph[node_name] = set()
 
@@ -33,12 +33,12 @@ class DAG(object):
         if not graph:
             graph = self.graph
             if node_name not in graph:
-                raise KeyError('node %s does not exist' % node_name)
+                raise KeyError(f'node {node_name} does not exist')
             graph.pop(node_name)
             self.all_nodes.remove(node_name)
         else:
             if node_name not in graph:
-                raise KeyError('node %s does not exist' % node_name)
+                raise KeyError(f'node {node_name} does not exist')
             graph.pop(node_name)
         for node, edges in graph.items():
             if node_name in edges:
@@ -48,7 +48,7 @@ class DAG(object):
         if not graph:
             graph = self.graph
         if node_name not in graph:
-            raise KeyError('node %s does not exist' % node_name)
+            raise KeyError(f'node {node_name} does not exist')
         self.all_nodes.remove(node_name)
         self.add_node_if_not_exists(new_name)
         edges = graph.pop(node_name)
@@ -88,7 +88,7 @@ class DAG(object):
         if graph is None:
             graph = self.graph
         if node not in graph:
-            raise KeyError('node %s is not in graph' % node)
+            raise KeyError(f'node {node} is not in graph')
         return list(graph[node])
 
     def all_downstreams(self, node, graph=None):
@@ -203,7 +203,7 @@ class DAG(object):
                      for node in all_nodes}
         rules = sorted(set(node2rule.values()))
         rulecolor = {
-            rule: "{:.2f} 0.6 0.85".format(i * huefactor)
+            rule: f"{i * huefactor:.2f} 0.6 0.85"
             for i, rule in enumerate(rules)
         }
         node_markup = '\t{}[label = "{}", color = "{}", style="{}"];'.format
@@ -228,7 +228,7 @@ class DAG(object):
             {items}
             }}\
             """
-        ).format(name=__package__ + "_dag", items="\n".join(nodes + edges))
+        ).format(name=f"{__package__}_dag", items="\n".join(nodes + edges))
 
     def copy(self):
         dag = self.__class__()

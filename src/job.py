@@ -53,9 +53,9 @@ class Jobutils(object):
         raw_cmd = self.raw_cmd
         if self.groups and self.groups > 1 and len(self.raw_cmd.split("\n")) > 1:
             if not groupsh:
-                raw_cmd = "/bin/bash -euo pipefail -c " + \
-                    "'%s'" % "; ".join([i.strip()
-                                        for i in self.raw_cmd.strip().split("\n") if i.strip()])
+                joined = "; ".join([i.strip()
+                                    for i in self.raw_cmd.strip().split("\n") if i.strip()])
+                raw_cmd = f"/bin/bash -euo pipefail -c '{joined}'"
             else:
                 runfile = self.stat_file+".run"
                 mkdir(dirname(runfile))
@@ -64,7 +64,7 @@ class Jobutils(object):
                     fo.write(self.raw_cmd + "\n")
                 raw_cmd = "/bin/bash -euo pipefail " + runfile
         if sleep_sec > 0:
-            raw_cmd = "sleep %d && " % sleep_sec + raw_cmd
+            raw_cmd = f"sleep {sleep_sec} && " + raw_cmd
         self.cmd = "(echo [`date +'%F %T'`] `whoami`@`hostname`:`pwd` RUNNING... && rm -fr {0}.submit && touch {0}.run || true) && " \
                    "({1}) && " \
                    "(echo [`date +'%F %T'`] SUCCESS && rm -fr {0}.run && touch {0}.success || true) || " \
@@ -143,7 +143,7 @@ class Jobutils(object):
         return self.name == other.name
 
     def __repr__(self):
-        return '%s("%s")' % (self.__class__.__name__, self.name)
+        return f'{self.__class__.__name__}("{self.name}")'
 
     __str__ = __repr__
 
@@ -187,8 +187,7 @@ class Jobutils(object):
     def log_to_file(self, info=None):
         if info:
             with open(self.logfile, "a") as fo:
-                s = "[{0}] {1}".format(
-                    datetime.today().strftime("%F %X"), info)
+                s = f'[{datetime.today().strftime("%F %X")}] {info}'
                 fo.write(s.strip()+"\n")
                 fo.flush()
 
@@ -247,7 +246,7 @@ class Job(Jobutils):
         self.logfile = join(self.logdir, self.name + ".log")
         self.raw2cmd()
         self.jobname = self.name
-        self.jobpidname = self.jobname + "_%d" % os.getpid()
+        self.jobpidname = f"{self.jobname}_{os.getpid()}"
         return self
 
     def from_cmd(self, sgefile, linenum=None, cmd=None):
@@ -266,7 +265,7 @@ class Job(Jobutils):
         self.workdir = abspath(self.jobfile.workdir)
         self._get_cmd(cmd)
         self.raw2cmd()
-        self.jobpidname = name + "_%d_%05d" % (os.getpid(), self.linenum)
+        self.jobpidname = f"{name}_{os.getpid()}_{self.linenum:05d}"
         return self
 
     def from_task(self, jobfile, tasks=None):
@@ -280,10 +279,10 @@ class Job(Jobutils):
             name = tasks[0].strip(":").strip()
             if name in self.jobfile.totaljobs:
                 raise KeyError(
-                    "duplicate job name '{}': {}".format(name, tasks))
+                    f"duplicate job name '{name}': {tasks}")
             elif re.search(r"\s", name):
                 raise KeyError(
-                    "no space allowed in jobname: '{}'".format(name))
+                    f"no space allowed in jobname: '{name}'")
             self.name = name
         for n, c in enumerate(cmds[::-1]):
             self._get_cmd(c)
@@ -295,7 +294,7 @@ class Job(Jobutils):
         self.logfile = join(self.logdir, self.name + ".log")
         self.raw2cmd()
         self.jobname = self.name
-        self.jobpidname = self.jobname + "_%d" % os.getpid()
+        self.jobpidname = f"{self.jobname}_{os.getpid()}"
         return self
 
     def _parse_sched_options(self, value):
@@ -347,7 +346,7 @@ class Job(Jobutils):
             elif re.match(r"names?[\s:]", j):
                 name = re.sub(r"\s+", "_", value)
                 if name.lower() == "none":
-                    raise JobError("None name in %s" % j)
+                    raise JobError(f"None name in {j}")
                 self.name = name
             elif re.match(r"status?[\s:]", j):
                 self.status = value
@@ -387,14 +386,14 @@ class Job(Jobutils):
                 self._parse_timeout_config(j, value)
             elif no_begin and not j.strip().endswith(":"):
                 if ":" in j and len(list(filter(None, re.split(r"[\s:]", j)))) == 2:
-                    raise JobError("unrecognized job define: '{}'".format(j))
+                    raise JobError(f"unrecognized job define: '{j}'")
                 cmds.append(line.rstrip())
             else:
                 raise JobError(
-                    "unrecognized line error: {} {}".format(j, lines))
+                    f"unrecognized line error: {j} {lines}")
         cmds = list(filter(None, cmds))
         if not len(cmds):
-            raise JobError("No cmd in %s job" % self.name)
+            raise JobError(f"No cmd in {self.name} job")
         if self.host not in BACKEND:
             self.host = "sge"
         if self.host == "sge" and not self.jobfile.has_sge:
@@ -453,7 +452,7 @@ class Job(Jobutils):
         self.host = "localhost"
         self.name = self.jobname = jobname
         self.logfile = join(self.logdir, basename(
-            self._path) + "_%s.log" % jobname)
+            self._path) + f"_{jobname}.log")
         if removelog and isfile(self.logfile):
             os.remove(self.logfile)
         self.raw_cmd = self.cmd0.rstrip()
@@ -487,8 +486,7 @@ class Jobfile(object):
         if not mode or mode not in BACKEND:
             mode = default_backend()
         if isinstance(jobfile, (tuple, list)):
-            self.temp = TempFile(prefix=".{}_".format(
-                __package__), dir=self.workdir)
+            self.temp = TempFile(prefix=f".{__package__}_", dir=self.workdir)
             mkdir(self.workdir)
             with open(self.temp.name, "w") as fo:
                 for line in jobfile:
@@ -497,7 +495,7 @@ class Jobfile(object):
         self._path = abspath(jobfile)
         self._path_context = []
         if not exists(self._path):
-            raise IOError("No such file: %s" % self._path)
+            raise IOError(f"No such file: {self._path}")
         self._pathdir = self.temp and self.workdir or dirname(self._path)
         self.logdir = config and config.logdir or join(self.workdir, "logs")
         self.mode = mode or "sge"
@@ -745,7 +743,7 @@ class Jobfile(object):
                 kv = kv.split("=")
                 k, v = kv[0].strip(), kv[-1].strip()
                 if k in out:
-                    raise JobError("dup key '{}' in '{}'".format(k, value))
+                    raise JobError(f"dup key '{k}' in '{value}'")
                 out[k] = v
         return out
 
@@ -769,13 +767,13 @@ class Jobfile(object):
                         re_match = [s for s in names if re.search(n, s)]
                     except:
                         raise JobOrderError(
-                            "no depends named '{}' in job '{}'".format(n, k))
+                            f"no depends named '{n}' in job '{k}'")
                     if re_match and match_name:
                         v.update(re_match)
                         v.remove(n)
                     else:
                         raise JobOrderError(
-                            "no depends named '{}' in job '{}'".format(n, k))
+                            f"no depends named '{n}' in job '{k}'")
 
 
 class Shellfile(Jobfile):
@@ -789,7 +787,7 @@ class Shellfile(Jobfile):
                 self.logdir = join(self.workdir, __package__ + "_log_dir")
             else:
                 self.logdir = join(
-                    self.workdir, __package__ + "_%s_log_dir" % basename(self._path))
+                    self.workdir, f"{__package__}_{basename(self._path)}_log_dir")
         else:
             self.logdir = abspath(logdir)
         if not name:

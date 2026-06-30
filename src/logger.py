@@ -72,7 +72,7 @@ class Formatter(logging.Formatter):
 
     @staticmethod
     def _color(mode=0, fore=30):
-        return '\x1b[%sm\x1b[%sm' % (mode, fore)
+        return f'\x1b[{mode}m\x1b[{fore}m'
 
     def format(self, record):
         formatter = self._format_cache.get(record.levelno)

@@ -44,10 +44,9 @@ def execute(parser):
         if args.logdir:
             args.logdir = join(args.workdir, args.logdir)
         elif isinstance(args.jobfile, list):
-            args.logdir = join(args.workdir, "{}_log_dir".format(parser.prog))
+            args.logdir = join(args.workdir, f"{parser.prog}_log_dir")
         else:
-            args.logdir = join(args.workdir, "{}_{}_log_dir".format(
-                parser.prog, basename(args.jobfile)))
+            args.logdir = join(args.workdir, f"{parser.prog}_{basename(args.jobfile)}_log_dir")
     job = job_cls(config=context.conf)
     try:
         job.run()

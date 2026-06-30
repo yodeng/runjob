@@ -4,7 +4,7 @@
 '''
 query local/sge/slurm jobs.
 
-Usage: 
+Usage:
     qs [jobfile|logdir|logfile]
     qslurm
 '''
@@ -42,8 +42,7 @@ def qs():
             j = j.split()
             jobs.setdefault(j[3], defaultdict(int))[j[4]] += 1
         print(style("-"*47, mode="bold"))
-        print(style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
-            "user", "jobs", "run", "queue"), mode="bold"))
+        print(style(f'{"user":<20} {"jobs":>8} {"run":>8} {"queue":>8}', mode="bold"))
         print(style("-"*47, mode="bold"))
         for u in sorted(jobs.items(), key=lambda x: sum(x[1].values()), reverse=True):
             user = u[0]
@@ -51,11 +50,9 @@ def qs():
             run = u[1]["r"]
             qw = u[1]["qw"]
             if user == username:
-                print(style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
-                    user, job, run, qw), fore="red", mode="bold"))
+                print(style(f'{user:<20} {job:>8} {run:>8} {qw:>8}', fore="red", mode="bold"))
             else:
-                print(style("{0:<20} {1:>8} {2:>8} {3:>8}".format(
-                    user, job, run, qw)))
+                print(style(f'{user:<20} {job:>8} {run:>8} {qw:>8}'))
         print(style("-"*47, mode="bold"))
     elif is_slurm_host():
         qslurm()
@@ -83,8 +80,7 @@ def qs():
             except:
                 continue
         print(style("-"*70, mode="bold"))
-        print(style("{0:<20} {1:>7} {2:>5} {3:>5} {4:>5} {5:>5} {6:>8} {7:>8}".format(
-            "user", "process", "R", "S", "D", "Z", "RES(G)", "VIRT(G)"), mode="bold"))
+        print(style(f'{"user":<20} {"process":>7} {"R":>5} {"S":>5} {"D":>5} {"Z":>5} {"RES(G)":>8} {"VIRT(G)":>8}', mode="bold"))
         print(style("-"*70, mode="bold"))
         for u in sorted(jobs.items(), key=lambda x: sum(x[1].values()), reverse=True):
             user = u[0]
@@ -94,20 +90,21 @@ def qs():
             vms = int(
                 round(int(mem[user].get("vms", 0)/1024.0/1024.0/1024.0), 4))
             if user == username:
-                print(style("{0:<20} {1:>7} {2:>5} {3:>5} {4:>5} {5:>5} {6:>8} {7:>8}".format(user, job, u[1].get("running", 0), u[1].get(
-                    "sleeping", 0), u[1].get("disk-sleep", 0), u[1].get("zombie", 0), res, vms), fore="red", mode="bold"))
+                print(style(f'{user:<20} {job:>7} {u[1].get("running", 0):>5} {u[1].get("sleeping", 0):>5} '
+                            f'{u[1].get("disk-sleep", 0):>5} {u[1].get("zombie", 0):>5} {res:>8} {vms:>8}',
+                            fore="red", mode="bold"))
             else:
-                printstr = style("{0:<20} {1:>7} ".format(user, job))
+                printstr = style(f'{user:<20} {job:>7} ')
                 nums = [u[1].get("running", 0), u[1].get("sleeping", 0), u[1].get(
                     "disk-sleep", 0), u[1].get("zombie", 0)]
                 for i in nums:
                     if i >= 10:
-                        printstr += style("{:>5} ".format(i),
+                        printstr += style(f'{i:>5} ',
                                           fore="red", mode="bold")
                     else:
-                        printstr += style("{:>5} ".format(i))
-                printstr += style("{:>8} ".format(res)) + \
-                    style("{:>8} ".format(vms))
+                        printstr += style(f'{i:>5} ')
+                printstr += style(f'{res:>8} ') + \
+                    style(f'{vms:>8} ')
                 print(printstr.rstrip())
         print(style("-"*70, mode="bold"))
 
@@ -154,29 +151,27 @@ def qs():
 
                 submit = sum([len(i) for i in stat2.values()])
                 print(style("-"*47, mode="bold"))
-                print(style("{0:<20} {1:>5}".format("submitted:", submit)))
+                print(style(f'{"submitted:":<20} {submit:>5}'))
                 for k, v in stat2.items():
                     num = len(v)
                     if k in ["success", "already success"]:
-                        out_line = style("{0:<20} {1:>5}".format(k+":", num))
+                        out_line = style(f'{k+":":<20} {num:>5}')
                     elif k == "error":
-                        out_line = style("{0:<20} {1:>5}".format(
-                            "error:", num), mode="bold", fore="red")
+                        out_line = style(f'{"error:":<20} {num:>5}', mode="bold", fore="red")
                     else:
-                        out_line = style("{0:<20} {1:>5}".format(k + ":", num))
+                        out_line = style(f'{k+":":<20} {num:>5}')
                     if num < 5 or k not in ["success", "already success"]:
-                        out_line += "  {}".format(", ".join(v))
+                        out_line += f"  {', '.join(v)}"
                     print(out_line)
                 wait = sorted(set(alljobnames) - set(stat.keys()))
-                print(style("{0:<20} {1:>5} ".format(
-                    "wait:", len(wait)), ", ".join(wait)))
+                print(style(f'{"wait:":<20} {len(wait):>5} ', ", ".join(wait)))
                 print(style("-"*47, mode="bold"))
                 return
 
         elif isdir(jobfile):
             logdir = abspath(jobfile)
         else:
-            raise IOError("No such file or directory %s." % jobfile)
+            raise IOError(f"No such file or directory {jobfile}.")
 
         if not isdir(logdir):
             return
@@ -216,16 +211,13 @@ def qs():
         # running = jobs[username]["r"] + jobs[username]["qw"] if username in jobs else 0
         running = submit - len(success) - len(error)
         print(style("-"*47, mode="bold"))
-        print(style("{0:<20} {1:>5}".format("submitted:", submit)))
-        print(style("{0:<20} {1:>5}".format(
-            "runing/queue/exit:", running)))
-        print(style("{0:<20} {1:>5}".format("success:", len(success))))
-        print(style("{0:<20} {1:>5}".format(
-            "error:", len(error)), mode="bold", fore="red"))
+        print(style(f'{"submitted:":<20} {submit:>5}'))
+        print(style(f'{"runing/queue/exit:":<20} {running:>5}'))
+        print(style(f'{"success:":<20} {len(success):>5}'))
+        print(style(f'{"error:":<20} {len(error):>5}', mode="bold", fore="red"))
         if isfile(jobfile):
             if len(norun):
-                print(style("{0:<20} {1:>5}".format(
-                    "wait:", len(norun))), ", ".join(norun))
+                print(style(f'{"wait:":<20} {len(norun):>5}'), ", ".join(norun))
         print(style("-"*47, mode="bold"))
         # if len(success) + len(error) + running < submit:
         #    print style("{0} {1}".format("Warning:","some tasks may submite, but not running!" ), mode="bold", fore="red")
@@ -242,8 +234,7 @@ def qslurm():
         j = j.split()
         jobs.setdefault(j[3], defaultdict(int))[j[4]] += 1
     print(style("-"*55, mode="bold"))
-    print(style("{0:<20} {1:>16} {2:>8} {3:>8}".format(
-        "user", "jobs(slurm)", "run", "queue"), mode="bold"))
+    print(style(f'{"user":<20} {"jobs(slurm)":>16} {"run":>8} {"queue":>8}', mode="bold"))
     print(style("-"*55, mode="bold"))
     for u in sorted(jobs.items(), key=lambda x: sum(x[1].values()), reverse=True):
         '''
@@ -263,9 +254,7 @@ def qslurm():
         run = u[1]["R"]
         qw = u[1]["PD"]
         if user == username:
-            print(style("{0:<20} {1:>16} {2:>8} {3:>8}".format(
-                user, job, run, qw), fore="red", mode="bold"))
+            print(style(f'{user:<20} {job:>16} {run:>8} {qw:>8}', fore="red", mode="bold"))
         else:
-            print(style("{0:<20} {1:>16} {2:>8} {3:>8}".format(
-                user, job, run, qw)))
+            print(style(f'{user:<20} {job:>16} {run:>8} {qw:>8}'))
     print(style("-"*55, mode="bold"))

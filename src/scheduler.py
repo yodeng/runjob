@@ -34,7 +34,7 @@ class ScheduleJob(metaclass=SingletonType):
                 job_id=None, name=None, seconds=10, **trigger_args):
         # func can be wrapped with try ... exception ...
         jid = job_id or func.__name__
-        jname = "task_{}".format(jid) if name is None else name
+        jname = f"task_{jid}" if name is None else name
         self.scheduler.add_job(
             func,
             trigger=trigger,  # date, interval, cron
