@@ -76,9 +76,11 @@ def max_runtime(seconds=sys.maxsize):
             if seconds < sys.maxsize:
                 signal.signal(signal.SIGALRM, runtime_exceeded)
                 signal.alarm(seconds)
-            res = func(*args, **kwargs)
-            if seconds < sys.maxsize:
-                signal.alarm(0)
+            try:
+                res = func(*args, **kwargs)
+            finally:
+                if seconds < sys.maxsize:
+                    signal.alarm(0)
             return res
         return _run
     return wrap
