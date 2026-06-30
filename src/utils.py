@@ -57,7 +57,7 @@ NOT_ALPHA_DIGIT = re.compile("[^0-9A-Za-z]")
 SBATCH_JOB_ID_DECODER = re.compile(r"Submitted batch job (\d+)")
 QSUB_JOB_ID_DECODER = re.compile(r"Your job (\d+) \(.+?\) has been submitted")
 TIMEDELTA_REGEX = re.compile(r'^((?P<weeks>[\.\d]+?)w)? *'
-                             r'^((?P<days>[\.\d]+?)d)? *'
+                             r'((?P<days>[\.\d]+?)d)? *'
                              r'((?P<hours>[\.\d]+?)h)? *'
                              r'((?P<minutes>[\.\d]+?)m)? *'
                              r'((?P<seconds>[\.\d]+?)s?)?$', re.IGNORECASE)
@@ -412,10 +412,17 @@ def seconds2human(s):
 
 def human2seconds(time_str):
     "valid strings: '8h', '2d 8h 5m 2s', '2m4.3s'"
+    if time_str is None:
+        return sys.maxsize
     parts = TIMEDELTA_REGEX.match(str(time_str))
-    time_params = {name: float(param)
-                   for name, param in parts.groupdict().items() if param}
-    return int(sum(MULTIPLIERS[k]*v for k, v in time_params.items()))
+    if parts is None:
+        return sys.maxsize
+    try:
+        time_params = {name: float(param)
+                       for name, param in parts.groupdict().items() if param}
+        return int(sum(MULTIPLIERS[k]*v for k, v in time_params.items()))
+    except (ValueError, TypeError):
+        return sys.maxsize
 
 
 def nestdict():
