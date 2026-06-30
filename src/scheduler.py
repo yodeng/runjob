@@ -1,15 +1,13 @@
 import threading
 
-from pytz import timezone
+from .utils import SingletonType
 
 try:
     from apscheduler.jobstores.memory import MemoryJobStore
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
-except:
+except ImportError:
     pass
-
-from .utils import SingletonType
 
 
 class ScheduleJob(metaclass=SingletonType):
@@ -30,18 +28,18 @@ class ScheduleJob(metaclass=SingletonType):
             jobstores={"default": jobstores},
             executors=executors,
             job_defaults=job_defaults,
-            timezone=timezone('Asia/Shanghai')
         )
 
-    def add_job(self, func, trigger="interval", args=None, kwargs=None, job_id=None, name=None, seconds=10, **trigger_args):
+    def add_job(self, func, trigger="interval", args=None, kwargs=None,
+                job_id=None, name=None, seconds=10, **trigger_args):
         # func can be wrapped with try ... exception ...
         jid = job_id or func.__name__
-        jname = f"task_{jid}"
+        jname = "task_{}".format(jid) if name is None else name
         self.scheduler.add_job(
             func,
-            trigger=trigger,  # date,interval,cron
-            args=args,  # list|tuple of func args
-            kwargs=kwargs,  # dict of func kwargs
+            trigger=trigger,  # date, interval, cron
+            args=args,        # list|tuple of func args
+            kwargs=kwargs,    # dict of func kwargs
             id=job_id or jid,
             name=name or jname,
             seconds=seconds,
