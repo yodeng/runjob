@@ -32,10 +32,14 @@ class DAG(object):
     def delete_node(self, node_name, graph=None):
         if not graph:
             graph = self.graph
-        if node_name not in graph:
-            raise KeyError('node %s does not exist' % node_name)
-        graph.pop(node_name)
-        self.all_nodes.remove(node_name)
+            if node_name not in graph:
+                raise KeyError('node %s does not exist' % node_name)
+            graph.pop(node_name)
+            self.all_nodes.remove(node_name)
+        else:
+            if node_name not in graph:
+                raise KeyError('node %s does not exist' % node_name)
+            graph.pop(node_name)
         for node, edges in graph.items():
             if node_name in edges:
                 edges.remove(node_name)
