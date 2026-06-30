@@ -9,8 +9,12 @@ from ._version import __version__
 
 try:
     from rich_argparse import RichHelpFormatter as HelpFormatter
+
+    _HAS_RICH_ARGPARSE = True
 except ImportError:
     from argparse import HelpFormatter
+
+    _HAS_RICH_ARGPARSE = False
 
 
 class CustomHelpFormatter(HelpFormatter):
@@ -121,8 +125,21 @@ def show_config(p):
 
 
 def color_description(parser):
-    parser.description = style(
-        parser.description, fore="red", mode="underline")
+    """Apply red+underline style to the parser description.
+
+    Uses Rich markup when rich_argparse is active (so RichHelpFormatter
+    preserves the style across line wraps), and raw ANSI escapes otherwise.
+    """
+    if _HAS_RICH_ARGPARSE:
+        parser.description = (
+            f"[underline][red]{parser.description}[/red][/underline]"
+        )
+    else:
+        # Apply ANSI styling per-line so explicit newlines don't drop color.
+        parser.description = "\n".join(
+            style(line, fore="red", mode="underline")
+            for line in parser.description.split("\n")
+        )
 
 
 def rate_parser(p):
@@ -249,7 +266,7 @@ def flow_parser():
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
-    parser.add_argument('-i', '--injname', help="run only job names matching these glob patterns (default: all)",
+    parser.add_argument('-i', '--match', help="run only job names matching these glob patterns (default: all)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-L", "--logdir", type=str,
                         help="directory for job log output (default: <workdir>/logs)", metavar="<logdir>")

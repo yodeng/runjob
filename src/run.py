@@ -865,7 +865,7 @@ class RunFlow(RunJob):
                        config=config)
 
     def _parse_jobfile(self, config):
-        self.jfile.parse_jobs(config.injname, config.start or 1, config.end)
+        self.jfile.parse_jobs(config.match, config.start or 1, config.end)
 
     def _init_name(self):
         return os.getpid()
@@ -907,7 +907,7 @@ class RunFlow(RunJob):
     def reset(self):
         self.jfile = jfile = Jobfile(self.jobfile, mode=self.mode)
         self.jfile.parse_jobs(
-            self.conf.injname, self.conf.start or 1, self.conf.end)
+            self.conf.match, self.conf.start or 1, self.conf.end)
         self.jobs = self.jfile.jobs
         self._init()
         self.reseted = True
