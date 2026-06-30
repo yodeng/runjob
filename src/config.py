@@ -110,7 +110,7 @@ class _LazyDict(Dict):
     __slots__ = ('_parent', '_key', '_attached')
 
     def __init__(self, parent, key):
-        super().__init__()
+        dict.__init__(self)
         object.__setattr__(self, '_parent', parent)
         object.__setattr__(self, '_key', key)
         object.__setattr__(self, '_attached', False)
