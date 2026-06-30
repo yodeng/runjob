@@ -134,10 +134,9 @@ class RunJob(object):
         self.init_time_stamp = now(1)
 
     def reset(self):
-        self.jfile = Shellfile(self.jobfile, mode=self.mode, name=self.name,
-                               logdir=self.logdir, workdir=self.workdir)
-        self.jfile.parse_jobs(
-            start=self.conf.start or 1, end=self.conf.end)
+        self.jfile = self._create_jobfile(self.conf)
+        self.logdir = self.jfile.logdir
+        self._parse_jobfile(self.conf)
         self.jobs = self.jfile.jobs
         self._init()
         self.reseted = True
