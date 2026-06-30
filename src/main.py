@@ -9,11 +9,23 @@ from .context import context
 from .run import RunJob, RunFlow
 from .parser import flow_parser, job_parser, init_parser
 
+# ── explicit job-class registry (avoids fragile globals() lookups) ──
+_JOB_REGISTRY = {
+    "RunJob":  RunJob,
+    "RunFlow": RunFlow,
+}
+
+
+def _resolve_job_class(func_name):
+    """Return the job class for *func_name*, or None."""
+    return _JOB_REGISTRY.get(func_name)
+
 
 def execute(parser):
     init_parser(parser)
     args = context.args
-    if not globals().get(args.func):
+    job_cls = _resolve_job_class(args.func)
+    if job_cls is None:
         return
     for backend in BACKEND:
         if getattr(args, backend, None):
@@ -36,15 +48,13 @@ def execute(parser):
         else:
             args.logdir = join(args.workdir, "{}_{}_log_dir".format(
                 parser.prog, basename(args.jobfile)))
-    job = globals()[args.func](config=context.conf)
+    job = job_cls(config=context.conf)
     try:
         job.run()
     except (JobFailedError, RunJobError) as e:
         if args.quiet:
-            raise e
+            raise
         parser.exit(10)
-    except Exception as e:
-        raise e
 
 
 def entry_exec():
