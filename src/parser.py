@@ -126,7 +126,7 @@ def color_description(parser):
 
 
 def rate_parser(p):
-    rate_args = p.add_argument_group("rate arguments", "submission rate limiting and retry controls")
+    rate_args = p.add_argument_group("rate arguments — submission rate limiting and retry controls")
     rate_args.add_argument('-r', '--retry', help="retry failed jobs N times (0 to disable)",
                            type=int, default=0, metavar="<int>")
     rate_args.add_argument('-R', '--retry-sec', help="wait N seconds before retrying a failed job",
@@ -139,7 +139,7 @@ def rate_parser(p):
 
 def default_parser():
     p = argparse.ArgumentParser(add_help=False)
-    base = p.add_argument_group("base arguments", "core options for job submission and execution control")
+    base = p.add_argument_group("base arguments — core options for job submission and execution control")
     base.add_argument('-v', '--version',
                       action='version', version="v" + __version__)
     base.add_argument("-j", "--jobfile", type=argparse.FileType('r'), default=sys.stdin,
@@ -178,7 +178,7 @@ def default_parser():
 
 
 def timeout_parser(parser):
-    time_args = parser.add_argument_group("time arguments", "per-job timeout thresholds and retry limits")
+    time_args = parser.add_argument_group("time arguments — per-job timeout thresholds and retry limits")
     time_args.add_argument('--max-queue-time', help="max time in queue before timeout, e.g. 2h (default: no limit)",
                            type=str, metavar="<float/str>")
     time_args.add_argument('--max-run-time', help="max running time before timeout, e.g. 8h (default: no limit)",
@@ -197,7 +197,7 @@ def backend_parser(parser):
 
 
 def batch_parser(parser):
-    batch = parser.add_argument_group("resource arguments", "CPU, memory and node allocation for cluster backends (sge/slurm)")
+    batch = parser.add_argument_group("resource arguments — CPU, memory and node allocation for cluster backends (sge/slurm)")
     batch.add_argument("-q", "--queue", type=str, help="target queue or partition, space-separated (default: all)",
                        nargs="*", metavar="<queue>")
     batch.add_argument("-c", "--cpu", type=int,
