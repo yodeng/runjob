@@ -71,10 +71,12 @@ def max_runtime(seconds=sys.maxsize):
         @wraps(func)
         def _run(*args, **kwargs):
             # if wraped instance method, add self as first argument
-            signal.signal(signal.SIGALRM, runtime_exceeded)
-            signal.alarm(seconds)
+            if seconds < sys.maxsize:
+                signal.signal(signal.SIGALRM, runtime_exceeded)
+                signal.alarm(seconds)
             res = func(*args, **kwargs)
-            signal.alarm(0)
+            if seconds < sys.maxsize:
+                signal.alarm(0)
             return res
         return _run
     return wrap
@@ -114,5 +116,6 @@ def set_memory(size=-1):
 
 
 def set_runtime(seconds=sys.maxsize):
-    signal.signal(signal.SIGALRM, runtime_exceeded)
-    signal.alarm(seconds)
+    if seconds < sys.maxsize:
+        signal.signal(signal.SIGALRM, runtime_exceeded)
+        signal.alarm(seconds)

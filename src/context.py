@@ -11,7 +11,7 @@ from os.path import isfile, isdir, join, dirname, abspath
 
 from .utils import mkdir
 from .config import load_config
-from .loger import getlog, Formatter
+from .logger import getlog, Formatter
 
 
 class ContextType(type):

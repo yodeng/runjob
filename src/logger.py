@@ -25,7 +25,7 @@ class Logger(object):
             handler.setFormatter(Formatter())
             logger.handlers = [handler, ]
 
-    def diasble_logger(self, name="all"):
+    def disable_logger(self, name="all"):
         names = self.logs.keys() if name == "all" else [name, ]
         for log_name in names:
             self.set_logger(logging.CRITICAL, log_name)

@@ -48,7 +48,7 @@ from os.path import (
     expanduser,
 )
 
-from .loger import *
+from .logger import *
 from .limiter import *
 
 BACKEND = ["local", "localhost", "sge", "slurm"]
