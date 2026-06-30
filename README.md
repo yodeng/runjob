@@ -411,7 +411,7 @@ echo runjob // -m 2G -c 2 --local
 runjob/
 ├── src/
 │   ├── __init__.py       # Package entry, exports public API
-│   ├── _version.py       # Version (v2.12.0)
+│   ├── _version.py       # Version (v2.12.1)
 │   ├── main.py           # CLI entry point dispatcher (entry_exec)
 │   ├── run.py            # Core engine: RunJob (Shell format) / RunFlow (Flow/Job format)
 │   ├── job.py            # Job object model: Job / Jobfile / Shellfile

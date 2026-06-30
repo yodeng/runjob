@@ -411,7 +411,7 @@ echo runjob // -m 2G -c 2 --local
 runjob/
 ├── src/
 │   ├── __init__.py       # 包入口，导出公共 API
-│   ├── _version.py       # 版本号 (v2.12.0)
+│   ├── _version.py       # 版本号 (v2.12.1)
 │   ├── main.py           # 命令行入口分发（entry_exec）
 │   ├── run.py            # 核心引擎：RunJob（Shell 格式）/ RunFlow（Flow/Job 格式）
 │   ├── job.py            # 任务对象模型：Job / Jobfile / Shellfile

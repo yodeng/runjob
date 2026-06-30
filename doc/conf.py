@@ -22,7 +22,7 @@ copyright = '2021-2026, yodeng'
 author = 'yodeng'
 
 # The full version, including alpha/beta/rc tags
-release = 'v2.12.0'
+release = 'v2.12.1'
 
 
 # -- General configuration ---------------------------------------------------
