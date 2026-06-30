@@ -688,6 +688,8 @@ class OrderedSet(OrderedDict, MutableSet):
         return all(e in other for e in self) and self != other
 
     def __eq__(self, other):
+        if len(self) != len(other):
+            return False
         return all(i == j for i, j in zip(self, other))
 
     def __repr__(self):

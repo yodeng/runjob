@@ -110,7 +110,7 @@ class JsonEncoder(json.JSONEncoder):
 
     def default(self, field):
         try:
-            serializa = json.JSONEncoder.default(self, field)
+            return json.JSONEncoder.default(self, field)
         except TypeError:
             return str(field)
 
