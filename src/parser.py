@@ -213,6 +213,10 @@ def job_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — run parallel tasks from a shell file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
+        epilog="examples:\n"
+               "  %(prog)s -j cmds.sh                    # submit every line as a job\n"
+               "  %(prog)s -j cmds.sh -g 5               # group every 5 lines into one job\n"
+               "  %(prog)s -j cmds.sh -n 10 -c 4 -m 8G   # at most 10 parallel, 4 CPUs, 8G memory each",
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -236,6 +240,10 @@ def flow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — run parallel tasks from a job/flow file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
+        epilog="examples:\n"
+               "  %(prog)s -j jobs.flow                  # submit all jobs respecting dependencies\n"
+               "  %(prog)s -j jobs.flow -i step1 step2   # run only the named jobs\n"
+               "  %(prog)s -j jobs.flow --dag            # print the dependency graph and exit",
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -256,7 +264,10 @@ def shell_job_parser(arglist):
 
 def server_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s — job status server (Unix/TCP socket).",
+        description="%(prog)s — start a job status server that listens on a Unix or TCP socket.",
+        epilog="examples:\n"
+               "  %(prog)s -f /tmp/runjob.sock           # listen on a Unix socket\n"
+               "  %(prog)s -H 0.0.0.0 -P 9999            # listen on a TCP port",
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
@@ -271,7 +282,10 @@ def server_parser():
 
 def client_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s — send job status updates (Unix/TCP socket).",
+        description="%(prog)s — send a job status update to a running runjob-server.",
+        epilog="examples:\n"
+               "  %(prog)s -f /tmp/runjob.sock -n myjob -s success\n"
+               "  %(prog)s -H localhost -P 9999 -n myjob -s error",
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
