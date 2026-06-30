@@ -537,24 +537,46 @@ def canonicalize(path):
     return abspath(expanduser(path))
 
 
+_is_sge_submit_cache = None
+
+
 def is_sge_submit():
+    global _is_sge_submit_cache
+    if _is_sge_submit_cache is not None:
+        return _is_sge_submit_cache
     if os.getenv("SGE_ROOT") and which("qconf"):
         hostname = splitext(socket.gethostname())[0]
         try:
             with os.popen("qconf -ss") as fi:
                 for line in fi:
                     if line.strip() == hostname or splitext(line.strip())[0] == hostname:
+                        _is_sge_submit_cache = True
                         return True
         except:
+            _is_sge_submit_cache = False
             return False
+    _is_sge_submit_cache = False
     return False
 
 
+_is_slurm_host_cache = None
+
+
 def is_slurm_host():
-    return which("sinfo") and which("sbatch") and which("scancel")
+    global _is_slurm_host_cache
+    if _is_slurm_host_cache is not None:
+        return _is_slurm_host_cache
+    _is_slurm_host_cache = bool(which("sinfo") and which("sbatch") and which("scancel"))
+    return _is_slurm_host_cache
+
+
+_default_slurm_queue_cache = None
 
 
 def default_slurm_queue():
+    global _default_slurm_queue_cache
+    if _default_slurm_queue_cache is not None:
+        return _default_slurm_queue_cache
     q = None
     if which("sinfo"):
         try:
@@ -562,10 +584,17 @@ def default_slurm_queue():
                 q = sorted(set([i.strip("*") for i in fi.read().split()]))
         except:
             pass
+    _default_slurm_queue_cache = q
     return q
 
 
+_default_slurm_node_cache = None
+
+
 def default_slurm_node():
+    global _default_slurm_node_cache
+    if _default_slurm_node_cache is not None:
+        return _default_slurm_node_cache
     node = None
     if which("sinfo"):
         try:
@@ -573,6 +602,7 @@ def default_slurm_node():
                 node = sorted(set([i.strip("*") for i in fi.read().split()]))
         except:
             pass
+    _default_slurm_node_cache = node
     return node
 
 
@@ -825,20 +855,26 @@ def converter(in_str):
     return out
 
 
-def common_substring(l):
-    table = []
-    for s in l:
-        # adds in table all substrings of s - duplicate substrings in s are added only once
-        table += set(s[j:k] for j in range(len(s))
-                     for k in range(j+1, len(s)+1))
-    # sort substrings by length (descending)
-    table = sorted(table, key=lambda x: -len(x))
-    # get the position of duplicates and get the first one (longest)
-    duplicates = [i for i, x in enumerate(table) if table.count(x) == len(l)]
-    if len(duplicates) > 0:
-        return table[duplicates[0]]
-    else:
+def common_substring(strings):
+    """Find the longest common substring among all strings.
+
+    Uses a greedy search from the shortest string: tries substrings from
+    longest to shortest, returning the first that appears in all strings.
+    """
+    if not strings:
         return ""
+    if len(strings) == 1:
+        return strings[0]
+    shortest = min(strings, key=len)
+    for length in range(len(shortest), 0, -1):
+        seen = set()
+        for i in range(len(shortest) - length + 1):
+            sub = shortest[i:i + length]
+            if sub not in seen:
+                seen.add(sub)
+                if all(sub in s for s in strings):
+                    return sub
+    return ""
 
 
 def get_common_suffpref(l, order=1):
