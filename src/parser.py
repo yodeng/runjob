@@ -126,13 +126,13 @@ def color_description(parser):
 
 def rate_parser(p):
     rate_args = p.add_argument_group("rate arguments")
-    rate_args.add_argument('-r', '--retry', help="retry N times of the error job, 0 or minus means do not re-submit.",
+    rate_args.add_argument('-r', '--retry', help="retry failed jobs N times (0 to disable)",
                            type=int, default=0, metavar="<int>")
-    rate_args.add_argument('-R', '--retry-sec', help="retry the error job after N seconds.",
+    rate_args.add_argument('-R', '--retry-sec', help="wait N seconds before retrying a failed job",
                            type=int, default=2, metavar="<int>")
-    rate_args.add_argument('--max-check', help="maximal number of job status checks per second, fractions allowed.",
+    rate_args.add_argument('--max-check', help="max job status checks per second",
                            type=float, default=DEFAULT_MAX_CHECK_PER_SEC, metavar="<float>")
-    rate_args.add_argument('--max-submit', help="maximal number of jobs submited per second, fractions allowed.",
+    rate_args.add_argument('--max-submit', help="max job submissions per second",
                            type=float, default=DEFAULT_MAX_SUBMIT_PER_SEC, metavar="<float>")
 
 
@@ -142,33 +142,33 @@ def default_parser():
     base.add_argument('-v', '--version',
                       action='version', version="v" + __version__)
     base.add_argument("-j", "--jobfile", type=argparse.FileType('r'), default=sys.stdin,
-                      help="input jobfile, if empty, stdin is used. " + REQUIRED, metavar="<jobfile>")
+                      help="job file to read; reads from stdin if not specified " + REQUIRED, metavar="<jobfile>")
     base.add_argument("-n", "--num", type=int,
-                      help="the max job number runing at the same time. (default: all of the jobfile, max 1000)", metavar="<int>")
+                      help="max concurrent jobs (default: all)", metavar="<int>")
     base.add_argument("-s", "--start", type=int,
-                      help="which line number (1-base) be used for the first job. (default: %(default)s)", metavar="<int>", default=1)
+                      help="process starting from this line number (1-based)", metavar="<int>", default=1)
     base.add_argument("-e", "--end", type=int,
-                      help="which line number (include) be used for the last job. (default: last line of the jobfile)", metavar="<int>")
-    base.add_argument("-w", "--workdir", type=str, help="work directory.",
+                      help="process up to this line number (inclusive)", metavar="<int>")
+    base.add_argument("-w", "--workdir", type=str, help="working directory",
                       default=abspath(os.getcwd()), metavar="<workdir>")
     base.add_argument('-d', '--debug', action='store_true',
-                      help='log debug info.', default=False)
+                      help='enable debug logging', default=False)
     base.add_argument("-l", "--log", type=str,
-                      help='append log info to file. (default: stdout)', metavar="<file>")
+                      help='write log output to file', metavar="<file>")
     base.add_argument("-f", "--force", default=False, action="store_true",
-                      help="force to submit jobs even already successed.")
+                      help="force re-submit even if jobs already succeeded")
     base.add_argument('-M', '--mode', type=str, default="auto", choices=BACKEND,
-                      help="the mode to submit your jobs, auto detect.")
+                      help="submit mode; auto-detected if not set")
     base.add_argument('--config', metavar="<configfile>",
-                      help="input configfile for configurations search.")
+                      help="path to configuration file")
     base.add_argument("--dag", action="store_true", default=False,
-                      help="do not execute anything and print the directed acyclic graph of jobs in the dot language.")
+                      help="print job DAG in DOT format and exit")
     base.add_argument("--dag-extend", action="store_true", default=False,
-                      help="do not execute anything and print the extend directed acyclic graph of jobs in the dot language.")
+                      help="print extended job DAG in DOT format and exit")
     base.add_argument("--abort-on-error", action="store_true", default=False,
-                      help="if any job fails, clean all jobs and exit.")
+                      help="stop all jobs and exit on first error")
     base.add_argument("--quiet", action="store_true", default=False,
-                      help="suppress all output and logging.")
+                      help="suppress all output and logging")
     show_config(base)
     rate_parser(p)
     timeout_parser(p)
@@ -178,13 +178,13 @@ def default_parser():
 
 def timeout_parser(parser):
     time_args = parser.add_argument_group("time arguments")
-    time_args.add_argument('--max-queue-time', help="maximal time (d/h/m/s) between submit and running per job. (default: no-limiting)",
+    time_args.add_argument('--max-queue-time', help="max time in queue before timeout (e.g. 2h, 30m)",
                            type=str, metavar="<float/str>")
-    time_args.add_argument('--max-run-time', help="maximal time (d/h/m/s) start from running per job. (default: no-limiting)",
+    time_args.add_argument('--max-run-time', help="max running time before timeout (e.g. 8h, 1d)",
                            type=str, metavar="<float/str>")
-    time_args.add_argument('--max-wait-time', help="maximal time (d/h/m/s) start from submit per job. (default: no-limiting)",
+    time_args.add_argument('--max-wait-time', help="max total wait time before timeout (e.g. 4h)",
                            type=str, metavar="<float/str>")
-    time_args.add_argument('--max-timeout-retry', help="retry N times for the timeout error job, 0 or minus means do not re-submit.",
+    time_args.add_argument('--max-timeout-retry', help="retry timed-out jobs N times (0 to disable)",
                            type=int, default=0, metavar="<int>")
 
 
@@ -192,39 +192,39 @@ def backend_parser(parser):
     backend_args = parser.add_mutually_exclusive_group(required=False)
     for backend in BACKEND:
         backend_args.add_argument("--{}".format(backend), default=False, action="store_true",
-                                  help="submit your jobs to {0}, same as '--mode {0}'.".format(backend))
+                                  help="submit jobs to {0} backend".format(backend))
 
 
 def batch_parser(parser):
     batch = parser.add_argument_group("resource arguments")
-    batch.add_argument("-q", "--queue", type=str, help="queue/partition for running, multi-queue can be sepreated by whitespace. (default: all accessed)",
+    batch.add_argument("-q", "--queue", type=str, help="target queue or partition (space-separated)",
                        nargs="*", metavar="<queue>")
     batch.add_argument("-c", "--cpu", type=int,
-                       help="max cpu number used.", default=1, metavar="<int>")
+                       help="CPUs per job", default=1, metavar="<int>")
     batch.add_argument("-m", "--memory", type=str,
-                       help="max memory used (GB).", default="1G", metavar="<int/str>")
-    batch.add_argument("--node", type=str, help="node for running, multi-node can be sepreated by whitespace. (default: all accessed)",
+                       help="memory per job (e.g. 4G, 8192M)", default="1G", metavar="<int/str>")
+    batch.add_argument("--node", type=str, help="target node(s), space-separated",
                        nargs="*", metavar="<node>")
-    batch.add_argument("--round-node", action="store_true", help="round all define node per job for load balance",
+    batch.add_argument("--round-node", action="store_true", help="round-robin nodes across jobs for load balancing",
                        default=False)
 
 
 def job_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel tasks from a specific shell file runing in {mode}.".format(
+        description="%(prog)s — run parallel tasks from a shell file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
     parser.add_argument("-N", "--jobname", type=str,
-                        help="job name. (default: basename of the jobfile)", metavar="<jobname>")
+                        help="base name for generated jobs", metavar="<jobname>")
     parser.add_argument("-L", "--logdir", type=str,
-                        help='the output log dir. (default: "%s/%s_*_log_dir")' % (os.getcwd(), "%(prog)s"), metavar="<logdir>")
+                        help="log output directory", metavar="<logdir>")
     parser.add_argument("-g", "--groups", type=int, default=1,
-                        help="N lines to consume a new job group.", metavar="<int>")
-    parser.add_argument('--init', help="command before all jobs, will be running in localhost.",
+                        help="group every N lines into a single job", metavar="<int>")
+    parser.add_argument('--init', help="command to run before all jobs (localhost)",
                         type=str,  metavar="<cmd>")
-    parser.add_argument('--callback', help="command after all jobs finished, will be running in localhost.",
+    parser.add_argument('--callback', help="command to run after all jobs finish (localhost)",
                         type=str,  metavar="<cmd>")
     batch_parser(parser)
     color_description(parser)
@@ -234,15 +234,15 @@ def job_parser():
 
 def flow_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s is a tool for managing parallel tasks from a specific job file running in {mode}.".format(
+        description="%(prog)s — run parallel tasks from a job/flow file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
-    parser.add_argument('-i', '--injname', help="job names defined to run. (default: all job names of the jobfile)",
+    parser.add_argument('-i', '--injname', help="run only these job names (glob patterns supported)",
                         nargs="*", type=str, metavar="<str>")
     parser.add_argument("-L", "--logdir", type=str,
-                        help='the output log dir. (default: join(workdir, "logs"))', metavar="<logdir>")
+                        help="log output directory", metavar="<logdir>")
     batch_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunFlow")
@@ -256,13 +256,13 @@ def shell_job_parser(arglist):
 
 def server_parser():
     parser = argparse.ArgumentParser(
-        description="job status server (file socket).",
+        description="%(prog)s — job status server (Unix/TCP socket).",
         formatter_class=CustomHelpFormatter)
-    parser.add_argument("-f", "--file", type=str, help="socket file.",
+    parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
-    parser.add_argument("-H", "--host", type=str, help="runjob server hostname or ip.",
+    parser.add_argument("-H", "--host", type=str, help="server hostname or IP address",
                         metavar="<str>")
-    parser.add_argument("-P", "--port", type=int, help="jrunjob server port.",
+    parser.add_argument("-P", "--port", type=int, help="server port",
                         metavar="<int>")
     color_description(parser)
     show_help_on_empty_command()
@@ -271,17 +271,17 @@ def server_parser():
 
 def client_parser():
     parser = argparse.ArgumentParser(
-        description="send job status (file socket).",
+        description="%(prog)s — send job status updates (Unix/TCP socket).",
         formatter_class=CustomHelpFormatter)
-    parser.add_argument("-f", "--file", type=str, help="socket file.",
+    parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
-    parser.add_argument("-H", "--host", type=str, help="runjob server hostname or ip.",
+    parser.add_argument("-H", "--host", type=str, help="server hostname or IP address",
                         default="", metavar="<str>")
-    parser.add_argument("-P", "--port", type=int, help="runjob server port.",
+    parser.add_argument("-P", "--port", type=int, help="server port",
                         metavar="<int>")
-    parser.add_argument("-n", "--name", type=str, help="job name.",
+    parser.add_argument("-n", "--name", type=str, help="job name",
                         required=True, metavar="<str>")
-    parser.add_argument("-s", "--status", type=str, help="job status.",
+    parser.add_argument("-s", "--status", type=str, help="job status",
                         required=True, metavar="<str>")
     color_description(parser)
     show_help_on_empty_command()
