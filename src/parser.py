@@ -110,22 +110,6 @@ class ShowConfigAction(argparse.Action):
                 sys.argv.remove(opt)
 
 
-def _patch_parser_help(parser):
-    """Ensure epilog line breaks are preserved (rich_argparse merges them)."""
-    base_format_help = parser.format_help
-
-    def format_help():
-        epilog = parser.epilog
-        parser.epilog = None
-        help_text = base_format_help()
-        parser.epilog = epilog
-        if epilog:
-            help_text += '\n' + epilog.replace('%(prog)s', parser.prog) + '\n'
-        return help_text
-
-    parser.format_help = format_help
-
-
 def show_help_on_empty_command():
     if len(sys.argv) == 1:
         sys.argv.append('--help')
@@ -230,11 +214,6 @@ def job_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — run parallel tasks from a shell file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
-        epilog=textwrap.dedent("""\
-            examples:
-              %(prog)s -j cmds.sh                    # submit every line as a job
-              %(prog)s -j cmds.sh -g 5               # group every 5 lines into one job
-              %(prog)s -j cmds.sh -n 10 -c 4 -m 8G   # at most 10 parallel, 4 CPUs, 8G memory each"""),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -251,7 +230,6 @@ def job_parser():
     batch_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunJob")
-    _patch_parser_help(parser)
     return parser
 
 
@@ -259,11 +237,6 @@ def flow_parser():
     parser = argparse.ArgumentParser(
         description="%(prog)s — run parallel tasks from a job/flow file on {mode}.".format(
             mode=", ".join(BACKEND[1:])),
-        epilog=textwrap.dedent("""\
-            examples:
-              %(prog)s -j jobs.flow                  # submit all jobs respecting dependencies
-              %(prog)s -j jobs.flow -i step1 step2   # run only the named jobs
-              %(prog)s -j jobs.flow --dag            # print the dependency graph and exit"""),
         parents=[default_parser()],
         formatter_class=CustomHelpFormatter,
         allow_abbrev=False)
@@ -274,7 +247,6 @@ def flow_parser():
     batch_parser(parser)
     color_description(parser)
     parser.set_defaults(func="RunFlow")
-    _patch_parser_help(parser)
     return parser
 
 
@@ -285,11 +257,7 @@ def shell_job_parser(arglist):
 
 def server_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s — start a job status server that listens on a Unix or TCP socket.",
-        epilog=textwrap.dedent("""\
-            examples:
-              %(prog)s -f /tmp/runjob.sock           # listen on a Unix socket
-              %(prog)s -H 0.0.0.0 -P 9999            # listen on a TCP port"""),
+        description="%(prog)s — job status server (Unix/TCP socket).",
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
@@ -299,17 +267,12 @@ def server_parser():
                         metavar="<int>")
     color_description(parser)
     show_help_on_empty_command()
-    _patch_parser_help(parser)
     return parser
 
 
 def client_parser():
     parser = argparse.ArgumentParser(
-        description="%(prog)s — send a job status update to a running runjob-server.",
-        epilog=textwrap.dedent("""\
-            examples:
-              %(prog)s -f /tmp/runjob.sock -n myjob -s success
-              %(prog)s -H localhost -P 9999 -n myjob -s error"""),
+        description="%(prog)s — send job status updates (Unix/TCP socket).",
         formatter_class=CustomHelpFormatter)
     parser.add_argument("-f", "--file", type=str, help="Unix socket file path",
                         metavar="<file>")
@@ -323,7 +286,6 @@ def client_parser():
                         required=True, metavar="<str>")
     color_description(parser)
     show_help_on_empty_command()
-    _patch_parser_help(parser)
     return parser
 
 
