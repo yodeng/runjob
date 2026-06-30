@@ -317,10 +317,14 @@ class Config(Dict):
 
     def update_executable_bin(self):
         '''
-        only directory join(sys.prefix, "bin") 
+        only directory join(sys.prefix, "bin")
         '''
         for bin_dir in self._bin_dirs:
-            for bin_path in os.listdir(bin_dir):
+            try:
+                entries = os.listdir(bin_dir)
+            except (FileNotFoundError, NotADirectoryError, PermissionError):
+                continue
+            for bin_path in entries:
                 exe_path = join(bin_dir, bin_path)
                 if is_exe(exe_path):
                     bin_key = bin_path.replace("-", "").replace("_", "")
