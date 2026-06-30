@@ -193,7 +193,18 @@ def qs():
             if not i.endswith("log"):
                 continue
             submit += 1
-            s = os.popen("sed -n '$p' " + i).read().strip()
+            try:
+                with open(i, 'rb') as f:
+                    f.seek(0, os.SEEK_END)
+                    size = f.tell()
+                    if size > 0:
+                        f.seek(max(size - 4096, 0))
+                        lines = f.read().decode(errors='replace').splitlines()
+                        s = lines[-1].strip() if lines else ""
+                    else:
+                        s = ""
+            except (IOError, OSError):
+                s = ""
             if s:
                 stat.append(s.split()[-1])
             else:
