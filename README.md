@@ -216,7 +216,7 @@ runflow [-h] [-v] [-j <jobfile>] [-n <int>] [-s <int>] [-e <int>] [-w <workdir>]
 
 | Argument | Description | Default |
 |----------|-------------|---------|
-| `-i, --injname` | Only run jobs matching names (regex supported) | All jobs |
+| `-i, --match` | Only run jobs matching names (glob/regex supported) | All jobs |
 | `-L, --logdir` | Log output directory | `{workdir}/logs` |
 
 #### Rate Control Arguments

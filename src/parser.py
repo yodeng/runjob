@@ -125,19 +125,18 @@ def show_config(p):
 
 
 def color_description(parser):
-    """Apply red+underline style to the parser description.
+    """Apply red style to the parser description.
 
     Uses Rich markup when rich_argparse is active (so RichHelpFormatter
     preserves the style across line wraps), and raw ANSI escapes otherwise.
     """
     if _HAS_RICH_ARGPARSE:
         parser.description = (
-            f"[underline][red]{parser.description}[/red][/underline]"
+            f"[red]{parser.description}[/red]"
         )
     else:
-        # Apply ANSI styling per-line so explicit newlines don't drop color.
         parser.description = "\n".join(
-            style(line, fore="red", mode="underline")
+            style(line, fore="red")
             for line in parser.description.split("\n")
         )
 
