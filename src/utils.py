@@ -25,7 +25,7 @@ from itertools import cycle
 from datetime import datetime
 from fractions import Fraction
 from queue import Queue, Empty
-from threading import Thread, Lock
+from threading import Thread, Lock, RLock
 from argparse import _SubParsersAction
 from importlib.metadata import distribution
 from collections.abc import MutableSet, Iterable

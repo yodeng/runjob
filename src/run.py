@@ -99,7 +99,7 @@ class RunJob(object):
         self.retry_sec = config.retry_sec or 2
         self.sec = config.sec or 2
         self._init()
-        self.lock = Lock()
+        self.lock = RLock()
         self._status_queue = Queue()
         context.default_slurm_queue = default_slurm_queue()
         context.default_slurm_node = default_slurm_node()
