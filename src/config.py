@@ -165,7 +165,8 @@ class Config(Dict):
         super(Config, self).__init__()
         self._cf = []
         self._command_line_options = {}
-        self._private_keys = ("_command_line_options",
+        self._to_dict_cache = None
+        self._private_keys = ("_command_line_options", "_to_dict_cache",
                               "_bin_dirs", "_cf", "_private_keys")
         self.bin = self.exe = self.soft = self.software
         self.database = self.db
@@ -228,6 +229,7 @@ class Config(Dict):
                     if s in self:
                         self.pop(s)
                     set_nested_value_loop(self, s, d)
+        self._invalidate_cache()
 
     def add_config(self, config):
         self.update_config(config, override=False)
@@ -249,6 +251,7 @@ class Config(Dict):
                 self["args"][k] = v
         for k, v in kwargs.items():
             self["args"][k] = v
+        self._invalidate_cache()
 
     def update_args(self, args=None):
         self.update_dict(args)
@@ -323,18 +326,26 @@ class Config(Dict):
                     bin_key = bin_path.replace("-", "").replace("_", "")
                     if not self.rget("software", bin_key):
                         self.bin[bin_key] = self.exe[bin_key] = self.soft[bin_key] = self.software[bin_key] = exe_path
+        self._invalidate_cache()
 
     @property
     def search_order(self):
         search_cf = self._cf[::-1]
         return sorted(set(search_cf), key=search_cf.index)
 
+    def _invalidate_cache(self):
+        dict.__setitem__(self, "_to_dict_cache", None)
+
     def to_json(self, *args, **kw):
         return json.dumps(self, *args, cls=JsonEncoder, **kw)
 
     def to_dict(self):
+        if self._to_dict_cache is not None:
+            return self._to_dict_cache
         d = json.loads(self.to_json())
-        return {k: v for k, v in d.items() if not (isinstance(v, dict) and not v)}
+        result = {k: v for k, v in d.items() if not (isinstance(v, dict) and not v)}
+        dict.__setitem__(self, "_to_dict_cache", result)
+        return result
 
     def keys(self):
         return self.to_dict().keys()
@@ -381,6 +392,18 @@ class Config(Dict):
         return values.get("args", values)  # args value first
 
     __getattr__ = __getitem__
+
+    def __setitem__(self, key, value):
+        self._invalidate_cache()
+        return super(Config, self).__setitem__(key, value)
+
+    __setattr__ = __setitem__
+
+    def __delitem__(self, name):
+        self._invalidate_cache()
+        return super(Config, self).__delitem__(name)
+
+    __delattr__ = __delitem__
 
     def __repr__(self):
         return "%s(%s)" % (self.__class__.__name__, self.to_dict())
