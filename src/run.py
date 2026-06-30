@@ -17,6 +17,10 @@ from .utils import *
 from .context import context
 from .jobsocket import listen_job_status
 
+# Maximum number of jobs allowed in the submission queue at any time.
+# Prevents overwhelming the scheduler with too many concurrent submissions.
+MAX_JOB_QUEUE_SIZE = 1000
+
 
 class RunJob(object):
 
@@ -108,7 +112,7 @@ class RunJob(object):
         self.sub_rate = Fraction(
             self.conf.max_submit or DEFAULT_MAX_SUBMIT_PER_SEC).limit_denominator()
         self.maxjob = int(self.maxjob or len(self.jobs))
-        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
+        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), MAX_JOB_QUEUE_SIZE))
         self.init_time_stamp = now(1)
 
     def reset(self):
@@ -901,7 +905,7 @@ class RunFlow(RunJob):
             self.conf.max_submit or DEFAULT_MAX_SUBMIT_PER_SEC).limit_denominator()
         self.batch_jobid = {}
         self.maxjob = self.maxjob or len(self.jobs)
-        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), 1000))
+        self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), MAX_JOB_QUEUE_SIZE))
 
     def reset(self):
         self.jfile = jfile = Jobfile(self.jobfile, mode=self.mode)
