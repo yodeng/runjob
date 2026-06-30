@@ -292,9 +292,19 @@ class RunJob(object):
                     status = "run"
         elif isfile(logfile):  # local submit or sge submit(not running yet)
             time.sleep(0.1)
-            with os.popen('tail -n 1 %s' % logfile) as fi:
-                sta = fi.read().strip()
-                stal = sta.split()
+            try:
+                with open(logfile, 'rb') as f:
+                    f.seek(0, os.SEEK_END)
+                    size = f.tell()
+                    if size > 0:
+                        f.seek(max(size - 4096, 0))
+                        lines = f.read().decode(errors='replace').splitlines()
+                        sta = lines[-1].strip() if lines else ""
+                    else:
+                        sta = ""
+            except (IOError, OSError):
+                sta = ""
+            stal = sta.split()
             if sta:
                 if stal[-1].upper() == "SUCCESS":
                     status = "success"
@@ -376,9 +386,9 @@ class RunJob(object):
                 continue
             jb = self.totaljobdict[name]
             if js != jb.status:
-                if status == "run":
+                if js == "run":
                     jb.run_time = now(1)
-                jb.set_status(status)
+                jb.set_status(js)
                 if not self.signaled:
                     self.log_status(jb)
             self.adjust_jobsgraph(jb, js)

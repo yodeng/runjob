@@ -735,8 +735,8 @@ def exception_hook(et, ev, eb):
 
 
 def suppress_exceptions(*expts, msg="", trace_exception=True):
-    @wraps(func)
     def outer_wrapper(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             sys.excepthook = trace_exception and sys.__excepthook__ or exception_hook
             try:
