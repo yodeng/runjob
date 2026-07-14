@@ -26,12 +26,14 @@ from .utils import (
 
 
 class Conf(configparser.ConfigParser):
+    """ConfigParser subclass that preserves key case (no lowercasing)."""
 
     def optionxform(self, optionstr):
         return optionstr
 
 
 class AttrDict(dict):
+    """Dictionary with attribute-style access — ``d.key`` is equivalent to ``d["key"]``."""
 
     def __repr__(self):
         return f"{self.__class__.__name__}({dict.__repr__(self)})"
@@ -66,8 +68,11 @@ class AttrDict(dict):
 
 
 class Dict(AttrDict):
-    '''A dictionary with attribute-style access. It maps attribute access to
-    the real dictionary. Returns a `which(entry)` if key is not found. '''
+    """A dictionary with attribute-style access.
+
+    It maps attribute access to the real dictionary.
+    Return a `which(entry)` if key is not found.
+    """
 
     def __init__(self, *args, **kwargs):
         super(Dict, self).__init__(*args, **kwargs)
@@ -127,6 +132,7 @@ class _LazyDict(Dict):
 
 
 class JsonEncoder(json.JSONEncoder):
+    """JSON encoder that falls back to ``str()`` for non-serializable types."""
 
     def default(self, field):
         try:
@@ -137,6 +143,10 @@ class JsonEncoder(json.JSONEncoder):
 
 @total_ordering
 class configValue(object):
+    """Wrapper around a config value that tracks its source file.
+
+    Supports comparison/hashing so it can be used in sets and sorted collections.
+    """
 
     def __init__(self, value, src=None):
         if isinstance(value, configValue):
@@ -176,12 +186,20 @@ class configValue(object):
 
 
 class Config(Dict):
+    """Central configuration object — hierarchical, file-backed, with multi-source merging.
+
+    Reads INI-format files, merges command-line arguments, and exposes values
+    via attribute and dict-style access with cascading lookup across sections.
+    """
 
     def __init__(self, config_file=None, init_bin=False, bin_dir=None, **kw):
-        '''
-        The `config_file` argument must be file-path or iterable. If `config_file` is iterable, returning one line at a time, and `name` attribute must be needed for file path.
-        Return `Config` object
-        '''
+        """Initialize Config with optional config file and binary setup.
+
+        The `config_file` argument must be a file-path or iterable.
+        If `config_file` is iterable, returning one line at a time, and
+        `name` attribute must be needed for file path.
+        Return a `Config` object.
+        """
         super(Config, self).__init__()
         self._cf = []
         self._command_line_options = {}
@@ -214,7 +232,10 @@ class Config(Dict):
             set_nested_value_loop(self, s, d)
 
     def rget(self, key, *keys, default=None):
-        '''default value: None'''
+        """Recursive get: ``rget("a", "b", "c")`` is equivalent to ``self["a"]["b"]["c"]``.
+
+        Returns *default* if any intermediate key is missing.
+        """
         v = self[key]
         for k in keys:
             try:
@@ -237,6 +258,12 @@ class Config(Dict):
         return c
 
     def update_config(self, config, override=True):
+        """Merge settings from another config file or file-like object.
+
+        Args:
+            config: Path to an INI file or a file-like object with a ``.name`` attribute.
+            override: If True, existing keys are overwritten; otherwise only empty keys are filled.
+        """
         parser = self.__get_conf_parser(config)
         if parser:
             for s in parser.sections():
@@ -252,9 +279,12 @@ class Config(Dict):
         self._invalidate_cache()
 
     def add_config(self, config):
+        """Add config from a file without overriding existing values."""
         self.update_config(config, override=False)
 
     def update_dict(self, args=None, **kwargs):
+        """Merge values from an argparse Namespace or parser into the config."""
+
         if args and isinstance(args, argparse.ArgumentParser):  # parser
             _args, _ = args.parse_known_args()
             prefix_char = args.prefix_chars
@@ -274,9 +304,11 @@ class Config(Dict):
         self._invalidate_cache()
 
     def update_args(self, args=None):
+        """Alias for :meth:`update_dict`."""
         self.update_dict(args)
 
     def print_config(self):
+        """Print the current configuration and its search order to stdout."""
         print("Configuration files to search (order by order):")
         for cf in self.search_order:
             print(f" - {abspath(cf)}")
@@ -315,11 +347,14 @@ class Config(Dict):
 
     @classmethod
     def load(cls, *config_files, app=None, **kwargs):
-        '''
-        @config_files: search config by config_files orders
-        @app: search config in app_config_dir if no config_files define
-        @init_bin <bool>: default: Fasle, this will add '{sys.prefix}/bin/' to 'Config.soft' if set True
-        '''
+        """Load configuration from config files with fallback to app config.
+
+        Args:
+            *config_files: Search config by config_files order.
+            app: Search config in app_config_dir if no config_files defined.
+            **kwargs: Additional options (e.g., init_bin: bool, default False,
+                adds '{sys.prefix}/bin/' to 'Config.soft' if set to True).
+        """
         cfs = []
         if config_files:  # ignore app config
             cfs.extend(config_files[::-1])
@@ -336,9 +371,7 @@ class Config(Dict):
         return conf
 
     def update_executable_bin(self):
-        '''
-        only directory join(sys.prefix, "bin")
-        '''
+        """Scan ``{sys.prefix}/bin/`` for executables and register them as ``self.soft`` entries."""
         for bin_dir in self._bin_dirs:
             try:
                 entries = os.listdir(bin_dir)
@@ -354,6 +387,7 @@ class Config(Dict):
 
     @property
     def search_order(self):
+        """List of config file paths searched, in priority order (highest first)."""
         search_cf = self._cf[::-1]
         return sorted(set(search_cf), key=search_cf.index)
 
@@ -361,9 +395,11 @@ class Config(Dict):
         dict.__setitem__(self, "_to_dict_cache", None)
 
     def to_json(self, *args, **kw):
+        """Serialize the full config as a JSON string (non-serializable values become strings)."""
         return json.dumps(self, *args, cls=JsonEncoder, **kw)
 
     def to_dict(self):
+        """Return a plain ``dict`` representation of the config (cached)."""
         if self._to_dict_cache is not None:
             return self._to_dict_cache
         d = json.loads(self.to_json())
@@ -372,15 +408,18 @@ class Config(Dict):
         return result
 
     def keys(self):
+        """Return top-level keys of the flattened config dict."""
         return self.to_dict().keys()
 
     def values(self):
+        """Return top-level values of the flattened config dict."""
         return self.to_dict().values()
 
     def __iter__(self):
         return self.keys()
 
     def items(self):
+        """Return ``(key, value)`` pairs of the flattened config (empty dicts excluded)."""
         _item = dict(super(Config, self).items())
         dump = json.loads(json.dumps(_item, cls=JsonEncoder))
         d = {k: v for k, v in dump.items() if not (
@@ -442,6 +481,7 @@ load_config = Config.load
 
 
 def hide_key(s):
+    """Mask a secret string for display, e.g. ``"abc...xyz"``."""
     if len(s) > 6:
         return f"{s[:3]}******{s[-3:]}"
     elif len(s) > 1:

@@ -13,6 +13,14 @@ IPADDRESS = socket.gethostbyname(HOSTNAME)
 
 
 class JobSocket(object):
+    """Unix-domain or TCP socket for job status messaging.
+
+    Used by the job server/client to exchange ``"jobname-status"`` messages
+    so that a long-running runjob process can report job state changes to
+    a monitoring daemon.
+
+    Supports context-manager usage (``with JobSocket(...) as js:``).
+    """
 
     def __init__(self, socket_file=None, queue=None, host=None, port=None):
         self._host = host
@@ -26,6 +34,11 @@ class JobSocket(object):
         self.queue = queue
 
     def listen(self, chunk=1024):
+        """Block forever, accepting connections and parsing ``name-status`` messages.
+
+        Each received message is split on ``"-"`` and pushed as a ``(name, status)``
+        tuple into the optional *queue*.
+        """
         if self._file:
             if self._file.is_socket():
                 self._file.unlink()
@@ -47,6 +60,7 @@ class JobSocket(object):
             conn.close()
 
     def send(self, data):
+        """Connect to the server and send a single string message."""
         if self._file and self._file.is_socket():
             addr = str(self._file)
         else:
@@ -62,6 +76,7 @@ class JobSocket(object):
         self.logger.debug(f"Send data -> '{data}' success")
 
     def close(self):
+        """Close the socket and remove the Unix socket file if present."""
         self.socket.close()
         try:
             if self._file.is_socket():
@@ -77,6 +92,7 @@ class JobSocket(object):
 
     @property
     def logger(self):
+        """Shared logger from the application context."""
         return context.log
 
     def __enter__(self):
@@ -89,11 +105,27 @@ class JobSocket(object):
 
 
 def listen_job_status(sfile=None, queue=None, host=None, port=None):
+    """Start a blocking job-status listener on a Unix or TCP socket.
+
+    Args:
+        sfile: Unix socket file path.  If ``None``, a TCP socket is used.
+        queue: Optional :class:`Queue` to receive ``(name, status)`` tuples.
+        host: Server hostname (TCP mode only).
+        port: Server port (TCP mode only).
+    """
     with JobSocket(socket_file=sfile, queue=queue, host=host, port=port) as js:
         js.listen()
 
 
 def send_job_status(sfile, name, status, **kwargs):
+    """Send a single job status update to a listening server.
+
+    Args:
+        sfile: Unix socket file path (or ``None`` for TCP).
+        name: Job name.
+        status: Job status string.
+        **kwargs: Passed through to :class:`JobSocket` (e.g. *host*, *port*).
+    """
     js = JobSocket(socket_file=sfile, **kwargs)
     data = f"{name}-{status}"
     js.send(data)
@@ -101,6 +133,7 @@ def send_job_status(sfile, name, status, **kwargs):
 
 
 def job_server():
+    """CLI entry point: start a job status server (parses args via :func:`server_parser`)."""
     args = server_parser().parse_args()
     context.init_log(level="debug")
     if not args.port and args.host and ":" in args.host:
@@ -114,6 +147,7 @@ def job_server():
 
 
 def job_client():
+    """CLI entry point: send a job status update (parses args via :func:`client_parser`)."""
     args = client_parser().parse_args()
     context.init_log(level="debug")
     if not args.file and not (args.host or args.port):

@@ -20,25 +20,31 @@ from .parser import shell_job_parser
 
 @total_ordering
 class Jobutils(object):
+    """Mixin providing status-tracking and file-management methods for jobs."""
 
     def set_status(self, status=None):
+        """Set the job status unless it already succeeded or was killed."""
         if not self.is_success and not self.is_killed:
             self.status = status
 
     def set_kill(self):
+        """Mark the job as killed if it has not already ended."""
         if not self.is_end:
             self.set_status("kill")
 
     def remove_all_stat_files(self):
+        """Remove all status marker files (.success, .error, .submit, .run)."""
         stats = [".success", ".error", ".submit", ".run"]
         self.remove_stat_file(*stats)
 
     def remove_stat_file(self, *stat):
+        """Remove specific status marker file(s) for this job."""
         for i in stat:
             fs = self.stat_file + i
             self.remove_file(fs)
 
     def remove_file(self, fs):
+        """Safely remove a file, ignoring any errors."""
         try:
             os.remove(fs)
         except:
@@ -46,9 +52,11 @@ class Jobutils(object):
 
     @property
     def stat_file(self):
+        """Base path for status marker files (e.g. ``.logdir/.jobname.log``)."""
         return join(self.logdir, "."+basename(self.logfile))
 
     def raw2cmd(self, sleep_sec=0, groupsh=False):
+        """Convert the raw command into a ready-to-submit shell command string."""
         self.raw_cmd = textwrap.dedent(self.raw_cmd).strip()
         raw_cmd = self.raw_cmd
         if self.groups and self.groups > 1 and len(self.raw_cmd.split("\n")) > 1:
@@ -75,12 +83,14 @@ class Jobutils(object):
             self.cmd = self.cmd.replace("RUNNING", r"RUNNING \(re-submit\)")
 
     def qsub_cmd(self, mem=1, cpu=1):
+        """Build a ``qsub`` command string for SGE submission with the given resources."""
         if str(mem).isdigit():
             mem = str(mem) + "g"
         return (f'echo "{self.cmd}" | qsub -V -wd {self.workdir} -N {self.jobpidname} '
                 f'-o {self.logfile} -j y -l vf={mem.lower()},p={cpu} -S /bin/bash')
 
     def sbatch_header(self, mem=1, cpu=1):
+        """Generate a Slurm ``#SBATCH`` header block with the given resources."""
         if str(mem).isdigit():
             mem = str(mem) + "G"
         return textwrap.dedent(f'''
@@ -95,32 +105,39 @@ class Jobutils(object):
             ''').lstrip()
 
     def update_queue(self, queue=None):
+        """Add queue/partition names to the job's queue set."""
         if queue:
             self.queue = set(self.queue)
             self.queue.update(queue)
 
     @property
     def is_fail(self):
+        """True if the job failed, was killed, or exited abnormally."""
         return self.status in ["kill", "error", "exit"]
 
     @property
     def is_end(self):
+        """True if the job has reached a terminal state (success or failure)."""
         return self.is_fail or self.is_success
 
     @property
     def is_success(self):
+        """True if the job completed successfully."""
         return self.status == "success"
 
     @property
     def is_killed(self):
+        """True if the job was explicitly killed."""
         return self.status == "kill"
 
     @property
     def is_wait(self):
+        """True if the job is waiting for dependencies."""
         return self.status == "wait"
 
     @property
     def do_not_submit(self):
+        """True if the job should not be re-submitted (already running or done)."""
         return self.status in ["run", "submit", "resubmit", "success"]
 
     def __lt__(self, other):
@@ -139,14 +156,17 @@ class Jobutils(object):
 
     @staticmethod
     def cmd2job(cmd="", name="", host=None, mem=1, cpu=1, queue=None):
-        '''
-        @cmd <str or list>: required
-        @name <str>: required
-        @host <str>: default: None, {None,sge,local,localhost}
-        @mem <int>: default: 1
-        @cpu <int>: default: 1
-        @queue <list>: default: all access queue
-        '''
+        """Convert a command string to a Job object.
+
+        Args:
+            cmd (str or list): Command to run (required).
+            name (str): Job name (required).
+            host (str): Execution host, one of {None, sge, local, localhost}.
+                Default: None.
+            mem (int): Memory requirement in GB. Default: 1.
+            cpu (int): CPU core count. Default: 1.
+            queue (list): Accessible queues. Default: all accessible queues.
+        """
         if str(mem).isdigit():
             mem = str(mem) + "g"
         if not cmd or not name:
@@ -170,6 +190,7 @@ class Jobutils(object):
         return job+"\n"
 
     def log_to_file(self, info=None):
+        """Append a timestamped info line to the job's log file."""
         if info:
             with open(self.logfile, "a") as fo:
                 s = f'[{datetime.today().strftime("%F %X")}] {info}'
@@ -178,6 +199,10 @@ class Jobutils(object):
 
 
 class Job(Jobutils):
+    """A single job with its command, dependencies, resource requests and runtime state.
+
+    Can be constructed from raw shell commands, parsed rules, or task descriptors.
+    """
 
     def __init__(self, config=None):
         self.rules = None
@@ -214,6 +239,12 @@ class Job(Jobutils):
         self.submited = False
 
     def from_rules(self, jobfile=None, rules=None):
+        """Populate the job from parsed rule lines in a :class:`Jobfile`.
+
+        Args:
+            jobfile: The parent :class:`Jobfile` instance.
+            rules: List of parsed rule dictionaries.
+        """
         self.rules = rules
         self.jobfile = jobfile
         self.logdir = self.jobfile.logdir
@@ -235,6 +266,13 @@ class Job(Jobutils):
         return self
 
     def from_cmd(self, sgefile, linenum=None, cmd=None):
+        """Populate the job from a raw shell command line.
+
+        Args:
+            sgefile: The parent :class:`Shellfile` instance.
+            linenum: Line number in the job file (0-based).
+            cmd: Shell command string.
+        """
         self.rules = cmd.strip()
         self.jobfile = sgefile
         self.logdir = self.jobfile.logdir
@@ -254,6 +292,7 @@ class Job(Jobutils):
         return self
 
     def from_task(self, jobfile, tasks=None):
+        """Populate the job from a task descriptor (named job with rules)."""
         self.rules = tasks
         self.jobfile = jobfile
         self.logdir = self.jobfile.logdir
@@ -434,6 +473,7 @@ class Job(Jobutils):
             self.raw_cmd = cmd.rstrip()
 
     def to_local(self, jobname="", removelog=False):
+        """Convert this job to run locally (localhost) instead of on a cluster."""
         self.host = "localhost"
         self.name = self.jobname = jobname
         self.logfile = join(self.logdir, basename(
@@ -444,6 +484,7 @@ class Job(Jobutils):
         self.raw2cmd()
 
     def checkrule(self):
+        """Validate the job's rule structure (job_begin/cmd_begin/cmd_end/job_end)."""
         if self.rules:
             if len(self.rules) <= 4:
                 raise JobError("rules lack of elements")
@@ -453,15 +494,23 @@ class Job(Jobutils):
                 raise JobError(f"job rule define error: {self.rules}")
 
     def get_job(self):
+        """Return the parsed command list for this job."""
         cmd = self.cmd.split("\n")
         return self.cmd2job(cmd=cmd, name=self.name, host=self.host,
                             mem=self.mem, cpu=self.cpu, queue=self.queue)
 
     def copy(self):
+        """Return a shallow copy of this job."""
         return copy(self)
 
 
 class Jobfile(object):
+    """Parser for structured job-flow files with named jobs and dependency orders.
+
+    Reads a job/flow file containing job definitions (shell commands, resource
+    specs) and ``order ... after ...`` dependency declarations, then produces
+    a list of :class:`Job` objects ready for submission.
+    """
 
     def __init__(self, jobfile, mode=None, workdir=None, config=None):
         self.config = config
@@ -541,11 +590,13 @@ class Jobfile(object):
                     self.totaljobs[o].depends.add(i)
 
     def parse_orders(self):
+        """Read, expand and validate ``order ... after ...`` dependency declarations."""
         self._read_orders()
         self.expand_orders()
         self.check_orders()
 
     def parse_jobs(self, names=None, start=1, end=None):
+        """Parse the job/flow file into :class:`Job` objects, optionally filtered by name patterns."""
         job = []
         _env = False
         with open(self._path) as fi:
@@ -616,6 +667,7 @@ class Jobfile(object):
         self.expand_jobs()
 
     def expand_jobs(self):
+        """Expand wildcard/pattern-based job dependencies into concrete job names."""
         for job in self.jobs[:]:
             flag_match = map(lambda x: "".join(
                 x), CmdTemplate.pattern.findall(job.cmd0))
@@ -682,6 +734,7 @@ class Jobfile(object):
                     self.totaljobs[job_temp.name] = job_temp
 
     def expand_orders(self):
+        """Resolve shorthand dependency names to full job names in the orders dict."""
         allnames = set([j.name for j in self.jobs])
         for job in self.jobs:
             if not job.depends:
@@ -701,10 +754,12 @@ class Jobfile(object):
             self.orders.setdefault(job.name, set()).update(job.depends)
 
     def add_job(self, *args, method=None):
+        """Create a :class:`Job` using the named factory method and register it."""
         job = getattr(Job(self.config), method)(self, *args)
         self.totaljobs[job.name] = job
 
     def add_envs(self, lines=None):
+        """Parse ``envs:`` / ``vars:`` blocks and populate ``self.envs``."""
         if not lines or not (re.match(r"envs?[\s:]", lines[0]) or re.match(r"vars?[\s:]", lines[0])):
             return
         for line in lines[1:]:
@@ -719,6 +774,7 @@ class Jobfile(object):
 
     @property
     def alljobnames(self):
+        """Return the names of all registered jobs."""
         return list(self.totaljobs.keys())
 
     def _get_value_dict(self, value=""):
@@ -740,6 +796,7 @@ class Jobfile(object):
         return [i.lstrip("$") for i in out]
 
     def check_orders(self, match_name=True):
+        """Validate that all dependency references in orders resolve to known jobs."""
         names = set(self.totaljobs.keys())
         for k, v in self.orders.items():
             for n in v.copy():
@@ -762,6 +819,11 @@ class Jobfile(object):
 
 
 class Shellfile(Jobfile):
+    """Parser for flat shell-command job files (one command per line).
+
+    Each non-empty, non-comment line becomes an independent :class:`Job`.
+    Supports line-range selection via *start* / *end*.
+    """
 
     def __init__(self, jobfile, mode=None, name=None, logdir=None, workdir=None, config=None):
         super(Shellfile, self).__init__(jobfile, mode, workdir, config=config)
@@ -785,6 +847,7 @@ class Shellfile(Jobfile):
         self.name = name
 
     def parse_jobs(self, start=0, end=None):
+        """Parse the flat shell-command file into :class:`Job` objects (one per line)."""
         with open(self._path) as fi:
             for n, line in enumerate(fi):
                 if n < start-1:

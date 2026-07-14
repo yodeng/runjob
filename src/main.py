@@ -22,6 +22,10 @@ def _resolve_job_class(func_name):
 
 
 def execute(parser):
+    """Parse args, resolve the job class, and run the job/flow to completion.
+
+    Handles stdin jobfile input, backend selection, DAG mode, and logdir setup.
+    """
     init_parser(parser)
     args = context.args
     job_cls = _resolve_job_class(args.func)
@@ -57,6 +61,7 @@ def execute(parser):
 
 
 def entry_exec():
+    """CLI entry point — dispatch to :func:`execute` based on the invoking binary name."""
     entry = basename(sys.argv[0])
     if entry in ("runflow", "runjob"):
         execute(flow_parser())

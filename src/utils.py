@@ -85,6 +85,7 @@ DEFAULT_MAX_CHECK_PER_SEC = 5
 
 
 class JobFailedError(Exception):
+    """Raised when one or more jobs have failed. Carries the list of failed jobs."""
 
     def __init__(self, msg="", jobs=None):
         self.msg = msg
@@ -101,6 +102,7 @@ class JobFailedError(Exception):
 
 
 class RunJobException(Exception):
+    """Base exception for all runjob errors, rendered with red bold styling."""
 
     def __init__(self, msg=""):
         self.msg = msg
@@ -112,22 +114,27 @@ class RunJobException(Exception):
 
 
 class RunJobError(RunJobException):
+    """Fatal runjob error — terminates the run."""
     pass
 
 
 class JobError(RunJobException):
+    """A single job encountered an error."""
     pass
 
 
 class JobOrderError(RunJobException):
+    """Dependency/ordering specification is invalid."""
     pass
 
 
 class MaxRetryError(RunJobException):
+    """Maximum retry count exceeded for one or more jobs."""
     pass
 
 
 class JobQueue(Queue):
+    """A FIFO queue backed by an :class:`OrderedSet`, with deduplication and named retrieval."""
 
     def _init(self, maxsize):
         self._queue = OrderedSet()
@@ -158,17 +165,21 @@ class JobQueue(Queue):
 
     @property
     def length(self):
+        """Number of items currently in the queue."""
         return self.qsize()
 
     @property
     def queue(self):
+        """Return a shallow copy of the underlying ordered set."""
         return self._queue.copy()
 
     def puts(self, *items, **kw):
+        """Enqueue multiple items at once."""
         for item in items:
             self.put(item, **kw)
 
     def get(self, name=None, block=True, timeout=None):
+        """Dequeue an item, optionally by name."""
         with self.not_empty:
             if not block:
                 if not self._qsize():
@@ -191,6 +202,7 @@ class JobQueue(Queue):
 
 
 class ParseSingal(Thread):
+    """Background thread that installs signal handlers for graceful shutdown."""
 
     def __init__(self, obj=None):
         super(ParseSingal, self).__init__()
@@ -203,19 +215,23 @@ class ParseSingal(Thread):
         self.obj = obj
 
     def run(self):
+        """Minimal run to satisfy the Thread interface (signals are handled in the main thread)."""
         time.sleep(1)
 
     def obj_exit(self):
+        """Trigger the associated object's safe-exit procedure."""
         if self.obj is not None:
             self.obj.signaled = True
             self.obj.safe_exit()
 
     def signal_handler(self, signum, frame):
+        """Handle SIGINT/SIGTERM — exit gracefully."""
         self.obj_exit()
         # os._exit(signum)
         sys.exit(signum)
 
     def signal_handler_us(self, signum, frame):
+        """Handle SIGUSR1 — raise :class:`RunJobError` to propagate to the main thread."""
         self.obj_exit()
         if self.obj is not None:
             raise RunJobError(self.obj.err_msg)
@@ -224,6 +240,7 @@ class ParseSingal(Thread):
 
 
 class RunThread(Thread):
+    """Thread subclass that captures the return value of the target function."""
 
     def __init__(self, func, *args):
         super(RunThread, self).__init__()
@@ -236,6 +253,7 @@ class RunThread(Thread):
         self._stop_event = threading.Event()
 
     def run(self):
+        """Execute the target function, capturing any exception."""
         try:
             self._run()
         except Exception as e:
@@ -251,19 +269,31 @@ class RunThread(Thread):
             raise e
 
     def stop(self):
+        """Signal the thread to stop."""
         if not self.stopped():
             self._stop_event.set()
 
     def stopped(self):
+        """Return True if the stop event has been set."""
         return self._stop_event.is_set()
 
 
 class DummyFile(object):
+    """File-like object that silently discards all writes (used to suppress stdout)."""
     def write(self, x):
+        """Discard the written data (no-op)."""
         pass
 
 
 def style(string, mode='', fore='', back=''):
+    """Wrap *string* with ANSI escape codes for color and text mode.
+
+    Args:
+        string: The text to style.
+        mode: Text mode — ``"bold"``, ``"dark"``, ``"underline"``, ``"blink"``, ``"reverse"``, ``"concealed"``.
+        fore: Foreground color — ``"red"``, ``"green"``, ``"yellow"``, ``"blue"``, ``"purple"``, ``"cyan"``, ``"white"``, ``"gray"``.
+        back: Background color (same options as *fore*).
+    """
     mode = f'{STYLE["mode"].get(mode, "")}'
     fore = f'{STYLE["fore"].get(fore, "")}'
     back = f'{STYLE["back"].get(back, "")}'
@@ -277,6 +307,7 @@ REQUIRED = style("(required)", fore="green", mode="bold")
 
 
 class mute(object):
+    """Decorator/descriptor that suppresses stdout during the wrapped call."""
 
     def __init__(self, func):
         wraps(func)(self)
@@ -300,6 +331,10 @@ class mute(object):
 
 
 def retry(func=None, *, max_num=3, delay=5, callback=None):
+    """Decorator: retry a function up to *max_num* times with *delay* seconds between attempts.
+
+    Can be used as ``@retry`` or ``@retry(max_num=5, delay=2)``.
+    """
     if func is None:
         return partial(retry, max_num=max_num, delay=delay, callback=callback)
     elif not callable(func):
@@ -334,6 +369,7 @@ def retry(func=None, *, max_num=3, delay=5, callback=None):
 
 
 def inner_indent(text, tab_sz, tab_chr=' '):
+    """Indent all lines of *text* except the first by *tab_sz* spaces."""
     def indented_lines():
         for i, line in enumerate(text.splitlines(True)):
             yield (
@@ -343,6 +379,7 @@ def inner_indent(text, tab_sz, tab_chr=' '):
 
 
 def argvhelp(func=None, *, arglen=None):
+    """Decorator: show help (from the function's docstring) when no/invalid args are given."""
     if func is None:
         return partial(argvhelp, arglen=arglen)
 
@@ -366,6 +403,7 @@ dochelp = helpdoc = argvhelp
 
 
 def get_job_state(state):
+    """Return an ANSI-colored version of a job status string."""
     s = state.lower() if state else state
     if s == 'running':
         return style(state, fore="cyan")
@@ -382,6 +420,12 @@ def get_job_state(state):
 
 
 def human_size(num, deg=1024):
+    """Convert a byte count to a human-readable string (e.g. ``"4.0G"``).
+
+    Args:
+        num: Number of bytes.
+        deg: Base — 1024 for binary units, 1000 for decimal.
+    """
     deg = float(deg)
     for unit in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
         if abs(num) < deg:
@@ -391,6 +435,7 @@ def human_size(num, deg=1024):
 
 
 def human_size_parse(size):
+    """Parse a human-readable size string (e.g. ``"4G"``, ``"8192M"``) into bytes."""
     s, u = re.search(r"(\d+(?:\.\d+)?)(\D*)", str(size)).group(1, 2)
     s = float(s)
     if s < 1 and not u:
@@ -405,13 +450,17 @@ def human_size_parse(size):
 
 
 def seconds2human(s):
+    """Convert seconds to ``H:MM:SS.ss`` string."""
     m, s = divmod(s, 60)
     h, m = divmod(int(m), 60)
     return f"{h:d}:{m:02d}:{s:04.2f}"
 
 
 def human2seconds(time_str):
-    "valid strings: '8h', '2d 8h 5m 2s', '2m4.3s'"
+    """Parse human-readable time string to seconds.
+
+    Valid strings: '8h', '2d 8h 5m 2s', '2m4.3s'.
+    """
     if time_str is None:
         return sys.maxsize
     parts = TIMEDELTA_REGEX.match(str(time_str))
@@ -426,10 +475,12 @@ def human2seconds(time_str):
 
 
 def nestdict():
+    """Return a recursively-nesting :class:`defaultdict` (infinite-depth auto-vivification)."""
     return defaultdict(nestdict)
 
 
 def mkdir(*path):
+    """Create directories, silently ignoring errors (e.g. already exists)."""
     for p in path:
         if not isdir(p):
             try:
@@ -439,11 +490,13 @@ def mkdir(*path):
 
 
 def touch(fname, times=None):
+    """Create an empty file or update its mtime (like the Unix ``touch`` command)."""
     with open(fname, 'a'):
         os.utime(fname, times)
 
 
 def is_entry_cmd():
+    """Return True if the current process was invoked via a registered entry point."""
     prog = abspath(realpath(sys.argv[0]))
     return basename(prog) in \
         [e.name for e in distribution(__package__).entry_points] \
@@ -451,6 +504,13 @@ def is_entry_cmd():
 
 
 def terminate_process(pid, sig=signal.SIGKILL, recursive=True):
+    """Kill a process tree by PID.
+
+    Args:
+        pid: Process ID.
+        sig: Signal to send (default ``SIGKILL``).
+        recursive: If True, also signal all child processes.
+    """
     try:
         pproc = psutil.Process(pid)
         if recursive:
@@ -466,6 +526,7 @@ def terminate_process(pid, sig=signal.SIGKILL, recursive=True):
 
 
 def is_running(pid=None):
+    """Return ``True`` if the process with the given PID is still running."""
     try:
         p = psutil.Process(pid)
     except:
@@ -475,6 +536,17 @@ def is_running(pid=None):
 
 
 def call_cmd(cmd, verbose=False, run=True, daemon=False, timeout=None, max_memory=-1, exception_ok=False):
+    """Execute a shell command via subprocess.
+
+    Args:
+        cmd: Shell command string or argument list.
+        verbose: If True, capture and display output.
+        run: If False, only print the command without executing it.
+        daemon: If True, use ``Popen`` (non-blocking); otherwise ``call``.
+        timeout: Subprocess timeout in seconds.
+        max_memory: Memory limit for the child process.
+        exception_ok: If True, return ``None`` on error instead of raising.
+    """
     if not run:
         print(cmd)
         return
@@ -493,6 +565,7 @@ def call_cmd(cmd, verbose=False, run=True, daemon=False, timeout=None, max_memor
 
 
 def which(program):
+    """Locate an executable on ``PATH`` (similar to the Unix ``which`` command)."""
     ex = dirname(sys.executable)
     found_path = None
     fpath, fname = split(program)
@@ -509,6 +582,7 @@ def which(program):
 
 
 def which_exe(program, paths=None):
+    """Locate an executable in specific directories (or ``PATH``), returning the full path."""
     ex = dirname(sys.executable)
     found_path = None
     fpath, fname = split(program)
@@ -534,6 +608,7 @@ def which_exe(program, paths=None):
 
 
 def is_exe(file_path):
+    """Return True if *file_path* exists and is executable."""
     return (
         exists(file_path)
         and os.access(file_path, os.X_OK)
@@ -542,6 +617,7 @@ def is_exe(file_path):
 
 
 def canonicalize(path):
+    """Expand ``~``, environment variables, and return a real absolute path."""
     return abspath(expanduser(path))
 
 
@@ -549,6 +625,7 @@ _is_sge_submit_cache = None
 
 
 def is_sge_submit():
+    """Return True if the current host is an SGE submit node (has ``qsub`` access)."""
     global _is_sge_submit_cache
     if _is_sge_submit_cache is not None:
         return _is_sge_submit_cache
@@ -571,6 +648,7 @@ _is_slurm_host_cache = None
 
 
 def is_slurm_host():
+    """Return True if the current host has Slurm commands (``sinfo``, ``squeue``) available."""
     global _is_slurm_host_cache
     if _is_slurm_host_cache is not None:
         return _is_slurm_host_cache
@@ -582,6 +660,7 @@ _default_slurm_queue_cache = None
 
 
 def default_slurm_queue():
+    """Return the default Slurm partition/queue for the current user."""
     global _default_slurm_queue_cache
     if _default_slurm_queue_cache is not None:
         return _default_slurm_queue_cache
@@ -600,6 +679,7 @@ _default_slurm_node_cache = None
 
 
 def default_slurm_node():
+    """Return the default Slurm node name from ``/etc/slurm/slurm.conf``."""
     global _default_slurm_node_cache
     if _default_slurm_node_cache is not None:
         return _default_slurm_node_cache
@@ -615,6 +695,7 @@ def default_slurm_node():
 
 
 def default_backend():
+    """Detect and return the default job submission backend (sge/slurm/localhost)."""
     if is_sge_submit():  # sge first
         return "sge"
     elif is_slurm_host():
@@ -631,38 +712,45 @@ class AppDirs(object):
 
     @property
     def user_data_dir(self):
+        """Platform-specific user data directory."""
         path = os.getenv('XDG_DATA_HOME', os.path.expanduser("~/.local/share"))
         return self.__user_dir(path)
 
     @property
     def site_data_dir(self):
+        """Platform-specific site data directory."""
         path = os.getenv('XDG_DATA_DIRS',
                          os.pathsep.join(['/usr/local/share', '/usr/share']))
         return self.__site_dir(path)
 
     @property
     def site_config_dir(self):
+        """Platform-specific site config directory."""
         path = os.getenv('XDG_CONFIG_DIRS', '/etc/xdg')
         return self.__site_dir(path)
 
     @property
     def user_config_dir(self):
+        """Platform-specific user config directory."""
         path = os.getenv('XDG_CONFIG_HOME', os.path.expanduser("~/.config"))
         return self.__user_dir(path)
 
     @property
     def user_cache_dir(self):
+        """Platform-specific user cache directory."""
         path = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
         return self.__user_dir(path)
 
     @property
     def user_state_dir(self):
+        """Platform-specific user state directory."""
         path = os.getenv('XDG_STATE_HOME',
                          os.path.expanduser("~/.local/state"))
         return self.__user_dir(path)
 
     @property
     def user_log_dir(self):
+        """Platform-specific user log directory."""
         return os.path.join(self.user_cache_dir, "log")
 
     def __user_dir(self, path):
@@ -689,37 +777,44 @@ class AppDirs(object):
 
 
 def user_config_dir(app=__package__, version=""):
+    """Return the platform-appropriate user config directory for *app*."""
     app = AppDirs(app, version)
     return app.user_config_dir
 
 
 class CmdTemplate(Template):
+    """String template with ``$var`` substitution (like shell variables)."""
     delimiter = "$"
     idpattern = r"(?a:[_a-z][_\.a-z0-9]*)"
 
 
 @total_ordering
 class OrderedSet(OrderedDict, MutableSet):
+    """A set that preserves insertion order, backed by :class:`OrderedDict`."""
 
     def __init__(self, items=""):
         for item in items:
             self.add(item)
 
     def update(self, *args):
+        """Add all elements from each iterable argument."""
         for s in args:
             for e in s:
                 self.add(e)
 
     def add(self, elem):
+        """Add an element to the set."""
         self[elem] = None
 
     append = add
 
     def extend(self, elems):
+        """Add all elements from the iterable *elems*."""
         for e in elems:
             self.add(e)
 
     def discard(self, elem):
+        """Remove *elem* if present, do nothing otherwise."""
         self.pop(elem, None)
 
     def __lt__(self, other):
@@ -738,11 +833,13 @@ class OrderedSet(OrderedDict, MutableSet):
 
 
 def exception_hook(et, ev, eb):
+    """Minimal excepthook: print the exception type and message in red bold."""
     err = f'{et.__name__}: {ev}'
     print(style(err, fore="red", mode="bold"))
 
 
 def suppress_exceptions(*expts, msg="", trace_exception=True):
+    """Decorator: catch specified exceptions and re-raise as :class:`RuntimeError`."""
     def outer_wrapper(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -764,6 +861,7 @@ def suppress_exceptions(*expts, msg="", trace_exception=True):
 
 @contextlib.contextmanager
 def suppress_stdout_stderr():
+    """Context manager that redirects stdout and stderr to ``/dev/null``."""
     with open(os.devnull, 'w') as fnull:
         with contextlib.redirect_stderr(fnull) as err, contextlib.redirect_stdout(fnull) as out:
             yield (err, out)
@@ -771,6 +869,7 @@ def suppress_stdout_stderr():
 
 @contextlib.contextmanager
 def tmp_chdir(dest):
+    """Context manager: temporarily change working directory to *dest*, then restore."""
     curdir = os.getcwd()
     try:
         os.chdir(dest)
@@ -781,6 +880,7 @@ def tmp_chdir(dest):
 
 @contextlib.contextmanager
 def add_to_sys_path(path):
+    """Context manager: temporarily prepend *path* to ``sys.path``."""
     if path in sys.path:
         already_add = True
     else:
@@ -794,10 +894,15 @@ def add_to_sys_path(path):
 
 
 def check_module_exists(name):
+    """Return True if the named module can be imported."""
     return importlib.util.find_spec(name) is not None
 
 
 class SuppressStdoutStderr(object):
+    """Context manager that suppresses stdout/stderr at the file-descriptor level.
+
+    More thorough than :func:`suppress_stdout_stderr` — works for subprocess output too.
+    """
 
     def __enter__(self):
         self.outnull_file = open(os.devnull, 'w')
@@ -834,6 +939,7 @@ class SuppressStdoutStderr(object):
 
 
 def safe_cycle(itr):
+    """Thread-safe version of :func:`itertools.cycle` using a lock."""
     it = cycle(itr)
     lock = Lock()
     while True:
@@ -842,6 +948,7 @@ def safe_cycle(itr):
 
 
 def string_num_orders(s):
+    """Sort key: split strings into numeric and text parts for natural ordering."""
     out = []
     for p in NOT_ALPHA_DIGIT.split(s):
         try:
@@ -852,11 +959,13 @@ def string_num_orders(s):
 
 
 def free_disk_space(path=None):
+    """Return human-readable free disk space at *path* (or current directory)."""
     ph = path or os.getcwd()
     return human_size(os.statvfs(ph).f_bfree * os.statvfs(ph).f_frsize)
 
 
 def converter(in_str):
+    """Safely convert a string to a Python literal via :func:`ast.literal_eval`, falling back to the original string."""
     try:
         out = literal_eval(in_str)
     except Exception:
@@ -887,6 +996,7 @@ def common_substring(strings):
 
 
 def get_common_suffpref(l, order=1):
+    """Return the longest common prefix (order=1) or suffix (order=-1) among a list of strings."""
     common_string = 0
     max_length = min([len(i) for i in l])
     for i in range(max_length):
@@ -904,6 +1014,7 @@ def get_common_suffpref(l, order=1):
 
 
 def eval_value(obj):
+    """Convert a string to its most likely Python type (int, float, bool, None)."""
     if isinstance(obj, dict):
         return {k: eval_value(v) for k, v in obj.items()}
     if isinstance(obj, list):
@@ -921,6 +1032,7 @@ def eval_value(obj):
 
 
 def option_on_command_line(args=None, prefix_chars="-", option_strings=None):
+    """Check whether an option was explicitly given on the command line."""
     args = args or sys.argv[1:]
     if not option_strings or not isinstance(option_strings, (list, tuple)):
         return False
@@ -935,6 +1047,7 @@ def option_on_command_line(args=None, prefix_chars="-", option_strings=None):
 
 
 class TempFile(object):
+    """A temporary file that can be explicitly deleted, with context-manager support."""
 
     def __init__(self, suffix=None, prefix=None, dir=None):
         if dir and (not isdir(dir) or not os.access(dir, os.W_OK | os.X_OK)):
@@ -943,6 +1056,7 @@ class TempFile(object):
             suffix=suffix, prefix=prefix, delete=False, dir=dir)
 
     def delete(self):
+        """Close and delete the temporary file from disk."""
         try:
             self.temp._closer.delete = True
         except:
@@ -954,6 +1068,7 @@ class TempFile(object):
 
     @property
     def name(self):
+        """The absolute path of the temporary file."""
         return self._get_name()
 
     def __exit__(self, type, value, traceback):
@@ -974,6 +1089,7 @@ PKG_CONF_FILE = join(dirname(abspath(__file__)), CONF_FILE_NAME)
 
 
 def dont_write_bytecode(func):
+    """Decorator: temporarily set ``sys.dont_write_bytecode = True`` while calling *func*."""
     @wraps(func)
     def wrapper(*args, **kwargs):
         ori = sys.dont_write_bytecode
@@ -987,6 +1103,7 @@ def dont_write_bytecode(func):
 
 @dont_write_bytecode
 def load_module_from_path(path, add_to_sys=True):
+    """Dynamically import a Python module from a file path without generating ``.pyc``."""
     path = os.path.abspath(path)
     _, filename = os.path.split(path)
     module_name, _ = os.path.splitext(filename)
@@ -999,6 +1116,7 @@ def load_module_from_path(path, add_to_sys=True):
 
 
 class SingletonType(type):
+    """Metaclass that enforces a single instance per class (thread-safe)."""
 
     _instance_lock = threading.Lock()
 
@@ -1014,15 +1132,18 @@ class SingletonType(type):
 
 
 def isiterable(obj):
+    """Return True if *obj* is iterable (not a string)."""
     return not isinstance(obj, str) and isinstance(obj, Iterable)
 
 
 def flatten(x):
+    """Recursively flatten a nested iterable into a flat list."""
     return [y for l in x for y in flatten(
         l)] if isiterable(x) else [x]
 
 
 def flatten_json(nested_json, exclude=[''], sep='.'):
+    """Flatten a nested dict into ``{"a.b.c": value}`` style keys."""
     out = dict()
 
     def _flatten(x, name='', exclude=exclude):
@@ -1042,6 +1163,7 @@ def flatten_json(nested_json, exclude=[''], sep='.'):
 
 
 def set_nested_value_loop(d, keys_str, value):
+    """Set ``d["a"]["b"]["c"] = value`` from a dotted key string ``"a.b.c"``, creating intermediate dicts as needed."""
     keys = keys_str.split('.')
     current = d
     for key in keys[:-1]:
@@ -1052,9 +1174,12 @@ def set_nested_value_loop(d, keys_str, value):
 
 
 def nested_json(flatten_json):
-    '''
-    nested_json({'a.b.c': 1, 'c.x': 1, 'c.y': {'m.n': 2}}) == {'a': {'b': {'c': 1}}, 'c': {'x': 1, 'y': {'m': {'n': 2}}}}
-    '''
+    """Convert flattened JSON dict to nested dict structure.
+
+    Example:
+        nested_json({'a.b.c': 1, 'c.x': 1, 'c.y': {'m.n': 2}})
+        == {'a': {'b': {'c': 1}}, 'c': {'x': 1, 'y': {'m': {'n': 2}}}}
+    """
     out = {}
     for k, v in flatten_json.items():
         if isinstance(v, dict):
@@ -1064,10 +1189,12 @@ def nested_json(flatten_json):
 
 
 def chunk(lst, size=80):
+    """Split *lst* into sublists of at most *size* elements."""
     return [lst[i:i+size] for i in range(0, len(lst), size)]
 
 
 def remove_argument(parser, flag=None, sub=None):
+    """Remove an argument (and optionally a subcommand) from an argparse parser."""
     for action in parser._action_groups:
         for group_action in action._group_actions[:]:
             opts = group_action.option_strings
@@ -1090,7 +1217,7 @@ def remove_argument(parser, flag=None, sub=None):
 
 
 def to_async(func):
-    '''wrap synchronous function to async coroutine'''
+    """Wrap a synchronous function into an async coroutine."""
     if is_async_callable(func):
         return func
     import asyncio
@@ -1106,7 +1233,7 @@ def to_async(func):
 
 
 def to_sync(coroutine):
-    '''wrap async coroutine to synchronous function'''
+    """Wrap an async coroutine into a synchronous function."""
     if not is_async_callable(coroutine):
         return coroutine
     import asyncio
@@ -1118,7 +1245,7 @@ def to_sync(coroutine):
 
 
 def async_map(coroutine_func, *iterables):
-    '''parallelly run async coroutine function in iterables'''
+    """Run an async coroutine function in parallel over iterables."""
     import asyncio
     coroutine_func = to_async(coroutine_func)
 
@@ -1129,6 +1256,7 @@ def async_map(coroutine_func, *iterables):
 
 
 def process_map(func, *iterables, timeout=None, chunksize=1, **kw):
+    """Parallel ``map`` using :class:`~concurrent.futures.ProcessPoolExecutor`."""
     from concurrent.futures import ProcessPoolExecutor
     with ProcessPoolExecutor(**kw) as executor:
         result = list(executor.map(func, iterables,
@@ -1137,6 +1265,7 @@ def process_map(func, *iterables, timeout=None, chunksize=1, **kw):
 
 
 def thread_map(func, *iterables, timeout=None, chunksize=1, **kw):
+    """Parallel ``map`` using :class:`~concurrent.futures.ThreadPoolExecutor` (sync or async)."""
     from concurrent.futures import ThreadPoolExecutor
     func = to_sync(func)
     with ThreadPoolExecutor(**kw) as executor:
@@ -1146,6 +1275,7 @@ def thread_map(func, *iterables, timeout=None, chunksize=1, **kw):
 
 
 def is_async_callable(obj):
+    """Return True if *obj* is an async function or a callable with an async ``__call__``."""
     while isinstance(obj, partial):
         obj = obj.func
     return inspect.iscoroutinefunction(obj) or (
@@ -1155,6 +1285,18 @@ def is_async_callable(obj):
 
 
 def do_test(test_case, test_func_name=None, verbosity=1):
+    """Convenience function to run unittest test cases.
+
+    Args:
+        test_case: A subclass of :class:`unittest.TestCase` (the class itself, not an instance).
+        test_func_name: Optional name of a specific test method (must start with "test_").
+                        If None, all test methods in the TestCase are run.
+        verbosity: Output verbosity level — 0=quiet, 1=default, 2=detailed. Default 1.
+
+    Returns:
+        bool: ``True`` if all tests pass, ``False`` if any fail.
+        None: If *test_case* is not a TestCase subclass, or *test_func_name* is invalid.
+    """
     import unittest
     suite = unittest.TestSuite()
     loader = unittest.TestLoader()

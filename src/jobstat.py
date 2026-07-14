@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # coding:utf-8
 
-'''
-query local/sge/slurm jobs.
+"""Query local/sge/slurm jobs.
 
 Usage:
     qs [jobfile|logdir|logfile]
     qslurm
-'''
+"""
 
 import os
 import re
@@ -31,6 +30,12 @@ from ._version import __version__
 
 
 def qs():
+    """Query and display job status across local, SGE and Slurm backends.
+
+    With no arguments, shows a summary of all users' jobs on the current
+    cluster.  When given a jobfile or log directory, reports per-job
+    success/error/wait counts.
+    """
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
         sys.exit(__doc__)
     username = os.getenv("USER")
@@ -224,6 +229,7 @@ def qs():
 
 
 def qslurm():
+    """Query and display Slurm job counts grouped by user."""
     if len(sys.argv) > 2 or "-h" in sys.argv or "--help" in sys.argv:
         sys.exit(__doc__)
     username = os.getenv("USER")

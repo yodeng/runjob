@@ -67,26 +67,32 @@ class Context(metaclass=ContextType):
 
     @property
     def db(self):
+        """Alias for ``self.conf.database``."""
         return self.conf.database
 
     @property
     def database(self):
+        """The ``database`` section of the configuration."""
         return self.conf.database
 
     @property
     def soft(self):
+        """Alias for ``self.conf.software``."""
         return self.conf.software
 
     @property
     def exe(self):
+        """Alias for ``self.conf.software``."""
         return self.conf.software
 
     @property
     def bin(self):
+        """Alias for ``self.conf.software``."""
         return self.conf.software
 
     @property
     def software(self):
+        """The ``software`` section of the configuration (executable paths)."""
         return self.conf.software
 
     @property
@@ -115,17 +121,20 @@ class Context(metaclass=ContextType):
 
     @classmethod
     def add_config(cls, config=None):
+        """Merge an additional config file into the shared configuration."""
         if config:
             cls._ensure_conf().update_config(config)
 
     @classmethod
     def add_bin(cls, bin_dir=None):
+        """Register a directory of executables and update ``PATH``."""
         if bin_dir:
             cls._ensure_conf()._bin_dirs.append(bin_dir)
         cls.init_bin()
 
     @classmethod
     def add_path(cls, path=None):
+        """Prepend directories to the ``PATH`` environment variable."""
         p = join(sys.prefix, "bin") + ":" + os.environ["PATH"]
         if path and isdir(path):
             p = abspath(path) + ":" + p
@@ -133,10 +142,17 @@ class Context(metaclass=ContextType):
 
     @classmethod
     def add_envs(cls, **kw):
+        """Update environment variables from keyword arguments."""
         os.environ.update(kw)
 
     @classmethod
     def add_log(cls, logfile=None, create_if_not_exists=False):
+        """Attach a file handler to the shared logger.
+
+        Args:
+            logfile: Path to log file.
+            create_if_not_exists: If True, create parent directories.
+        """
         if logfile:
             logfile = abspath(logfile)
             if create_if_not_exists:
@@ -148,6 +164,10 @@ class Context(metaclass=ContextType):
 
     @classmethod
     def init_arg(cls, args=None):
+        """Initialize command-line argument handling.
+
+        Accepts an :class:`argparse.ArgumentParser` or a parsed namespace.
+        """
         if not args:
             return
         # detect ArgumentParser without importing argparse eagerly
@@ -163,6 +183,7 @@ class Context(metaclass=ContextType):
 
     @classmethod
     def init_log(cls, logfile=None, name=__package__, level="info"):
+        """Create or reconfigure the shared logger."""
         cls._log = getlog(logfile=logfile, level=level, name=name)
         conf = cls._ensure_conf()
         if conf.args.get("debug"):
@@ -172,10 +193,12 @@ class Context(metaclass=ContextType):
 
     @classmethod
     def init_bin(cls):
+        """Scan ``{sys.prefix}/bin/`` and register discovered executables."""
         cls._ensure_conf().update_executable_bin()
 
     @classmethod
     def init_all(cls, args=None, conf=None, init_bin=False, app=__package__):
+        """One-shot full initialization: config, args, logging, path, and optionally bin."""
         cls._conf = load_config(app=app)
         cls.init_arg(args)
         cls.init_log(name=app)
@@ -188,6 +211,7 @@ class Context(metaclass=ContextType):
 
     @classmethod
     def init(cls, *cf, init_bin=False, args=None, app=__package__, **kw):
+        """Instantiate (or retrieve) the singleton Context with the given config files."""
         cls(*cf, init_bin=init_bin, args=args, app=app, **kw)
 
     # ── attribute delegation ────────────────────────────────────────
@@ -217,8 +241,11 @@ context = Context()
 
 
 class debug(object):
-    """Decorator / descriptor that temporarily elevates the context logger
-    to DEBUG level for the duration of the wrapped call."""
+    """Temporarily elevate the context logger to DEBUG level.
+
+    Decorator / descriptor. For the duration of the wrapped call, the
+    context logger level is set to DEBUG.
+    """
 
     def __init__(self, func):
         wraps(func)(self)

@@ -16,6 +16,7 @@ class DAG(object):
         self.all_nodes = set()
 
     def add_node(self, node_name, graph=None):
+        """Add a node to the graph. Raises :class:`KeyError` if it already exists."""
         if not graph:
             graph = self.graph
         if node_name in graph:
@@ -24,12 +25,14 @@ class DAG(object):
         graph[node_name] = set()
 
     def add_node_if_not_exists(self, node_name, graph=None):
+        """Add a node silently if it does not already exist."""
         try:
             self.add_node(node_name, graph=graph)
         except KeyError:
             pass
 
     def delete_node(self, node_name, graph=None):
+        """Remove a node and all edges pointing to it."""
         if not graph:
             graph = self.graph
             if node_name not in graph:
@@ -45,6 +48,7 @@ class DAG(object):
                 edges.remove(node_name)
 
     def rename_node(self, node_name, new_name, graph=None):
+        """Rename a node while preserving all its edges."""
         if not graph:
             graph = self.graph
         if node_name not in graph:
@@ -60,12 +64,14 @@ class DAG(object):
                 edges.add(new_name)
 
     def delete_node_if_exists(self, node_name, graph=None):
+        """Delete a node silently if it exists, do nothing otherwise."""
         try:
             self.delete_node(node_name, graph=graph)
         except KeyError:
             pass
 
     def add_edge(self, ind_node, dep_node, graph=None):
+        """Add a directed edge *ind_node* → *dep_node*."""
         if not graph:
             graph = self.graph
         if ind_node not in graph or dep_node not in graph:
@@ -73,6 +79,7 @@ class DAG(object):
         graph[ind_node].add(dep_node)
 
     def delete_edge(self, ind_node, dep_node, graph=None):
+        """Remove the directed edge *ind_node* → *dep_node*."""
         if not graph:
             graph = self.graph
         if dep_node not in graph.get(ind_node, []):
@@ -80,11 +87,13 @@ class DAG(object):
         graph[ind_node].remove(dep_node)
 
     def predecessors(self, node, graph=None):
+        """Return all nodes that have an edge pointing to *node*."""
         if graph is None:
             graph = self.graph
         return [key for key in graph if node in graph[key]]
 
     def downstream(self, node, graph=None):
+        """Return the immediate children of *node*."""
         if graph is None:
             graph = self.graph
         if node not in graph:
@@ -92,6 +101,7 @@ class DAG(object):
         return list(graph[node])
 
     def all_downstreams(self, node, graph=None):
+        """Return all transitive descendants of *node* in topological order."""
         if graph is None:
             graph = self.graph
         nodes = [node]
@@ -112,11 +122,13 @@ class DAG(object):
         )
 
     def all_leaves(self, graph=None):
+        """Return all leaf nodes (nodes with no outgoing edges)."""
         if graph is None:
             graph = self.graph
         return [key for key in graph if not graph[key]]
 
     def from_dict(self, graph_dict):
+        """Build the graph from a ``{node: [dependencies]}`` dictionary."""
         self.reset_graph()
         for new_node in graph_dict:
             self.add_node(new_node)
@@ -128,20 +140,28 @@ class DAG(object):
                 self.add_edge(ind_node, dep_node)
 
     def reset_graph(self):
+        """Clear the graph to an empty state."""
         self.graph = OrderedDict()
 
     def ind_nodes(self, graph=None):
+        """Return all independent nodes (no incoming edges)."""
         if graph is None:
             graph = self.graph
         nodes2 = set(n2 for n2s in graph.values() for n2 in n2s)
         return [n1 for n1 in graph.keys() if n1 not in nodes2]
 
     def end_nodes(self, graph=None):
+        """Return all end/terminal nodes (no outgoing edges)."""
         if graph is None:
             graph = self.graph
         return [n1 for n1, n2 in graph.items() if not n2]
 
     def validate(self, graph=None):
+        """Check that the graph is a valid DAG.
+
+        Returns:
+            ``(True, "valid")`` or ``(False, reason_string)``.
+        """
         graph = graph if graph is not None else self.graph
         if len(self.ind_nodes(graph)) == 0:
             return (False, 'no independent nodes detected')
@@ -152,6 +172,11 @@ class DAG(object):
         return (True, 'valid')
 
     def topological_sort(self, graph=None):
+        """Return nodes in topological order (Kahn's algorithm).
+
+        Raises:
+            ValueError: if the graph contains a cycle.
+        """
         if graph is None:
             graph = self.graph
 
@@ -183,9 +208,11 @@ class DAG(object):
             raise ValueError('graph is not acyclic')
 
     def size(self):
+        """Return the number of nodes in the graph."""
         return len(self.graph)
 
     def to_rulegraph(self, node2rule=None):
+        """Rename nodes according to *node2rule* mapping and return a new :class:`DAG`."""
         if node2rule and self.graph:
             graph = self.copy()
             for node, rule in node2rule.items():
@@ -195,7 +222,12 @@ class DAG(object):
         return self
 
     def dot(self, node2rule={}):
-        '''@node2rule: same color if node belong to same rule'''
+        """Generate DOT source for graph visualization with rule-based coloring.
+
+        Args:
+            node2rule (dict): Mapping of node to rule name. Nodes belonging to
+                the same rule share the same color.
+        """
         all_nodes = sorted(self.all_nodes, key=string_num_orders)
         ids = {node: i for i, node in enumerate(all_nodes)}
         huefactor = 2 / (3 * max(len(ids), 1))
@@ -230,6 +262,7 @@ class DAG(object):
             """)
 
     def copy(self):
+        """Return a deep copy of the DAG."""
         dag = self.__class__()
         dag.all_nodes = self.all_nodes.copy()
         dag.graph = OrderedDict(

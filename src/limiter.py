@@ -10,6 +10,16 @@ from functools import wraps, partial
 
 
 class RateLimiter(object):
+    """Rate limiter usable as both a decorator and a context manager.
+
+    Enforces a maximum number of calls within a sliding time window.
+
+    Args:
+        max_calls: Maximum allowed calls per ``period``.
+        period: Sliding window length in seconds (default 1.0).
+        callback: Optional callable invoked when the rate limit is hit;
+            receives the sleep-until timestamp as its sole argument.
+    """
 
     def __init__(self, max_calls, period=1.0, callback=None):
         if period <= 0:
@@ -58,6 +68,12 @@ class RateLimiter(object):
 
 
 def now(monotonic=False):
+    """Return the current timestamp.
+
+    Args:
+        monotonic: If True, use ``time.monotonic()`` (unaffected by system
+            clock adjustments but reset on reboot). Defaults to ``time.time()``.
+    """
     if hasattr(time, 'monotonic') and monotonic:
         # from system start, interrupt by reboot
         return time.monotonic()
@@ -65,10 +81,17 @@ def now(monotonic=False):
 
 
 def runtime_exceeded(signum, frame):
+    """SIGALRM handler — raises :class:`RuntimeError` when a time limit is hit."""
     raise RuntimeError
 
 
 def max_runtime(seconds=sys.maxsize):
+    """Decorator: enforce a maximum wall-clock runtime via SIGALRM.
+
+    Args:
+        seconds: Runtime limit in seconds.  No limit when equal to
+            ``sys.maxsize`` (the default).
+    """
     def wrap(func):
         @wraps(func)
         def _run(*args, **kwargs):
@@ -87,6 +110,11 @@ def max_runtime(seconds=sys.maxsize):
 
 
 def max_memory(size=-1):
+    """Decorator: cap the address-space (virtual memory) limit for a function.
+
+    Args:
+        size: Maximum virtual memory in bytes.  -1 means no limit.
+    """
     def wrap(func):
         @wraps(func)
         def _run(*args, **kwargs):
@@ -98,6 +126,11 @@ def max_memory(size=-1):
 
 
 def max_nproc(nproc=128):
+    """Decorator: cap the number of processes for a function.
+
+    Args:
+        nproc: Maximum number of processes (clamped to 4096).
+    """
     def wrap(func):
         @wraps(func)
         def _run(*args, **kwargs):
@@ -110,16 +143,23 @@ def max_nproc(nproc=128):
 
 
 def set_nproc(nproc=4096):
+    """Set the process-count resource limit for the current process."""
     _, hard = resource.getrlimit(resource.RLIMIT_NPROC)
     resource.setrlimit(resource.RLIMIT_NPROC, (min(nproc, 4096), hard))
 
 
 def set_memory(size=-1):
+    """Set the virtual-memory resource limit for the current process."""
     _, hard = resource.getrlimit(resource.RLIMIT_AS)
     resource.setrlimit(resource.RLIMIT_AS, (int(size), hard))
 
 
 def set_runtime(seconds=sys.maxsize):
+    """Set a SIGALRM-based runtime limit for the current process.
+
+    Args:
+        seconds: Wall-clock seconds before :class:`RuntimeError` is raised.
+    """
     if seconds < sys.maxsize:
         signal.signal(signal.SIGALRM, runtime_exceeded)
         signal.alarm(seconds)

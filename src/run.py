@@ -23,6 +23,11 @@ MAX_JOB_QUEUE_SIZE = 1000
 
 
 class RunJob(object):
+    """Orchestrator for flat (one-command-per-line) job files.
+
+    Parses the job file, builds the dependency DAG, submits jobs to the
+    configured backend, monitors their status and handles retries.
+    """
 
     # ── hooks for subclass overrides ──────────────────────────────
 
@@ -134,6 +139,7 @@ class RunJob(object):
         self.init_time_stamp = now(1)
 
     def reset(self):
+        """Re-create the jobfile and re-parse jobs (used for retry/recovery)."""
         self.jfile = self._create_jobfile(self.conf)
         self.logdir = self.jfile.logdir
         self._parse_jobfile(self.conf)
@@ -206,6 +212,7 @@ class RunJob(object):
         return {k: sorted(v, key=len)[0] for k, v in out.items()}
 
     def check_already_success(self):
+        """Scan existing log files to detect jobs that already succeeded, skipping them."""
         for job in sorted(self.jobs):
             lf = job.logfile
             job.subtimes = 0
@@ -235,12 +242,14 @@ class RunJob(object):
                 job.status = "wait"
 
     def init_callback(self):
+        """Register ``--init`` and ``--callback`` commands as special jobs in the DAG."""
         self.add_init_and_callback(cmd=self.conf._getvalue(
             "init") or self.conf.rget("args", "init"))
         self.add_init_and_callback(cmd=self.conf._getvalue(
             "callback") or self.conf.rget("args", "callback"), flag=-1)
 
     def add_init_and_callback(self, cmd="", name="", flag=0):
+        """Inject an init (flag=0) or callback (flag=-1) job into the job graph."""
         name = name or (flag and "callback" or "init")
         if cmd:
             if name in self.totaljobdict:
@@ -264,6 +273,7 @@ class RunJob(object):
                 self.jobsgraph.add_edge(*edge(j))
 
     def log_status(self, job):
+        """Log a job's current status at the appropriate log level."""
         name = job.jobname
         if name in self.batch_jobid:
             name += f" (job-id: {self.batch_jobid[name]})"
@@ -279,6 +289,7 @@ class RunJob(object):
             getattr(self.logger, level)(f"job {name} status {job.status}")
 
     def jobstatus(self, job):
+        """Inspect marker files and log output to determine a job's current status."""
         jobname = job.jobname
         status = job.status
         logfile = job.logfile
@@ -380,6 +391,7 @@ class RunJob(object):
         return status
 
     def get_status(self):
+        """Blocking loop: consume status updates from the internal status queue."""
         while not self.finished:
             name, js = self._status_queue.get()
             if name not in self.totaljobdict:
@@ -394,9 +406,11 @@ class RunJob(object):
             self._on_job_status_change(jb, js)
 
     def send_status(self, name, status):
+        """Push a ``(name, status)`` update into the internal status queue."""
         self._status_queue.put((name, status))
 
     def set_rate(self, check_rate=0, sub_rate=0):
+        """Update the check and submission rate limits at runtime."""
         if check_rate:
             self.check_rate = Fraction(check_rate).limit_denominator()
         if sub_rate:
@@ -444,6 +458,7 @@ class RunJob(object):
             time.sleep(sleep)
 
     def jobcheck(self):
+        """Start background threads that poll job status and handle SGE timeouts."""
         RunThread(self._jobcheck).start()
         RunThread(self._list_check_sge).start()
 
@@ -519,9 +534,11 @@ class RunJob(object):
                     f"job {jb.jobname} status timeout {jb.status}")
 
     def qdel(self, jobname=""):
+        """Kill a specific job or all running jobs (SGE/Slurm/Local)."""
         self._qdel(jobname)
 
     def call_without_exception(self, cmd, verbose=False, run=True, daemon=False, timeout=3):
+        """Run a subprocess command, silently ignoring any errors."""
         if not run:
             return
         func_name = "Popen" if daemon else "call"
@@ -561,6 +578,7 @@ class RunJob(object):
             self.batch_jobid.clear()
 
     def deletejob(self, jb=None):
+        """Terminate and clean up a single job or all jobs."""
         if jb:
             if jb.jobname in self.localprocess:
                 p = self.localprocess.pop(jb.jobname)
@@ -590,6 +608,7 @@ class RunJob(object):
         return jobmem
 
     def submit(self, job):
+        """Submit a single job to the configured backend (local/SGE/Slurm)."""
         if not self.is_run or job.do_not_submit:
             return
         logfile = job.logfile
@@ -661,6 +680,7 @@ class RunJob(object):
         self.submited = True
 
     def node_select(self, job):
+        """Return the next target node for *job*, optionally round-robining across available nodes."""
         cmd_or_header = ""
         nodelist = []
         if job.host == "sge":
@@ -692,6 +712,7 @@ class RunJob(object):
         return cmd_or_header
 
     def batch_sub(self, job, mode="sge"):
+        """Submit a job to the batch scheduler (SGE or Slurm) and return its job ID."""
         if mode == "sge":
             p = Popen(job.batch_sub_cmd, stderr=PIPE, text=True,
                       stdout=PIPE, shell=True, cwd=job.workdir or self.workdir)
@@ -710,6 +731,7 @@ class RunJob(object):
         return jobid, output
 
     def run(self):
+        """Main entry point: submit all jobs and monitor until completion or error."""
         if self.is_run:
             return self.logger.warning("not allowed for job has run")
         elif len(self.jobsgraph.graph) == 0:
@@ -751,6 +773,7 @@ class RunJob(object):
             raise JobFailedError(jobs=self.fail_jobs)
 
     def pending_jobs(self, *names):
+        """Return jobs from *names* that are not yet in the submission queue."""
         jobs = []
         for j in sorted(names, key=string_num_orders):
             jb = self.totaljobdict[j]
@@ -760,6 +783,7 @@ class RunJob(object):
 
     @property
     def logger(self):
+        """Shared logger from the application context."""
         return context.log
 
     def _clean_jobs(self):
@@ -777,6 +801,7 @@ class RunJob(object):
             jb.set_kill()
 
     def throw(self, msg=""):
+        """Set error message, trigger safe exit, and raise :class:`RunJobError`."""
         self.err_msg = msg
         if self.is_run:
             self.safe_exit()
@@ -786,6 +811,7 @@ class RunJob(object):
             os.kill(os.getpid(), signal.SIGUSR1)  # threading exit
 
     def writestates(self, outstat, **kw):
+        """Write summary statistics (submitted/success/error/wait) to a JSON status file."""
         out = {}
         state = {j.name: self.totaljobdict[j.name].status for j in self.jobs}
         state.update({j.name: "already success" for j in self.has_success})
@@ -800,6 +826,7 @@ class RunJob(object):
         ParseSingal(obj=self).start()
 
     def safe_exit(self):
+        """Clean shutdown handler: kill running jobs and remove socket files."""
         with self.lock:
             self._clean_jobs()
             if self.err_msg:
@@ -815,13 +842,16 @@ class RunJob(object):
 
     @property
     def is_success(self):
+        """True when all jobs have completed successfully."""
         return all(j.is_success for j in self.jobs)
 
     @property
     def fail_jobs(self):
+        """Return the list of jobs that have failed."""
         return [j for j in self.jobs if j.is_fail]
 
     def sumstatus(self):
+        """Print a final summary of job counts (total/success/fail/wait) and write status JSON."""
         if not hasattr(self, "jobs") or not len(self.jobs) or self.finished:
             return
         fail_jobs = len(self.fail_jobs)
@@ -857,6 +887,11 @@ class RunJob(object):
 
 
 class RunFlow(RunJob):
+    """Orchestrator for structured flow files with named jobs and explicit ordering.
+
+    Extends :class:`RunJob` to parse job-flow files with ``order ... after ...``
+    dependency syntax and glob-based job name filtering.
+    """
 
     # ── hooks ─────────────────────────────────────────────────────
 
@@ -905,6 +940,7 @@ class RunFlow(RunJob):
         self.jobqueue = JobQueue(maxsize=min(max(self.maxjob, 1), MAX_JOB_QUEUE_SIZE))
 
     def reset(self):
+        """Re-parse the flow file and reinitialize state (used for retry/recovery)."""
         self.jfile = jfile = Jobfile(self.jobfile, mode=self.mode)
         self.jfile.parse_jobs(
             self.conf.match, self.conf.start or 1, self.conf.end)
@@ -913,6 +949,7 @@ class RunFlow(RunJob):
         self.reseted = True
 
     def __create_graph(self):
+        """Build the DAG from parsed order declarations and job definitions."""
         for k, v in self.orders.items():
             self.jobsgraph.add_node_if_not_exists(k)
             for i in v:

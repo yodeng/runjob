@@ -3,6 +3,11 @@ import logging
 
 
 class Logger(object):
+    """Multi-channel logger managing stdout, stderr, and default log streams.
+
+    Provides per-channel log level control and a global formatter with ANSI
+    color support via :class:`Formatter`.
+    """
 
     def __init__(self):
         self.logs = {
@@ -13,9 +18,16 @@ class Logger(object):
         self.set_logger(level=logging.INFO)
 
     def get_logger(self, name="default"):
+        """Return the logger for the given channel name."""
         return self.logs[name]
 
     def set_logger(self, level=logging.INFO, name="all"):
+        """Set log level and attach the color :class:`Formatter` to one or all channels.
+
+        Args:
+            level: Python logging level (e.g. ``logging.INFO``).
+            name: Channel name ("stdout", "stderr", "default") or ``"all"``.
+        """
         names = self.logs.keys() if name == "all" else [name, ]
         handler = logging.StreamHandler()
         handler.setFormatter(Formatter())
@@ -25,6 +37,7 @@ class Logger(object):
             logger.handlers = [handler, ]
 
     def disable_logger(self, name="all"):
+        """Suppress output by setting the channel(s) to CRITICAL level."""
         names = self.logs.keys() if name == "all" else [name, ]
         for log_name in names:
             self.set_logger(logging.CRITICAL, log_name)
@@ -75,6 +88,7 @@ class Formatter(logging.Formatter):
         return f'\x1b[{mode}m\x1b[{fore}m'
 
     def format(self, record):
+        """Format a log record using the pre-cached formatter for its level."""
         formatter = self._format_cache.get(record.levelno)
         if formatter is not None:
             return formatter.format(record)
@@ -84,6 +98,16 @@ class Formatter(logging.Formatter):
 
 
 def getlog(logfile=None, level="info", name=__package__):
+    """Create or retrieve a logger with the given name and level.
+
+    Args:
+        logfile: Path to a log file; ``None`` logs to stdout.
+        level: ``"info"`` or ``"debug"``.
+        name: Logger name (defaults to the package name).
+
+    Returns:
+        Configured :class:`logging.Logger` instance.
+    """
     logger = logging.getLogger(name)
     if level.lower() == "info":
         logger.setLevel(logging.INFO)

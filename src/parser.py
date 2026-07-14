@@ -48,7 +48,7 @@ class CustomHelpFormatter(HelpFormatter):
         return h
 
     def _format_action_invocation(self, action):
-        """Removes duplicate ALLCAPS with positional arguments."""
+        """Remove duplicate ALLCAPS with positional arguments."""
         if not action.option_strings:
             default = self._get_default_metavar_for_positional(action)
             metavar, = self._metavar_formatter(action, default)(1)
@@ -82,6 +82,7 @@ class CustomHelpFormatter(HelpFormatter):
 
 
 class ShowConfigAction(argparse.Action):
+    """Custom argparse action that prints the current configuration and exits."""
 
     def __init__(self,
                  option_strings,
@@ -106,6 +107,7 @@ class ShowConfigAction(argparse.Action):
         pass
 
     def __remove_action(self, parser):
+        """Remove this action's option strings from sys.argv so they are not re-parsed."""
         for action in parser._actions:
             if isinstance(action, ShowConfigAction):
                 break
@@ -115,11 +117,13 @@ class ShowConfigAction(argparse.Action):
 
 
 def show_help_on_empty_command():
+    """Append ``--help`` to argv when no arguments are given."""
     if len(sys.argv) == 1:
         sys.argv.append('--help')
 
 
 def show_config(p):
+    """Register a ``--show-config`` argument that displays configuration and exits."""
     p.add_argument('--show-config',  action=ShowConfigAction,
                    help="show configurations and exit.")
 
@@ -142,6 +146,7 @@ def color_description(parser):
 
 
 def rate_parser(p):
+    """Add rate-limiting and retry arguments to a parser."""
     rate_args = p.add_argument_group("rate arguments — submission rate limiting and retry controls")
     rate_args.add_argument('-r', '--retry', help="retry failed jobs N times (0 to disable)",
                            type=int, default=0, metavar="<int>")
@@ -154,6 +159,7 @@ def rate_parser(p):
 
 
 def default_parser():
+    """Build and return the base argument parser shared by all subcommands."""
     p = argparse.ArgumentParser(add_help=False)
     base = p.add_argument_group("base arguments — core options for job submission and execution control")
     base.add_argument('-v', '--version',
@@ -194,6 +200,7 @@ def default_parser():
 
 
 def timeout_parser(parser):
+    """Add per-job timeout and retry arguments to *parser*."""
     time_args = parser.add_argument_group("time arguments — per-job timeout thresholds and retry limits")
     time_args.add_argument('--max-queue-time', help="max time in queue before timeout, e.g. 2h (default: no limit)",
                            type=str, metavar="<float/str>")
@@ -206,6 +213,7 @@ def timeout_parser(parser):
 
 
 def backend_parser(parser):
+    """Add mutually exclusive ``--sge``/``--slurm``/``--local`` backend flags."""
     backend_args = parser.add_mutually_exclusive_group(required=False)
     for backend in BACKEND:
         backend_args.add_argument(f"--{backend}", default=False, action="store_true",
@@ -213,6 +221,7 @@ def backend_parser(parser):
 
 
 def batch_parser(parser):
+    """Add cluster resource arguments (queue, cpu, memory, node) to *parser*."""
     batch = parser.add_argument_group("resource arguments — CPU, memory and node allocation for cluster backends (sge/slurm)")
     batch.add_argument("-q", "--queue", type=str, help="target queue or partition, space-separated (default: all)",
                        nargs="*", metavar="<queue>")
@@ -227,6 +236,7 @@ def batch_parser(parser):
 
 
 def job_parser():
+    """Build and return the argument parser for flat job-file mode (``runshell``)."""
     parser = argparse.ArgumentParser(
         description=(
             f"%(prog)s — submit shell commands as parallel batch jobs, with automatic "
@@ -255,6 +265,7 @@ def job_parser():
 
 
 def flow_parser():
+    """Build and return the argument parser for structured flow mode (``runflow``)."""
     parser = argparse.ArgumentParser(
         description=(
             f"%(prog)s — run structured job flows with explicit dependencies and ordering.\n"
@@ -276,11 +287,13 @@ def flow_parser():
 
 
 def shell_job_parser(arglist):
+    """Parse known arguments from *arglist* using :func:`job_parser`."""
     parser = job_parser()
     return parser.parse_known_args(arglist)[0]
 
 
 def server_parser():
+    """Build and return the argument parser for ``runjob-server``."""
     parser = argparse.ArgumentParser(
         description="%(prog)s — start a job status server that listens for status updates on a Unix or TCP socket.",
         formatter_class=CustomHelpFormatter)
@@ -296,6 +309,7 @@ def server_parser():
 
 
 def client_parser():
+    """Build and return the argument parser for ``runjob-client``."""
     parser = argparse.ArgumentParser(
         description="%(prog)s — send a job status update to a running runjob-server via Unix or TCP socket.",
         formatter_class=CustomHelpFormatter)
@@ -315,6 +329,7 @@ def client_parser():
 
 
 def init_parser(parser):
+    """Finalize argument parsing: autocomplete support, init context, handle stdin."""
     try:
         import argcomplete
         argcomplete.autocomplete(parser)
