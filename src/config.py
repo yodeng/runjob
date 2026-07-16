@@ -119,6 +119,12 @@ class _LazyDict(Dict):
         object.__setattr__(self, '_key', key)
         object.__setattr__(self, '_attached', False)
 
+    def __getitem__(self, name):
+        """Normal dict lookup without the ``which()`` fallback — missing keys raise KeyError."""
+        return super(Dict, self).__getitem__(name)
+
+    __getattr__ = __getitem__
+
     def _attach(self):
         if not self._attached:
             super(Dict, self._parent).__setitem__(self._key, self)
