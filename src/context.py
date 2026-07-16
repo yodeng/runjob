@@ -212,7 +212,10 @@ class Context(metaclass=ContextType):
     @classmethod
     def init(cls, *cf, init_bin=False, args=None, app=__package__, **kw):
         """Instantiate (or retrieve) the singleton Context with the given config files."""
-        cls(*cf, init_bin=init_bin, args=args, app=app, **kw)
+        cls._conf = load_config(
+            *cf, init_bin=init_bin or kw.get("init_envs"), app=app)
+        cls.init_arg(args)
+        cls.init_log(name=app)
 
     # ── attribute delegation ────────────────────────────────────────
 
