@@ -119,6 +119,9 @@ class _LazyDict(Dict):
         object.__setattr__(self, '_key', key)
         object.__setattr__(self, '_attached', False)
 
+    def __repr__(self):
+        return f"_LazyDict({dict.__repr__(self)}, parent={self._parent!r}, key={self._key!r})"
+
     def __getitem__(self, name):
         """Normal dict lookup without the ``which()`` fallback — missing keys raise KeyError."""
         return super(Dict, self).__getitem__(name)
