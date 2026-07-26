@@ -40,6 +40,7 @@ class Context(metaclass=ContextType):
             self.args = self.conf.args
         self.init_arg(args)
         self.init_log(name=app)
+        self.add_path()
 
     # ── lazy class-level accessors ──────────────────────────────────
 
