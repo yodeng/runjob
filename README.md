@@ -1,3 +1,5 @@
+
+
 [English](./README.md) | [中文](./README_zh.md)
 
 # runjob
@@ -78,7 +80,7 @@ echo hello
 echo runjob
 echo runjob
 wait
-echo runjob // -m 1 -c 1
+echo runjob // -m 1G -c 1
 ```
 
 Run:
@@ -91,7 +93,7 @@ runshell example.sh
 
 - The first 4 lines are submitted as 4 independent parallel jobs
 - Jobs after `wait` only start after all preceding jobs complete
-- The `//` suffix passes per-job arguments (e.g., `-m 1` for 1GB memory)
+- The `//` suffix passes per-job arguments (e.g., `-m 1G` for 1GB memory)
 
 ### Example 2: Job Format (traditional block syntax)
 
